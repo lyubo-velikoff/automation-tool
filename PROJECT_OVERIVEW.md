@@ -45,7 +45,7 @@ Build a monolithic web application that allows users to create automated workflo
 - **Hybrid API**:  
   - **REST** for simpler endpoints  
   - **GraphQL** (Apollo Server + TypeGraphQL) for more complex data  
-- **Drag-and-Drop Builder**: A React Flow–powered UI that stores node/edge configurations in Supabase.
+- **Drag-and-Drop Builder**: A React Flow-powered UI that stores node/edge configurations in Supabase.
 
 ---
 
@@ -81,6 +81,8 @@ Build a monolithic web application that allows users to create automated workflo
 - **Testing**  
   - **Jest** for unit tests  
   - **Playwright** for end-to-end tests
+  - **Contract Tests** located in `apps/server/tests/contracts/`
+    - `workflow.sh`: Tests workflow API endpoints with service role authentication
 
 - **CI/CD**  
   - **GitHub Actions** for building, testing, deploying
