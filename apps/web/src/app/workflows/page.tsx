@@ -7,31 +7,33 @@ import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useMutation } from '@apollo/client';
+import { CREATE_WORKFLOW } from '@/graphql/mutations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-
 export default function WorkflowsPage() {
   const [workflowName, setWorkflowName] = useState('');
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  const [createWorkflow, { loading, error }] = useMutation(CREATE_WORKFLOW, {
+    onError: (error) => {
+      console.error('GraphQL error:', error);
+    }
+  });
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
     const { data: { user } } = await supabase.auth.getUser();
-    
     setIsAuthenticated(!!user);
-    setAuthToken(session?.access_token || null);
   };
 
   const handleLogin = async () => {
@@ -49,7 +51,7 @@ export default function WorkflowsPage() {
       return;
     }
 
-    if (!authToken) {
+    if (!isAuthenticated) {
       alert('You must be logged in to save workflows');
       return;
     }
@@ -57,28 +59,23 @@ export default function WorkflowsPage() {
     try {
       console.log('Saving workflow:', { name: workflowName, nodes, edges });
       
-      const response = await fetch(`${API_URL}/api/workflows`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
+      const { data } = await createWorkflow({
+        variables: {
+          input: {
+            name: workflowName,
+            description: '',
+            nodes,
+            edges,
+          },
         },
-        body: JSON.stringify({
-          name: workflowName,
-          nodes,
-          edges,
-        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('Server error:', data);
-        throw new Error(data.error || 'Failed to save workflow');
+      if (data?.createWorkflow) {
+        console.log('Workflow saved successfully:', data.createWorkflow);
+        alert('Workflow saved successfully!');
+      } else {
+        throw new Error('No data returned from mutation');
       }
-
-      console.log('Workflow saved successfully:', data);
-      alert('Workflow saved successfully!');
     } catch (error) {
       console.error('Error saving workflow:', error);
       alert(error instanceof Error ? error.message : 'Failed to save workflow');
@@ -112,7 +109,9 @@ export default function WorkflowsPage() {
             className="w-64"
           />
         </div>
-        <Button onClick={handleSave}>Save Workflow</Button>
+        <Button onClick={handleSave} disabled={loading}>
+          {loading ? 'Saving...' : 'Save Workflow'}
+        </Button>
       </div>
       <div className="flex-1">
         <WorkflowCanvas

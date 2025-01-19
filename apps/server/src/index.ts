@@ -26,8 +26,10 @@ async function bootstrap() {
 
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-      credentials: true
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
     })
   );
 
@@ -157,7 +159,15 @@ async function bootstrap() {
   });
 
   await apolloServer.start();
-  apolloServer.applyMiddleware({ app, cors: false });
+  apolloServer.applyMiddleware({ 
+    app, 
+    cors: {
+      origin: true,
+      credentials: true,
+      methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization']
+    }
+  });
 
   const port = process.env.PORT || 4000;
   app.listen(port, () => {
