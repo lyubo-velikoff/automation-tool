@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge, XYPosition } from 'reactflow';
 import { createClient } from '@supabase/supabase-js';
 import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
+import ConnectionStatus from '@/components/workflow/ConnectionStatus';
+import OpenAISettingsDialog from '@/components/workflow/OpenAISettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,13 +17,21 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+interface CleanNode {
+  id: string;
+  type: string;
+  position: XYPosition;
+  data: Record<string, unknown>;
+}
+
 export default function WorkflowsPage() {
   const [workflowName, setWorkflowName] = useState('');
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
 
-  const [createWorkflow, { loading, error }] = useMutation(CREATE_WORKFLOW, {
+  const [createWorkflow, { loading }] = useMutation(CREATE_WORKFLOW, {
     onError: (error) => {
       console.error('GraphQL error:', error);
     }
@@ -45,10 +55,12 @@ export default function WorkflowsPage() {
     });
   };
 
-  const cleanNodeForServer = (node: any) => {
-    const { width, height, selected, positionAbsolute, dragging, ...cleanNode } = node;
-    return cleanNode;
-  };
+  const cleanNodeForServer = (node: Node): CleanNode => ({
+    id: node.id,
+    type: node.type || 'default',
+    position: node.position,
+    data: node.data || {},
+  });
 
   const handleSave = async () => {
     if (!workflowName) {
@@ -117,6 +129,9 @@ export default function WorkflowsPage() {
         <Button onClick={handleSave} disabled={loading}>
           {loading ? 'Saving...' : 'Save Workflow'}
         </Button>
+        <div className="ml-auto">
+          <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
+        </div>
       </div>
       <div className="flex-1">
         <WorkflowCanvas
@@ -125,6 +140,14 @@ export default function WorkflowsPage() {
           onSave={handleCanvasChange}
         />
       </div>
+      <OpenAISettingsDialog
+        open={openAISettingsOpen}
+        onOpenChange={setOpenAISettingsOpen}
+        onSuccess={() => {
+          // Refresh connection status
+          window.location.reload();
+        }}
+      />
     </div>
   );
 } 
