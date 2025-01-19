@@ -47,7 +47,7 @@ export const VALIDATE_OPENAI_CONNECTION = gql`
 `;
 
 export const EXECUTE_WORKFLOW = gql`
-  mutation ExecuteWorkflow($workflowId: ID!) {
+  mutation ExecuteWorkflow($workflowId: String!) {
     executeWorkflow(workflowId: $workflowId) {
       success
       message

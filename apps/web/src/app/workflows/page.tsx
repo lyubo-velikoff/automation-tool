@@ -13,6 +13,7 @@ import { useMutation } from '@apollo/client';
 import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from '@/graphql/mutations';
 import { PlayIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import ExecutionHistory from '@/components/workflow/ExecutionHistory';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -200,12 +201,19 @@ export default function WorkflowsPage() {
           <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
         </div>
       </div>
-      <div className="flex-1">
-        <WorkflowCanvas
-          initialNodes={nodes}
-          initialEdges={edges}
-          onSave={handleCanvasChange}
-        />
+      <div className="flex-1 grid grid-cols-[1fr,400px]">
+        <div className="h-full">
+          <WorkflowCanvas
+            initialNodes={nodes}
+            initialEdges={edges}
+            onSave={handleCanvasChange}
+          />
+        </div>
+        {currentWorkflowId && (
+          <div className="border-l p-4 overflow-auto">
+            <ExecutionHistory workflowId={currentWorkflowId} />
+          </div>
+        )}
       </div>
       <OpenAISettingsDialog
         open={openAISettingsOpen}

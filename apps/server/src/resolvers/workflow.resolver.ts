@@ -6,6 +6,9 @@ import {
   UpdateWorkflowInput
 } from "../schema/workflow";
 import { ObjectType, Field } from 'type-graphql';
+import { google } from 'googleapis';
+import OpenAI from 'openai';
+import { OAuth2Client } from 'google-auth-library';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -179,10 +182,135 @@ export class WorkflowResolver {
     }
   }
 
+  private async getNodeCredentials(userId: string, nodeType: string) {
+    const { data: settings, error } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) throw error;
+    if (!settings) throw new Error('User settings not found');
+
+    switch (nodeType) {
+      case 'openaiCompletion':
+        return { apiKey: settings.openai_api_key };
+      case 'gmailTrigger':
+      case 'gmailAction':
+        // Get Gmail OAuth tokens from user settings
+        return { tokens: settings.gmail_tokens };
+      default:
+        throw new Error(`Unknown node type: ${nodeType}`);
+    }
+  }
+
+  private async executeGmailTrigger(node: any, credentials: any) {
+    const oauth2Client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2Client.setCredentials(credentials.tokens);
+
+    const gmail = google.gmail({ 
+      version: 'v1', 
+      auth: oauth2Client as any // Type assertion needed due to googleapis types
+    });
+    
+    // Get messages based on filters
+    const { data: messages } = await gmail.users.messages.list({
+      userId: 'me',
+      q: `${node.data.fromFilter ? `from:${node.data.fromFilter}` : ''} ${node.data.subjectFilter ? `subject:${node.data.subjectFilter}` : ''}`.trim(),
+      maxResults: 10
+    });
+
+    if (!messages?.messages?.length) {
+      return { emails: [] };
+    }
+
+    // Get full message details for each email
+    const emails = await Promise.all(
+      messages.messages.map(async (message) => {
+        const { data: email } = await gmail.users.messages.get({
+          userId: 'me',
+          id: message.id!,
+          format: 'full'
+        });
+        return email;
+      })
+    );
+
+    return { emails };
+  }
+
+  private async executeGmailAction(node: any, credentials: any, inputs: any) {
+    const oauth2Client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2Client.setCredentials(credentials.tokens);
+
+    const gmail = google.gmail({ 
+      version: 'v1', 
+      auth: oauth2Client as any // Type assertion needed due to googleapis types
+    });
+
+    // Get email content from previous node or node data
+    const emailContent = inputs?.emailContent || node.data.emailContent;
+    const subject = inputs?.subject || node.data.subject;
+    const to = inputs?.to || node.data.to;
+
+    // Create email message
+    const message = [
+      'Content-Type: text/plain; charset="UTF-8"',
+      'MIME-Version: 1.0',
+      'Content-Transfer-Encoding: 7bit',
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      '',
+      emailContent
+    ].join('\n');
+
+    const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    // Send email
+    await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage
+      }
+    });
+
+    return { sent: true };
+  }
+
+  private async executeOpenAICompletion(node: any, credentials: any, inputs: any) {
+    const openai = new OpenAI({
+      apiKey: credentials.apiKey
+    });
+
+    // Get prompt from previous node or node data
+    const prompt = inputs?.prompt || node.data.prompt;
+    const model = node.data.model || 'gpt-3.5-turbo';
+    const maxTokens = node.data.maxTokens || 100;
+
+    const completion = await openai.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: maxTokens
+    });
+
+    return { 
+      completion: completion.choices[0]?.message?.content,
+      usage: completion.usage
+    };
+  }
+
   @Mutation(() => ExecutionResult)
   @Authorized()
   async executeWorkflow(
-    @Arg("workflowId") workflowId: string,
+    @Arg("workflowId", () => String) workflowId: string,
     @Ctx() context: any
   ): Promise<ExecutionResult> {
     try {
@@ -197,7 +325,6 @@ export class WorkflowResolver {
       if (workflowError) throw workflowError;
       if (!workflow) throw new Error("Workflow not found");
 
-      // Execute each node in sequence based on edges
       const nodes = workflow.nodes as any[];
       const edges = workflow.edges as any[];
 
@@ -215,36 +342,38 @@ export class WorkflowResolver {
         !edges.some(edge => edge.target === node.id)
       );
 
-      // Execute the workflow
+      // Store execution results
       const executionId = `exec-${Date.now()}`;
       const results = new Map<string, any>();
 
       // Helper function to execute a node
-      const executeNode = async (node: any) => {
+      const executeNode = async (node: any, inputs?: any) => {
         try {
+          const credentials = await this.getNodeCredentials(context.user.id, node.type);
+          let result;
+
           switch (node.type) {
             case 'gmailTrigger':
-              // Implement Gmail trigger execution
-              results.set(node.id, { emails: [] }); // Mock result
+              result = await this.executeGmailTrigger(node, credentials);
               break;
             case 'gmailAction':
-              // Implement Gmail action execution
-              results.set(node.id, { sent: true }); // Mock result
+              result = await this.executeGmailAction(node, credentials, inputs);
               break;
             case 'openaiCompletion':
-              // Implement OpenAI completion execution
-              results.set(node.id, { completion: 'Mock completion' }); // Mock result
+              result = await this.executeOpenAICompletion(node, credentials, inputs);
               break;
             default:
               throw new Error(`Unknown node type: ${node.type}`);
           }
+
+          results.set(node.id, result);
 
           // Execute connected nodes
           const nextNodes = nodeConnections.get(node.id) || [];
           for (const nextNodeId of nextNodes) {
             const nextNode = nodes.find(n => n.id === nextNodeId);
             if (nextNode) {
-              await executeNode(nextNode);
+              await executeNode(nextNode, result);
             }
           }
         } catch (error) {
@@ -257,6 +386,21 @@ export class WorkflowResolver {
       for (const startNode of startNodes) {
         await executeNode(startNode);
       }
+
+      // Store execution results in the database
+      const { error: resultError } = await supabase
+        .from('workflow_executions')
+        .insert([
+          {
+            workflow_id: workflowId,
+            user_id: context.user.id,
+            execution_id: executionId,
+            status: 'completed',
+            results: Object.fromEntries(results)
+          }
+        ]);
+
+      if (resultError) throw resultError;
 
       return {
         success: true,
