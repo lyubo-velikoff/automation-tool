@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Card } from '@/components/ui/card';
 import {
@@ -36,16 +36,17 @@ interface Execution {
   created_at: string;
 }
 
-export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) {
+export interface ExecutionHistoryRef {
+  fetchExecutions: () => Promise<void>;
+}
+
+const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(function ExecutionHistory(
+  { workflowId }, 
+  ref
+) {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (workflowId) {
-      fetchExecutions();
-    }
-  }, [workflowId]);
 
   const fetchExecutions = async () => {
     try {
@@ -85,6 +86,16 @@ export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) 
       setLoading(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    fetchExecutions
+  }));
+
+  useEffect(() => {
+    if (workflowId) {
+      fetchExecutions();
+    }
+  }, [workflowId]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -163,4 +174,8 @@ export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) 
       </ScrollArea>
     </Card>
   );
-} 
+});
+
+ExecutionHistory.displayName = 'ExecutionHistory';
+
+export default ExecutionHistory; 

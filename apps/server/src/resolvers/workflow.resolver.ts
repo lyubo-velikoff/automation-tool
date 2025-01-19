@@ -375,6 +375,18 @@ export class WorkflowResolver {
               status: 'error', 
               error: error instanceof Error ? error.message : 'Unknown error' 
             });
+            // Store failed execution before throwing
+            await supabase
+              .from('workflow_executions')
+              .insert([
+                {
+                  workflow_id: workflowId,
+                  user_id: context.user.id,
+                  execution_id: executionId,
+                  status: 'failed',
+                  results: Object.fromEntries(results)
+                }
+              ]);
             throw error;
           }
         };
@@ -403,20 +415,12 @@ export class WorkflowResolver {
           executionId,
         };
       } catch (error) {
-        // Store failed execution results
-        await supabase
-          .from('workflow_executions')
-          .insert([
-            {
-              workflow_id: workflowId,
-              user_id: context.user.id,
-              execution_id: executionId,
-              status: 'failed',
-              results: Object.fromEntries(results)
-            }
-          ]);
-
-        throw error;
+        // Return error result without throwing
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error occurred',
+          executionId,
+        };
       }
     } catch (error) {
       console.error('Workflow execution error:', error);
