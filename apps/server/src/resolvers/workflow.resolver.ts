@@ -255,8 +255,8 @@ export class WorkflowResolver {
       case 'openaiCompletion':
         // Temporarily return empty credentials to skip OpenAI validation
         return { apiKey: 'disabled' };
-      case 'gmailTrigger':
-      case 'gmailAction':
+      case 'GMAIL_TRIGGER':
+      case 'GMAIL_ACTION':
         // Get Gmail OAuth tokens from user settings
         return { tokens: settings.gmail_tokens };
       case 'SCRAPING':
@@ -365,7 +365,6 @@ export class WorkflowResolver {
   }
 
   private async executeScrapingNode(node: any, _credentials: any, inputs: any) {
-    console.log('Executing scraping node with data:', node.data);
     const scrapingService = new ScrapingService();
     const url = inputs?.url || node.data.url;
     const selector = inputs?.selector || node.data.selector;
@@ -373,7 +372,6 @@ export class WorkflowResolver {
     const attribute = inputs?.attribute || node.data.attribute;
 
     const results = await scrapingService.scrapeUrl(url, selector, selectorType, attribute);
-    console.log('Scraping results:', results);
     return { results };
   }
 
@@ -383,9 +381,9 @@ export class WorkflowResolver {
         return result.results || [];
       case 'openaiCompletion':
         return [result.completion || ''];
-      case 'gmailTrigger':
+      case 'GMAIL_TRIGGER':
         return result.emails?.map((e: any) => e.snippet || '') || [];
-      case 'gmailAction':
+      case 'GMAIL_ACTION':
         return ['Email sent successfully'];
       default:
         return [];
@@ -398,10 +396,10 @@ export class WorkflowResolver {
       let result;
 
       switch (node.type) {
-        case 'gmailTrigger':
+        case 'GMAIL_TRIGGER':
           result = await this.executeGmailTrigger(node, credentials);
           break;
-        case 'gmailAction':
+        case 'GMAIL_ACTION':
           result = await this.executeGmailAction(node, context, inputs);
           break;
         case 'openaiCompletion':
