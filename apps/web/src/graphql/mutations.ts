@@ -33,3 +33,15 @@ export const CREATE_WORKFLOW = gql`
     }
   }
 `; 
+
+export const GENERATE_COMPLETION = gql`
+  mutation GenerateCompletion($data: CompletionNodeData!) {
+    generateCompletion(data: $data)
+  }
+`;
+
+export const VALIDATE_OPENAI_CONNECTION = gql`
+  mutation ValidateOpenAIConnection {
+    validateOpenAIConnection
+  }
+`; 
