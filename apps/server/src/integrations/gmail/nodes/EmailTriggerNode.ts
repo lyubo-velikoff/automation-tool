@@ -19,15 +19,17 @@ export class EmailTriggerConfig {
 export class EmailTriggerNode {
   private lastCheckTime: Date;
   private config: EmailTriggerConfig;
+  private userId: string;
 
-  constructor(config: EmailTriggerConfig) {
+  constructor(userId: string, config: EmailTriggerConfig) {
+    this.userId = userId;
     this.config = config;
     this.lastCheckTime = new Date();
   }
 
   async checkForNewEmails() {
     try {
-      const emails = await GmailService.getRecentEmails();
+      const emails = await GmailService.getRecentEmails(this.userId);
       const newEmails = emails.filter(email => {
         const emailDate = new Date(email.date);
         return emailDate > this.lastCheckTime &&

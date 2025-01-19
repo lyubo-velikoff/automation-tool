@@ -1,11 +1,12 @@
-import { gmail } from './config';
+import { createGmailClient } from './config';
 
 export class GmailService {
   // Get list of recent emails
-  static async getRecentEmails(userId = 'me', maxResults = 10) {
+  static async getRecentEmails(userId: string, maxResults = 10) {
     try {
+      const gmail = await createGmailClient(userId);
       const response = await gmail.users.messages.list({
-        userId,
+        userId: 'me',
         maxResults,
       });
 
@@ -13,7 +14,7 @@ export class GmailService {
       const emails = await Promise.all(
         messages.map(async (message) => {
           const email = await gmail.users.messages.get({
-            userId,
+            userId: 'me',
             id: message.id!,
           });
           return this.parseEmailData(email.data);
@@ -28,8 +29,9 @@ export class GmailService {
   }
 
   // Send an email
-  static async sendEmail(to: string, subject: string, body: string, userId = 'me') {
+  static async sendEmail(userId: string, to: string, subject: string, body: string) {
     try {
+      const gmail = await createGmailClient(userId);
       const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
       const messageParts = [
         'From: me',
@@ -49,7 +51,7 @@ export class GmailService {
         .replace(/=+$/, '');
 
       const res = await gmail.users.messages.send({
-        userId,
+        userId: 'me',
         requestBody: {
           raw: encodedMessage,
         },

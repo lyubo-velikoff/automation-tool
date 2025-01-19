@@ -15,6 +15,15 @@ import ReactFlow, {
   EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import GmailTriggerNode from './nodes/gmail/GmailTriggerNode';
+import GmailActionNode from './nodes/gmail/GmailActionNode';
+import NodeSelector from './NodeSelector';
+
+// Define custom node types
+const nodeTypes = {
+  gmailTrigger: GmailTriggerNode,
+  gmailAction: GmailActionNode,
+};
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
@@ -57,14 +66,25 @@ export default function WorkflowCanvas({
     [nodes, edges, onEdgesChange, onSave],
   );
 
+  const handleAddNode = useCallback(
+    (newNode: Node) => {
+      setNodes((nds) => [...nds, newNode]);
+    },
+    [setNodes],
+  );
+
   return (
-    <div className="w-full h-[calc(100vh-4rem)] bg-background">
+    <div className="relative w-full h-[calc(100vh-4rem)] bg-background">
+      <div className="absolute top-4 left-4 z-10">
+        <NodeSelector onAddNode={handleAddNode} />
+      </div>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
+        nodeTypes={nodeTypes}
         fitView
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}

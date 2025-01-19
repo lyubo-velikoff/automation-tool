@@ -1,4 +1,11 @@
 import { google } from 'googleapis';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+);
 
 // Gmail API scopes needed for reading and sending emails
 export const GMAIL_SCOPES = [
@@ -7,32 +14,26 @@ export const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
 ];
 
-// OAuth2 configuration
-export const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+// Create OAuth2 client using tokens from Supabase session
+export const createOAuth2Client = async (userId: string) => {
+  // Get user's Google OAuth tokens from Supabase
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('google_tokens')
+    .eq('id', userId)
+    .single();
 
-// Gmail API instance
-export const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  if (error || !user?.google_tokens) {
+    throw new Error('Google OAuth tokens not found');
+  }
 
-// Helper to generate OAuth URL
-export const getAuthUrl = () => {
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: GMAIL_SCOPES,
-    prompt: 'consent',
-  });
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials(user.google_tokens);
+  return oauth2Client;
 };
 
-// Helper to get tokens from code
-export const getTokensFromCode = async (code: string) => {
-  const { tokens } = await oauth2Client.getToken(code);
-  return tokens;
-};
-
-// Set credentials for authenticated requests
-export const setCredentials = (tokens: any) => {
-  oauth2Client.setCredentials(tokens);
+// Create Gmail API instance with user-specific auth
+export const createGmailClient = async (userId: string) => {
+  const auth = await createOAuth2Client(userId);
+  return google.gmail({ version: 'v1', auth });
 }; 

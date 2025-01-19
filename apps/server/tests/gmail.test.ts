@@ -1,22 +1,36 @@
+/// <reference types="jest" />
+
 import { GmailService } from '../src/integrations/gmail/service';
 import { EmailTriggerNode, EmailTriggerConfig } from '../src/integrations/gmail/nodes/EmailTriggerNode';
 import { EmailActionNode, EmailActionConfig } from '../src/integrations/gmail/nodes/EmailActionNode';
-import { setCredentials } from '../src/integrations/gmail/config';
+import { createOAuth2Client } from '../src/integrations/gmail/config';
+
+// Mock Supabase client
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          single: jest.fn(() => ({
+            data: {
+              google_tokens: {
+                access_token: 'mock_access_token',
+                refresh_token: 'mock_refresh_token',
+                scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+                token_type: 'Bearer',
+                expiry_date: 1234567890000
+              }
+            },
+            error: null
+          }))
+        }))
+      }))
+    }))
+  }))
+}));
 
 describe('Gmail Integration', () => {
-  // Mock credentials for testing
-  const mockTokens = {
-    access_token: 'mock_access_token',
-    refresh_token: 'mock_refresh_token',
-    scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
-    token_type: 'Bearer',
-    expiry_date: 1234567890000
-  };
-
-  beforeAll(() => {
-    // Set mock credentials
-    setCredentials(mockTokens);
-  });
+  const mockUserId = 'test-user-123';
 
   describe('EmailTriggerNode', () => {
     it('should filter emails based on configuration', async () => {
@@ -26,7 +40,7 @@ describe('Gmail Integration', () => {
         subjectFilter: 'Test Subject'
       };
 
-      const triggerNode = new EmailTriggerNode(config);
+      const triggerNode = new EmailTriggerNode(mockUserId, config);
       const emails = await triggerNode.checkForNewEmails();
 
       expect(Array.isArray(emails)).toBe(true);
@@ -46,7 +60,7 @@ describe('Gmail Integration', () => {
         content: 'Content'
       };
 
-      const actionNode = new EmailActionNode(config);
+      const actionNode = new EmailActionNode(mockUserId, config);
       const result = await actionNode.execute(context);
 
       expect(result.success).toBe(true);
@@ -56,12 +70,13 @@ describe('Gmail Integration', () => {
 
   describe('GmailService', () => {
     it('should fetch recent emails', async () => {
-      const emails = await GmailService.getRecentEmails();
+      const emails = await GmailService.getRecentEmails(mockUserId);
       expect(Array.isArray(emails)).toBe(true);
     });
 
     it('should send email', async () => {
       const result = await GmailService.sendEmail(
+        mockUserId,
         'test@example.com',
         'Test Subject',
         'Test Body'

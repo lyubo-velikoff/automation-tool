@@ -21,8 +21,10 @@ export class EmailActionConfig {
 
 export class EmailActionNode {
   private config: EmailActionConfig;
+  private userId: string;
 
-  constructor(config: EmailActionConfig) {
+  constructor(userId: string, config: EmailActionConfig) {
+    this.userId = userId;
     this.config = config;
   }
 
@@ -33,7 +35,7 @@ export class EmailActionNode {
       const subject = this.replaceTemplateVariables(this.config.subject, context);
       const body = this.replaceTemplateVariables(this.config.body, context);
 
-      const result = await GmailService.sendEmail(to, subject, body);
+      const result = await GmailService.sendEmail(this.userId, to, subject, body);
       return {
         success: true,
         messageId: result.id,
