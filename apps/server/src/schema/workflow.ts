@@ -1,6 +1,48 @@
 import { Field, ID, ObjectType, InputType } from 'type-graphql';
 
 @ObjectType()
+export class NodePosition {
+  @Field(() => Number)
+  x!: number;
+
+  @Field(() => Number)
+  y!: number;
+}
+
+@InputType()
+export class NodePositionInput {
+  @Field(() => Number)
+  x!: number;
+
+  @Field(() => Number)
+  y!: number;
+}
+
+@ObjectType()
+export class NodeData {
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
+
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+}
+
+@InputType()
+export class NodeDataInput {
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
+
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+}
+
+@ObjectType()
 export class WorkflowNode {
   @Field()
   id!: string;
@@ -11,15 +53,11 @@ export class WorkflowNode {
   @Field(() => String)
   label!: string;
 
-  @Field(() => Number)
-  x!: number;
+  @Field(() => NodePosition)
+  position!: NodePosition;
 
-  @Field(() => Number)
-  y!: number;
-
-  constructor(data: Partial<WorkflowNode> = {}) {
-    Object.assign(this, data);
-  }
+  @Field(() => NodeData, { nullable: true })
+  data?: NodeData;
 }
 
 @ObjectType()
@@ -32,10 +70,36 @@ export class WorkflowEdge {
 
   @Field()
   target!: string;
+}
 
-  constructor(data: Partial<WorkflowEdge> = {}) {
-    Object.assign(this, data);
-  }
+@InputType()
+export class WorkflowNodeInput {
+  @Field()
+  id!: string;
+
+  @Field()
+  type!: string;
+
+  @Field(() => String)
+  label!: string;
+
+  @Field(() => NodePositionInput)
+  position!: NodePositionInput;
+
+  @Field(() => NodeDataInput, { nullable: true })
+  data?: NodeDataInput;
+}
+
+@InputType()
+export class WorkflowEdgeInput {
+  @Field()
+  id!: string;
+
+  @Field()
+  source!: string;
+
+  @Field()
+  target!: string;
 }
 
 @ObjectType()
@@ -67,46 +131,14 @@ export class Workflow {
   @Field()
   is_active!: boolean;
 
-  constructor(data: Partial<Workflow> = {}) {
-    Object.assign(this, data);
-  }
-}
-
-@InputType()
-export class WorkflowNodeInput {
-  @Field()
-  id!: string;
-
-  @Field()
-  type!: string;
-
-  @Field(() => String)
-  label!: string;
-
-  @Field(() => Number)
-  x!: number;
-
-  @Field(() => Number)
-  y!: number;
-
-  constructor(data: Partial<WorkflowNodeInput> = {}) {
-    Object.assign(this, data);
-  }
-}
-
-@InputType()
-export class WorkflowEdgeInput {
-  @Field()
-  id!: string;
-
-  @Field()
-  source!: string;
-
-  @Field()
-  target!: string;
-
-  constructor(data: Partial<WorkflowEdgeInput> = {}) {
-    Object.assign(this, data);
+  constructor(data?: Partial<Workflow>) {
+    if (data) {
+      Object.assign(this, {
+        ...data,
+        created_at: data.created_at ? new Date(data.created_at) : undefined,
+        updated_at: data.updated_at ? new Date(data.updated_at) : undefined
+      });
+    }
   }
 }
 
@@ -123,10 +155,6 @@ export class CreateWorkflowInput {
 
   @Field(() => [WorkflowEdgeInput])
   edges!: WorkflowEdgeInput[];
-
-  constructor(data: Partial<CreateWorkflowInput> = {}) {
-    Object.assign(this, data);
-  }
 }
 
 @InputType()
@@ -145,8 +173,4 @@ export class UpdateWorkflowInput {
 
   @Field(() => [WorkflowEdgeInput], { nullable: true })
   edges?: WorkflowEdgeInput[];
-
-  constructor(data: Partial<UpdateWorkflowInput> = {}) {
-    Object.assign(this, data);
-  }
 } 

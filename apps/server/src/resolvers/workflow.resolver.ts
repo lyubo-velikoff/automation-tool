@@ -65,13 +65,16 @@ export class WorkflowResolver {
           description: input.description,
           nodes: input.nodes,
           edges: input.edges,
-          user_id: context.user.id
+          user_id: context.user.id,
+          is_active: true
         }
       ])
       .select()
       .single();
 
     if (error) throw error;
+    if (!data) throw new Error("No data returned after insert");
+
     return new Workflow(data);
   }
 

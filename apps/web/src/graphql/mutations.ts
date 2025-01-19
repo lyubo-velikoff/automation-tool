@@ -10,8 +10,15 @@ export const CREATE_WORKFLOW = gql`
         id
         type
         label
-        x
-        y
+        position {
+          x
+          y
+        }
+        data {
+          pollingInterval
+          fromFilter
+          subjectFilter
+        }
       }
       edges {
         id

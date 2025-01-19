@@ -25,33 +25,31 @@ interface NodeSelectorProps {
 
 export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
   const addGmailTrigger = () => {
-    const newNode: Node<TriggerNodeData> = {
+    const newNode = {
       id: `gmail-trigger-${Date.now()}`,
       type: 'gmailTrigger',
+      label: 'Gmail Trigger',
       position: { x: 100, y: 100 },
       data: {
         pollingInterval: 5,
         fromFilter: '',
-        subjectFilter: '',
-        onConfigChange: () => {},
-      },
+        subjectFilter: ''
+      }
     };
     onAddNode(newNode);
   };
 
   const addGmailAction = () => {
-    const newNode: Node<ActionNodeData> = {
+    const newNode = {
       id: `gmail-action-${Date.now()}`,
       type: 'gmailAction',
-      position: { x: 400, y: 100 },
+      label: 'Send Email',
+      position: { x: 100, y: 100 },
       data: {
         to: '',
         subject: '',
-        body: '',
-        cc: '',
-        bcc: '',
-        onConfigChange: () => {},
-      },
+        body: ''
+      }
     };
     onAddNode(newNode);
   };
