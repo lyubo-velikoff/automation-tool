@@ -17,12 +17,14 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import GmailTriggerNode from './nodes/gmail/GmailTriggerNode';
 import GmailActionNode from './nodes/gmail/GmailActionNode';
+import OpenAICompletionNode from './nodes/openai/OpenAICompletionNode';
 import NodeSelector from './NodeSelector';
 
 // Define custom node types
 const nodeTypes = {
   gmailTrigger: GmailTriggerNode,
   gmailAction: GmailActionNode,
+  openaiCompletion: OpenAICompletionNode,
 };
 
 interface WorkflowCanvasProps {
