@@ -19,6 +19,54 @@ export class NodePositionInput {
 }
 
 @ObjectType()
+export class GmailTriggerData {
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
+
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+}
+
+@ObjectType()
+export class GmailActionData {
+  @Field(() => String, { nullable: true })
+  to?: string;
+
+  @Field(() => String, { nullable: true })
+  subject?: string;
+
+  @Field(() => String, { nullable: true })
+  body?: string;
+}
+
+@InputType()
+export class GmailTriggerDataInput {
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
+
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+}
+
+@InputType()
+export class GmailActionDataInput {
+  @Field(() => String, { nullable: true })
+  to?: string;
+
+  @Field(() => String, { nullable: true })
+  subject?: string;
+
+  @Field(() => String, { nullable: true })
+  body?: string;
+}
+
+@ObjectType()
 export class NodeData {
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
@@ -28,6 +76,15 @@ export class NodeData {
 
   @Field(() => String, { nullable: true })
   subjectFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  to?: string;
+
+  @Field(() => String, { nullable: true })
+  subject?: string;
+
+  @Field(() => String, { nullable: true })
+  body?: string;
 }
 
 @InputType()
@@ -40,6 +97,15 @@ export class NodeDataInput {
 
   @Field(() => String, { nullable: true })
   subjectFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  to?: string;
+
+  @Field(() => String, { nullable: true })
+  subject?: string;
+
+  @Field(() => String, { nullable: true })
+  body?: string;
 }
 
 @ObjectType()

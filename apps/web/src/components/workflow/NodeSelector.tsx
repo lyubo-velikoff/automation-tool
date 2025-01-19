@@ -11,6 +11,7 @@ import { PlusCircle } from 'lucide-react';
 import { Node } from 'reactflow';
 import { TriggerConfig } from './nodes/gmail/GmailTriggerNode';
 import { EmailConfig } from './nodes/gmail/GmailActionNode';
+import { useCallback } from 'react';
 
 interface NodeData<T> {
   onConfigChange: (config: T) => void;
@@ -24,7 +25,7 @@ interface NodeSelectorProps {
 }
 
 export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
-  const addGmailTrigger = () => {
+  const addGmailTrigger = useCallback(() => {
     const newNode = {
       id: `gmail-trigger-${Date.now()}`,
       type: 'gmailTrigger',
@@ -37,9 +38,9 @@ export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
       }
     };
     onAddNode(newNode);
-  };
+  }, [onAddNode]);
 
-  const addGmailAction = () => {
+  const addGmailAction = useCallback(() => {
     const newNode = {
       id: `gmail-action-${Date.now()}`,
       type: 'gmailAction',
@@ -52,7 +53,7 @@ export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
       }
     };
     onAddNode(newNode);
-  };
+  }, [onAddNode]);
 
   return (
     <DropdownMenu>

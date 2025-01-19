@@ -45,6 +45,11 @@ export default function WorkflowsPage() {
     });
   };
 
+  const cleanNodeForServer = (node: any) => {
+    const { width, height, selected, positionAbsolute, dragging, ...cleanNode } = node;
+    return cleanNode;
+  };
+
   const handleSave = async () => {
     if (!workflowName) {
       alert('Please enter a workflow name');
@@ -64,10 +69,10 @@ export default function WorkflowsPage() {
           input: {
             name: workflowName,
             description: '',
-            nodes,
-            edges,
-          },
-        },
+            nodes: nodes.map(cleanNodeForServer),
+            edges
+          }
+        }
       });
 
       if (data?.createWorkflow) {
@@ -78,7 +83,7 @@ export default function WorkflowsPage() {
       }
     } catch (error) {
       console.error('Error saving workflow:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save workflow');
+      alert('Error saving workflow. Please try again.');
     }
   };
 
