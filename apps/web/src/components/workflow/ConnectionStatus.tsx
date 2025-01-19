@@ -42,13 +42,24 @@ export default function ConnectionStatus({ onOpenAISettings }: ConnectionStatusP
     const { data: { session } } = await supabase.auth.getSession();
     const gmailConnected = session?.provider_token != null;
 
+    // Get stored OpenAI API key
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('openai_api_key')
+      .eq('user_id', session?.user?.id)
+      .single();
+
     // Check OpenAI connection
     let openaiConnected = false;
-    try {
-      const { data } = await validateOpenAI();
-      openaiConnected = data?.validateOpenAIConnection || false;
-    } catch (error) {
-      console.error('OpenAI validation error:', error);
+    if (settings?.openai_api_key) {
+      try {
+        const { data } = await validateOpenAI({
+          variables: { apiKey: settings.openai_api_key },
+        });
+        openaiConnected = data?.validateOpenAIConnection || false;
+      } catch (error) {
+        console.error('OpenAI validation error:', error);
+      }
     }
 
     setStatus({

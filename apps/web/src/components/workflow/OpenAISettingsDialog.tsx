@@ -12,6 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMutation } from '@apollo/client';
 import { VALIDATE_OPENAI_CONNECTION } from '@/graphql/mutations';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface OpenAISettingsDialogProps {
   open: boolean;
@@ -29,12 +35,29 @@ export default function OpenAISettingsDialog({
 
   const handleSave = async () => {
     try {
-      // Store API key securely (e.g., in Supabase or environment variables)
-      // For now, we'll just validate the connection
-      const { data } = await validateOpenAI();
+      // Store API key in Supabase
+      const { error: storageError } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          openai_api_key: apiKey,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (storageError) {
+        throw storageError;
+      }
+
+      // Validate the connection
+      const { data } = await validateOpenAI({
+        variables: { apiKey },
+      });
+
       if (data?.validateOpenAIConnection) {
         onSuccess?.();
         onOpenChange(false);
+      } else {
+        throw new Error('Failed to validate OpenAI connection');
       }
     } catch (error) {
       console.error('Failed to validate OpenAI connection:', error);

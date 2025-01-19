@@ -41,7 +41,7 @@ export const GENERATE_COMPLETION = gql`
 `;
 
 export const VALIDATE_OPENAI_CONNECTION = gql`
-  mutation ValidateOpenAIConnection {
-    validateOpenAIConnection
+  mutation ValidateOpenAIConnection($apiKey: String!) {
+    validateOpenAIConnection(apiKey: $apiKey)
   }
 `; 
