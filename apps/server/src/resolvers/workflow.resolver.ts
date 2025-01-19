@@ -1,9 +1,11 @@
-import { Resolver, Query, Mutation, Arg, Ctx, Authorized } from "type-graphql";
+import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int } from "type-graphql";
 import { createClient } from "@supabase/supabase-js";
 import {
   Workflow,
   CreateWorkflowInput,
-  UpdateWorkflowInput
+  UpdateWorkflowInput,
+  WorkflowNode,
+  WorkflowEdge
 } from "../schema/workflow";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
@@ -11,6 +13,7 @@ import OpenAI from 'openai';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../integrations/gmail/config';
 import { ScrapingService } from '../integrations/scraping/service';
+import { getTemporalClient } from '../temporal/client';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -531,6 +534,44 @@ export class WorkflowResolver {
         message: error instanceof Error ? error.message : 'Unknown error occurred',
         results: []
       };
+    }
+  }
+
+  @Mutation(() => Boolean)
+  async startTimedWorkflow(
+    @Arg('workflowId') workflowId: string,
+    @Arg('nodes', () => [WorkflowNode]) nodes: WorkflowNode[],
+    @Arg('edges', () => [WorkflowEdge]) edges: WorkflowEdge[],
+    @Arg('intervalMinutes', () => Int) intervalMinutes: number
+  ): Promise<boolean> {
+    try {
+      const client = await getTemporalClient();
+      
+      await client.workflow.start('timedWorkflow', {
+        args: [{ workflowId, nodes, edges, intervalMinutes }],
+        taskQueue: 'automation-tool',
+        workflowId: `timed-${workflowId}`,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error starting timed workflow:', error);
+      return false;
+    }
+  }
+
+  @Mutation(() => Boolean)
+  async stopTimedWorkflow(
+    @Arg('workflowId') workflowId: string
+  ): Promise<boolean> {
+    try {
+      const client = await getTemporalClient();
+      const handle = client.workflow.getHandle(`timed-${workflowId}`);
+      await handle.terminate();
+      return true;
+    } catch (error) {
+      console.error('Error stopping timed workflow:', error);
+      return false;
     }
   }
 }

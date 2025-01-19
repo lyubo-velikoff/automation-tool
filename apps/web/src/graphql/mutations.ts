@@ -111,3 +111,20 @@ export const UPDATE_WORKFLOW = gql`
     }
   }
 `; 
+
+export const START_TIMED_WORKFLOW = gql`
+  mutation StartTimedWorkflow($workflowId: String!, $nodes: [WorkflowNode!]!, $edges: [WorkflowEdge!]!, $intervalMinutes: Int!) {
+    startTimedWorkflow(
+      workflowId: $workflowId
+      nodes: $nodes
+      edges: $edges
+      intervalMinutes: $intervalMinutes
+    )
+  }
+`;
+
+export const STOP_TIMED_WORKFLOW = gql`
+  mutation StopTimedWorkflow($workflowId: String!) {
+    stopTimedWorkflow(workflowId: $workflowId)
+  }
+`; 

@@ -70,7 +70,13 @@ automation-tool/
 │       ├── src/
 │       │   ├── resolvers/  # TypeGraphQL resolvers
 │       │   ├── schema/     # Type definitions
-│       │   └── services/   # Business logic
+│       │   ├── services/   # Business logic
+│       │   ├── temporal/   # Temporal.io integration
+│       │   │   ├── activities/  # Workflow activities
+│       │   │   ├── workflows/   # Workflow definitions
+│       │   │   ├── client.ts    # Temporal client setup
+│       │   │   └── worker.ts    # Temporal worker setup
+│       │   └── types/      # TypeScript types
 │       └── tests/          # Server tests
 ├── packages/               # Shared packages
 ├── .tasks/                # Task documentation
@@ -88,6 +94,7 @@ automation-tool/
 - React Flow: 11.11.4
 - shadcn/ui: latest
 - pnpm: 8.15.4
+- Temporal.io: 1.11.6
 
 ## Environment Variables
 Required variables:
@@ -100,6 +107,9 @@ SUPABASE_SERVICE_KEY=
 # API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:4000
 CORS_ORIGIN=http://localhost:3000
+
+# Temporal Configuration
+TEMPORAL_ADDRESS=localhost:7233
 ```
 
 ## Common Tasks

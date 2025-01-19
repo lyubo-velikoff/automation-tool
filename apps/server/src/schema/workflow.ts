@@ -1,4 +1,14 @@
-import { Field, ID, ObjectType, InputType } from 'type-graphql';
+import { Field, ID, ObjectType, InputType, Float } from 'type-graphql';
+
+@ObjectType()
+@InputType("PositionInput")
+export class Position {
+  @Field(() => Float)
+  x!: number;
+
+  @Field(() => Float)
+  y!: number;
+}
 
 @ObjectType()
 export class NodePosition {
@@ -67,20 +77,12 @@ export class GmailActionDataInput {
 }
 
 @ObjectType()
+@InputType("NodeDataInput")
 export class NodeData {
   @Field(() => String, { nullable: true })
   label?: string;
 
   // Gmail fields
-  @Field(() => Number, { nullable: true })
-  pollingInterval?: number;
-
-  @Field(() => String, { nullable: true })
-  fromFilter?: string;
-
-  @Field(() => String, { nullable: true })
-  subjectFilter?: string;
-
   @Field(() => String, { nullable: true })
   to?: string;
 
@@ -90,6 +92,25 @@ export class NodeData {
   @Field(() => String, { nullable: true })
   body?: string;
 
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  pollingInterval?: string;
+
+  // OpenAI fields
+  @Field(() => String, { nullable: true })
+  prompt?: string;
+
+  @Field(() => String, { nullable: true })
+  model?: string;
+
+  @Field(() => String, { nullable: true })
+  maxTokens?: string;
+
   // Scraping fields
   @Field(() => String, { nullable: true })
   url?: string;
@@ -98,7 +119,7 @@ export class NodeData {
   selector?: string;
 
   @Field(() => String, { nullable: true })
-  selectorType?: 'css' | 'xpath';
+  selectorType?: string;
 
   @Field(() => String, { nullable: true })
   attribute?: string;
@@ -149,6 +170,7 @@ export class NodeDataInput {
 }
 
 @ObjectType()
+@InputType("WorkflowNodeInput")
 export class WorkflowNode {
   @Field()
   id!: string;
@@ -156,48 +178,19 @@ export class WorkflowNode {
   @Field()
   type!: string;
 
-  @Field(() => String)
+  @Field()
   label!: string;
 
-  @Field(() => NodePosition)
-  position!: NodePosition;
+  @Field(() => Position)
+  position!: Position;
 
   @Field(() => NodeData, { nullable: true })
   data?: NodeData;
 }
 
 @ObjectType()
+@InputType("WorkflowEdgeInput")
 export class WorkflowEdge {
-  @Field()
-  id!: string;
-
-  @Field()
-  source!: string;
-
-  @Field()
-  target!: string;
-}
-
-@InputType()
-export class WorkflowNodeInput {
-  @Field()
-  id!: string;
-
-  @Field()
-  type!: string;
-
-  @Field(() => String)
-  label!: string;
-
-  @Field(() => NodePositionInput)
-  position!: NodePositionInput;
-
-  @Field(() => NodeDataInput, { nullable: true })
-  data?: NodeDataInput;
-}
-
-@InputType()
-export class WorkflowEdgeInput {
   @Field()
   id!: string;
 
@@ -256,11 +249,11 @@ export class CreateWorkflowInput {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNodeInput])
-  nodes!: WorkflowNodeInput[];
+  @Field(() => [WorkflowNode])
+  nodes!: WorkflowNode[];
 
-  @Field(() => [WorkflowEdgeInput])
-  edges!: WorkflowEdgeInput[];
+  @Field(() => [WorkflowEdge])
+  edges!: WorkflowEdge[];
 }
 
 @InputType()
@@ -274,9 +267,9 @@ export class UpdateWorkflowInput {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNodeInput], { nullable: true })
-  nodes?: WorkflowNodeInput[];
+  @Field(() => [WorkflowNode], { nullable: true })
+  nodes?: WorkflowNode[];
 
-  @Field(() => [WorkflowEdgeInput], { nullable: true })
-  edges?: WorkflowEdgeInput[];
+  @Field(() => [WorkflowEdge], { nullable: true })
+  edges?: WorkflowEdge[];
 } 

@@ -8,6 +8,7 @@ import session from "express-session";
 import { HealthResolver } from "./resolvers/health.resolver";
 import { createClient } from "@supabase/supabase-js";
 import { WorkflowResolver } from "./resolvers/workflow.resolver";
+import { runWorker } from './temporal/worker';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -171,6 +172,11 @@ async function bootstrap() {
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'x-gmail-token']
     }
+  });
+
+  // Start Temporal worker
+  runWorker().catch((err) => {
+    console.error('Error starting Temporal worker:', err);
   });
 
   const port = process.env.PORT || 4000;

@@ -14,6 +14,10 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.47.16",
+    "@temporalio/activity": "^1.11.6",
+    "@temporalio/client": "^1.11.6",
+    "@temporalio/worker": "^1.11.6",
+    "@temporalio/workflow": "^1.11.6",
     "@types/cheerio": "^0.22.35",
     "apollo-server-express": "^3.13.0",
     "axios": "^1.7.9",

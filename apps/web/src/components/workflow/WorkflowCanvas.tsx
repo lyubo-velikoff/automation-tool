@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -18,11 +18,14 @@ import 'reactflow/dist/style.css';
 import NodeSelector from './NodeSelector';
 import AddNodeButton from './AddNodeButton';
 import { ScrapingNode } from './nodes/ScrapingNode';
+import { ScheduleWorkflowDialog } from './ScheduleWorkflowDialog';
+import { Button } from '../ui/button';
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
+  workflowId: string;
 }
 
 const nodeTypes = {
@@ -73,9 +76,11 @@ export default function WorkflowCanvas({
   initialNodes = [],
   initialEdges = [],
   onSave,
+  workflowId,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -130,8 +135,14 @@ export default function WorkflowCanvas({
   }, [onEdgesChange, onSave, nodes, edges]);
 
   return (
-    <div className="h-full">
-      <div className="absolute top-4 left-4 z-10">
+    <div className="relative h-full w-full">
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setScheduleDialogOpen(true)}
+        >
+          Schedule
+        </Button>
         <AddNodeButton onAddNode={handleAddNode} />
       </div>
       <ReactFlow
@@ -146,6 +157,14 @@ export default function WorkflowCanvas({
         <Background />
         <Controls />
       </ReactFlow>
+
+      <ScheduleWorkflowDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        workflowId={workflowId}
+        nodes={nodes}
+        edges={edges}
+      />
     </div>
   );
 } 

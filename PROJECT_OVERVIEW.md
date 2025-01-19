@@ -19,6 +19,10 @@
   - AI model parameters
   - CSS/XPath selectors
   - URL targets
+- Workflow scheduling:
+  - Timed execution (every X minutes)
+  - Workflow history tracking
+  - Error handling and retries
 
 ### 3. Data Model
 ```typescript
@@ -57,6 +61,7 @@ interface WorkflowEdge {
   - Real-time updates (planned)
   - OpenAI completions
   - Web scraping operations
+  - Workflow scheduling operations
 - **REST** (Supplementary)
   - File uploads
   - Webhook endpoints
@@ -92,6 +97,9 @@ NODE_ENV=development
 GMAIL_CLIENT_ID=your_gmail_client_id
 GMAIL_CLIENT_SECRET=your_gmail_client_secret
 GMAIL_REDIRECT_URI=http://localhost:4000/auth/gmail/callback
+
+# Temporal Configuration
+TEMPORAL_ADDRESS=localhost:7233
 ```
 
 ### Environment Variables Overview
