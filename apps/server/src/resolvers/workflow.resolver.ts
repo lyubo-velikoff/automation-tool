@@ -5,6 +5,7 @@ import {
   CreateWorkflowInput,
   UpdateWorkflowInput
 } from "../schema/workflow";
+import { ObjectType, Field } from 'type-graphql';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -17,6 +18,18 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
+
+@ObjectType()
+class ExecutionResult {
+  @Field()
+  success!: boolean;
+
+  @Field()
+  message!: string;
+
+  @Field(() => String, { nullable: true })
+  executionId?: string;
+}
 
 @Resolver(Workflow)
 export class WorkflowResolver {
@@ -163,6 +176,99 @@ export class WorkflowResolver {
       return new Workflow(data);
     } catch (error) {
       throw error;
+    }
+  }
+
+  @Mutation(() => ExecutionResult)
+  @Authorized()
+  async executeWorkflow(
+    @Arg("workflowId") workflowId: string,
+    @Ctx() context: any
+  ): Promise<ExecutionResult> {
+    try {
+      // Get the workflow
+      const { data: workflow, error: workflowError } = await supabase
+        .from("workflows")
+        .select("*")
+        .eq("id", workflowId)
+        .eq("user_id", context.user.id)
+        .single();
+
+      if (workflowError) throw workflowError;
+      if (!workflow) throw new Error("Workflow not found");
+
+      // Execute each node in sequence based on edges
+      const nodes = workflow.nodes as any[];
+      const edges = workflow.edges as any[];
+
+      // Create a map of node connections
+      const nodeConnections = new Map<string, string[]>();
+      edges.forEach(edge => {
+        if (!nodeConnections.has(edge.source)) {
+          nodeConnections.set(edge.source, []);
+        }
+        nodeConnections.get(edge.source)!.push(edge.target);
+      });
+
+      // Find start nodes (nodes with no incoming edges)
+      const startNodes = nodes.filter(node => 
+        !edges.some(edge => edge.target === node.id)
+      );
+
+      // Execute the workflow
+      const executionId = `exec-${Date.now()}`;
+      const results = new Map<string, any>();
+
+      // Helper function to execute a node
+      const executeNode = async (node: any) => {
+        try {
+          switch (node.type) {
+            case 'gmailTrigger':
+              // Implement Gmail trigger execution
+              results.set(node.id, { emails: [] }); // Mock result
+              break;
+            case 'gmailAction':
+              // Implement Gmail action execution
+              results.set(node.id, { sent: true }); // Mock result
+              break;
+            case 'openaiCompletion':
+              // Implement OpenAI completion execution
+              results.set(node.id, { completion: 'Mock completion' }); // Mock result
+              break;
+            default:
+              throw new Error(`Unknown node type: ${node.type}`);
+          }
+
+          // Execute connected nodes
+          const nextNodes = nodeConnections.get(node.id) || [];
+          for (const nextNodeId of nextNodes) {
+            const nextNode = nodes.find(n => n.id === nextNodeId);
+            if (nextNode) {
+              await executeNode(nextNode);
+            }
+          }
+        } catch (error) {
+          console.error(`Error executing node ${node.id}:`, error);
+          throw error;
+        }
+      };
+
+      // Execute starting from each start node
+      for (const startNode of startNodes) {
+        await executeNode(startNode);
+      }
+
+      return {
+        success: true,
+        message: 'Workflow executed successfully',
+        executionId,
+      };
+    } catch (error) {
+      console.error('Workflow execution error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
     }
   }
 }

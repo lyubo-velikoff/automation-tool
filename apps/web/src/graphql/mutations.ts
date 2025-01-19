@@ -44,4 +44,14 @@ export const VALIDATE_OPENAI_CONNECTION = gql`
   mutation ValidateOpenAIConnection($apiKey: String!) {
     validateOpenAIConnection(apiKey: $apiKey)
   }
+`;
+
+export const EXECUTE_WORKFLOW = gql`
+  mutation ExecuteWorkflow($workflowId: ID!) {
+    executeWorkflow(workflowId: $workflowId) {
+      success
+      message
+      executionId
+    }
+  }
 `; 

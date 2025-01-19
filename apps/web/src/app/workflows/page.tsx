@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMutation } from '@apollo/client';
-import { CREATE_WORKFLOW } from '@/graphql/mutations';
+import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from '@/graphql/mutations';
+import { PlayIcon } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,10 +32,49 @@ export default function WorkflowsPage() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const [createWorkflow, { loading }] = useMutation(CREATE_WORKFLOW, {
+  const [createWorkflow, { loading: saveLoading }] = useMutation(CREATE_WORKFLOW, {
     onError: (error) => {
       console.error('GraphQL error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save workflow"
+      });
+    },
+    onCompleted: (data) => {
+      setCurrentWorkflowId(data.createWorkflow.id);
+      toast({
+        title: "Success",
+        description: "Workflow saved successfully!"
+      });
+    }
+  });
+
+  const [executeWorkflow, { loading: executeLoading }] = useMutation(EXECUTE_WORKFLOW, {
+    onError: (error) => {
+      console.error('Execution error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to execute workflow"
+      });
+    },
+    onCompleted: (data) => {
+      if (data.executeWorkflow.success) {
+        toast({
+          title: "Success",
+          description: data.executeWorkflow.message || "Workflow executed successfully!"
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.executeWorkflow.message || "Failed to execute workflow"
+        });
+      }
     }
   });
 
@@ -64,18 +105,24 @@ export default function WorkflowsPage() {
 
   const handleSave = async () => {
     if (!workflowName) {
-      alert('Please enter a workflow name');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a workflow name"
+      });
       return;
     }
 
     if (!isAuthenticated) {
-      alert('You must be logged in to save workflows');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to save workflows"
+      });
       return;
     }
 
     try {
-      console.log('Saving workflow:', { name: workflowName, nodes, edges });
-      
       const { data } = await createWorkflow({
         variables: {
           input: {
@@ -87,16 +134,27 @@ export default function WorkflowsPage() {
         }
       });
 
-      if (data?.createWorkflow) {
-        console.log('Workflow saved successfully:', data.createWorkflow);
-        alert('Workflow saved successfully!');
-      } else {
+      if (!data?.createWorkflow) {
         throw new Error('No data returned from mutation');
       }
     } catch (error) {
       console.error('Error saving workflow:', error);
-      alert('Error saving workflow. Please try again.');
     }
+  };
+
+  const handleExecute = async () => {
+    if (!currentWorkflowId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please save the workflow first"
+      });
+      return;
+    }
+
+    await executeWorkflow({
+      variables: { workflowId: currentWorkflowId }
+    });
   };
 
   const handleCanvasChange = (updatedNodes: Node[], updatedEdges: Edge[]) => {
@@ -126,8 +184,17 @@ export default function WorkflowsPage() {
             className="w-64"
           />
         </div>
-        <Button onClick={handleSave} disabled={loading}>
-          {loading ? 'Saving...' : 'Save Workflow'}
+        <Button onClick={handleSave} disabled={saveLoading}>
+          {saveLoading ? 'Saving...' : 'Save Workflow'}
+        </Button>
+        <Button 
+          onClick={handleExecute} 
+          disabled={executeLoading || !currentWorkflowId}
+          variant="secondary"
+          className="gap-2"
+        >
+          <PlayIcon className="h-4 w-4" />
+          {executeLoading ? 'Executing...' : 'Test Workflow'}
         </Button>
         <div className="ml-auto">
           <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
@@ -144,7 +211,6 @@ export default function WorkflowsPage() {
         open={openAISettingsOpen}
         onOpenChange={setOpenAISettingsOpen}
         onSuccess={() => {
-          // Refresh connection status
           window.location.reload();
         }}
       />
