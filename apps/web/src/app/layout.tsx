@@ -3,29 +3,28 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from '@/components/ui/toaster';
+import { Header } from '@/components/ui/Header';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: "swap",
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
-  display: "swap",
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
   title: "Automation Tool",
-  description: "A drag-and-drop workflow automation tool",
+  description: "Build and automate workflows with ease",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -33,6 +32,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Providers>
+          <Header />
           {children}
           <Toaster />
         </Providers>
