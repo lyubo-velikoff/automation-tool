@@ -68,6 +68,9 @@ export class GmailActionDataInput {
 
 @ObjectType()
 export class NodeData {
+  @Field(() => String, { nullable: true })
+  label?: string;
+
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
 
@@ -89,6 +92,9 @@ export class NodeData {
 
 @InputType()
 export class NodeDataInput {
+  @Field(() => String, { nullable: true })
+  label?: string;
+
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
 

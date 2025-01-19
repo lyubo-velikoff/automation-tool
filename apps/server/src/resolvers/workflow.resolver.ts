@@ -9,6 +9,7 @@ import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
 import OpenAI from 'openai';
 import { OAuth2Client } from 'google-auth-library';
+import { createGmailClient } from '../integrations/gmail/config';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -243,21 +244,15 @@ export class WorkflowResolver {
     return { emails };
   }
 
-  private async executeGmailAction(node: any, credentials: any, inputs: any) {
-    const oauth2Client = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-    oauth2Client.setCredentials(credentials.tokens);
+  private async executeGmailAction(node: any, context: any, inputs: any) {
+    if (!context.token) {
+      throw new Error('Gmail access token not found. Please reconnect your Gmail account.');
+    }
 
-    const gmail = google.gmail({ 
-      version: 'v1', 
-      auth: oauth2Client as any // Type assertion needed due to googleapis types
-    });
+    const gmail = createGmailClient(context.token);
 
     // Get email content from previous node or node data
-    const emailContent = inputs?.emailContent || node.data.emailContent;
+    const emailContent = inputs?.emailContent || node.data.body;
     const subject = inputs?.subject || node.data.subject;
     const to = inputs?.to || node.data.to;
 
@@ -357,7 +352,7 @@ export class WorkflowResolver {
               result = await this.executeGmailTrigger(node, credentials);
               break;
             case 'gmailAction':
-              result = await this.executeGmailAction(node, credentials, inputs);
+              result = await this.executeGmailAction(node, context, inputs);
               break;
             case 'openaiCompletion':
               result = await this.executeOpenAICompletion(node, credentials, inputs);

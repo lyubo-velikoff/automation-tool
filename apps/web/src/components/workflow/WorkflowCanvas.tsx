@@ -2,95 +2,102 @@
 
 import { useCallback } from 'react';
 import ReactFlow, {
-  Background,
+  Node,
+  Edge,
   Controls,
-  MiniMap,
+  Background,
   useNodesState,
   useEdgesState,
   addEdge,
   Connection,
-  Edge,
-  Node,
   NodeChange,
   EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import GmailTriggerNode from './nodes/gmail/GmailTriggerNode';
-import GmailActionNode from './nodes/gmail/GmailActionNode';
-import OpenAICompletionNode from './nodes/openai/OpenAICompletionNode';
 import NodeSelector from './NodeSelector';
-
-// Define custom node types
-const nodeTypes = {
-  gmailTrigger: GmailTriggerNode,
-  gmailAction: GmailActionNode,
-  openaiCompletion: OpenAICompletionNode,
-};
+import AddNodeButton from './AddNodeButton';
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
-  readOnly?: boolean;
+}
+
+const nodeTypes = {
+  gmailTrigger: NodeSelector,
+  gmailAction: NodeSelector,
+  openaiCompletion: NodeSelector,
+};
+
+interface NodeData {
+  to?: string;
+  subject?: string;
+  body?: string;
+  fromFilter?: string;
+  subjectFilter?: string;
+  pollingInterval?: string | number;
+  prompt?: string;
+  model?: string;
+  maxTokens?: string | number;
+  onConfigChange?: (nodeId: string, data: NodeData) => void;
 }
 
 export default function WorkflowCanvas({
   initialNodes = [],
   initialEdges = [],
   onSave,
-  readOnly = false,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
+    [setEdges]
   );
 
-  const handleNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      onNodesChange(changes);
-      if (onSave) {
-        onSave(nodes, edges);
-      }
-    },
-    [nodes, edges, onNodesChange, onSave],
-  );
-
-  const handleEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      onEdgesChange(changes);
-      if (onSave) {
-        onSave(nodes, edges);
-      }
-    },
-    [nodes, edges, onEdgesChange, onSave],
-  );
-
-  const handleAddNode = useCallback(
-    (newNode: Node) => {
-      if (newNode.id.includes('openai-completion')) {
-        const existingNode = nodes.find(n => n.id === newNode.id);
-        if (existingNode) {
-          setNodes(nodes.map(n => n.id === newNode.id ? newNode : n));
-        } else {
-          setNodes((nds) => [...nds, newNode]);
+  const handleNodeDataChange = useCallback((nodeId: string, newData: NodeData) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...newData,
+              onConfigChange: handleNodeDataChange,
+            },
+          };
         }
-      } else {
-        setNodes((nds) => [...nds, newNode]);
-      }
-      if (onSave) {
-        onSave([...nodes, newNode], edges);
-      }
-    },
-    [nodes, edges, setNodes, onSave],
-  );
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  const handleAddNode = useCallback((node: Node) => {
+    node.data = {
+      ...node.data,
+      onConfigChange: handleNodeDataChange,
+    };
+    setNodes((nds) => [...nds, node]);
+  }, [setNodes, handleNodeDataChange]);
+
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChange(changes);
+    if (onSave) {
+      onSave(nodes, edges);
+    }
+  }, [onNodesChange, onSave, nodes, edges]);
+
+  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
+    onEdgesChange(changes);
+    if (onSave) {
+      onSave(nodes, edges);
+    }
+  }, [onEdgesChange, onSave, nodes, edges]);
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] bg-background">
+    <div className="h-full">
       <div className="absolute top-4 left-4 z-10">
-        <NodeSelector onAddNode={handleAddNode} />
+        <AddNodeButton onAddNode={handleAddNode} />
       </div>
       <ReactFlow
         nodes={nodes}
@@ -100,13 +107,9 @@ export default function WorkflowCanvas({
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         fitView
-        nodesDraggable={!readOnly}
-        nodesConnectable={!readOnly}
-        elementsSelectable={!readOnly}
       >
+        <Background />
         <Controls />
-        <MiniMap />
-        <Background gap={12} size={1} />
       </ReactFlow>
     </div>
   );

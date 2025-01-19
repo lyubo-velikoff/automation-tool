@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Node, Edge, XYPosition } from 'reactflow';
+import { Edge, XYPosition } from 'reactflow';
+import type { Node } from 'reactflow';
 import { createClient } from '@supabase/supabase-js';
 import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
 import ConnectionStatus from '@/components/workflow/ConnectionStatus';
@@ -23,6 +24,7 @@ const supabase = createClient(
 interface CleanNode {
   id: string;
   type: string;
+  label: string;
   position: XYPosition;
   data: Record<string, unknown>;
 }
@@ -100,6 +102,7 @@ export default function WorkflowsPage() {
   const cleanNodeForServer = (node: Node): CleanNode => ({
     id: node.id,
     type: node.type || 'default',
+    label: node.data?.label || 'Untitled Node',
     position: node.position,
     data: node.data || {},
   });

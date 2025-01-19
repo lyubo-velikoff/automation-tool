@@ -1,155 +1,250 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { PlusCircle } from 'lucide-react';
-import { Node } from 'reactflow';
 import { useCallback } from 'react';
-import { CompletionConfig } from './nodes/openai/OpenAICompletionNode';
-import { EmailConfig } from './nodes/gmail/GmailActionNode';
-import { TriggerConfig } from './nodes/gmail/GmailTriggerNode';
+import { Handle, Position } from 'reactflow';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Button } from "@/components/ui/button"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-interface NodeSelectorProps {
-  onAddNode: (node: Node) => void;
+interface NodeData {
+  to?: string;
+  subject?: string;
+  body?: string;
+  fromFilter?: string;
+  subjectFilter?: string;
+  pollingInterval?: string | number;
+  prompt?: string;
+  model?: string;
+  maxTokens?: string | number;
+  onConfigChange?: (nodeId: string, data: NodeData) => void;
 }
 
-export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
-  const addGmailTrigger = useCallback(() => {
-    const newNode = {
-      id: `gmail-trigger-${Date.now()}`,
-      type: 'gmailTrigger',
-      label: 'Gmail Trigger',
-      position: { x: 100, y: 100 },
-      data: {
-        pollingInterval: 5,
-        fromFilter: '',
-        subjectFilter: '',
-        onConfigChange: (config: TriggerConfig) => {
-          const updatedNode = {
-            ...newNode,
-            data: {
-              ...config,
-              onConfigChange: newNode.data.onConfigChange,
-            },
-          };
-          onAddNode(updatedNode);
-        },
-      }
-    };
-    onAddNode(newNode);
-  }, [onAddNode]);
+interface NodeSelectorProps {
+  id: string;
+  data: NodeData;
+  type: string;
+}
 
-  const addGmailAction = useCallback(() => {
-    const newNode = {
-      id: `gmail-action-${Date.now()}`,
-      type: 'gmailAction',
-      label: 'Send Email',
-      position: { x: 100, y: 100 },
-      data: {
-        to: '',
-        subject: '',
-        body: '',
-        onConfigChange: (config: EmailConfig) => {
-          const updatedNode = {
-            ...newNode,
-            data: {
-              ...config,
-              onConfigChange: newNode.data.onConfigChange,
-            },
-          };
-          onAddNode(updatedNode);
-        },
-      }
-    };
-    onAddNode(newNode);
-  }, [onAddNode]);
+const commonEmails = [
+  { value: 'lyubo.velikoff@gmail.com', label: 'Lyubo Velikov' },
+  // Add more common emails here
+];
 
-  const addOpenAICompletion = useCallback(() => {
-    const newNode = {
-      id: `openai-completion-${Date.now()}`,
-      type: 'openaiCompletion',
-      label: 'AI Completion',
-      position: { x: 100, y: 100 },
-      data: {
-        prompt: '',
-        model: 'gpt-3.5-turbo',
-        maxTokens: 1024,
-        temperature: 0.7,
-        onConfigChange: (config: CompletionConfig) => {
-          const updatedNode = {
-            ...newNode,
-            data: {
-              ...config,
-              onConfigChange: newNode.data.onConfigChange,
-            },
-          };
-          onAddNode(updatedNode);
-        },
-      }
-    };
-    onAddNode(newNode);
-  }, [onAddNode]);
+const commonSubjects = [
+  { value: 'Test', label: 'Test Email' },
+  { value: 'Daily Report', label: 'Daily Report' },
+  { value: 'Weekly Update', label: 'Weekly Update' },
+];
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="h-8 w-8">
-          <PlusCircle className="h-4 w-4" />
-          <span className="sr-only">Add node</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={addGmailTrigger}>
-          <svg
-            className="mr-2 h-4 w-4"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 4H2v16h20V4zM2 8l10 6 10-6" />
-          </svg>
-          Gmail Trigger
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={addGmailAction}>
-          <svg
-            className="mr-2 h-4 w-4"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 4H2v16h20V4zM2 8l10 6 10-6" />
-          </svg>
-          Send Email
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={addOpenAICompletion}>
-          <svg
-            className="mr-2 h-4 w-4"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          AI Completion
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
+  const handleDataChange = useCallback((field: string, value: string) => {
+    if (data.onConfigChange) {
+      data.onConfigChange(id, {
+        ...data,
+        [field]: value,
+      });
+    }
+  }, [id, data]);
+
+  const renderGmailAction = () => (
+    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
+      <div className="font-semibold mb-2">Send Email</div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-sm">To:</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+              >
+                {data.to || "Select recipient..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+              <Command>
+                <CommandInput placeholder="Search email..." />
+                <CommandEmpty>No email found.</CommandEmpty>
+                <CommandGroup>
+                  {commonEmails.map((email) => (
+                    <CommandItem
+                      key={email.value}
+                      value={email.value}
+                      onSelect={() => handleDataChange('to', email.value)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          data.to === email.value ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {email.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Input
+            value={data.to || ''}
+            onChange={(e) => handleDataChange('to', e.target.value)}
+            placeholder="Or type email manually"
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Subject:</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+              >
+                {data.subject || "Select subject..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+              <Command>
+                <CommandInput placeholder="Search subject..." />
+                <CommandEmpty>No subject found.</CommandEmpty>
+                <CommandGroup>
+                  {commonSubjects.map((subject) => (
+                    <CommandItem
+                      key={subject.value}
+                      value={subject.value}
+                      onSelect={() => handleDataChange('subject', subject.value)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          data.subject === subject.value ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {subject.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Input
+            value={data.subject || ''}
+            onChange={(e) => handleDataChange('subject', e.target.value)}
+            placeholder="Or type subject manually"
+            className="mt-2"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Body:</label>
+          <Textarea
+            value={data.body || ''}
+            onChange={(e) => handleDataChange('body', e.target.value)}
+            placeholder="Email content"
+            rows={4}
+          />
+        </div>
+      </div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
+    </div>
   );
+
+  const renderGmailTrigger = () => (
+    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
+      <div className="font-semibold mb-2">Gmail Trigger</div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-sm">From:</label>
+          <Input
+            value={data.fromFilter || ''}
+            onChange={(e) => handleDataChange('fromFilter', e.target.value)}
+            placeholder="Filter by sender"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Subject contains:</label>
+          <Input
+            value={data.subjectFilter || ''}
+            onChange={(e) => handleDataChange('subjectFilter', e.target.value)}
+            placeholder="Filter by subject"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Check every:</label>
+          <Input
+            type="number"
+            value={data.pollingInterval || '5'}
+            onChange={(e) => handleDataChange('pollingInterval', e.target.value)}
+            placeholder="Minutes"
+          />
+        </div>
+      </div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+
+  const renderOpenAICompletion = () => (
+    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
+      <div className="font-semibold mb-2">OpenAI Completion</div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-sm">Prompt:</label>
+          <Textarea
+            value={data.prompt || ''}
+            onChange={(e) => handleDataChange('prompt', e.target.value)}
+            placeholder="Enter your prompt"
+            rows={4}
+          />
+        </div>
+        <div>
+          <label className="text-sm">Model:</label>
+          <Input
+            value={data.model || 'gpt-3.5-turbo'}
+            onChange={(e) => handleDataChange('model', e.target.value)}
+            placeholder="Model name"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Max Tokens:</label>
+          <Input
+            type="number"
+            value={data.maxTokens || '100'}
+            onChange={(e) => handleDataChange('maxTokens', e.target.value)}
+            placeholder="Maximum tokens"
+          />
+        </div>
+      </div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+
+  switch (type) {
+    case 'gmailAction':
+      return renderGmailAction();
+    case 'gmailTrigger':
+      return renderGmailTrigger();
+    case 'openaiCompletion':
+      return renderOpenAICompletion();
+    default:
+      return null;
+  }
 } 

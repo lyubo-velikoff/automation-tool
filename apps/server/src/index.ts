@@ -29,7 +29,7 @@ async function bootstrap() {
       origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization']
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-gmail-token']
     })
   );
 
@@ -155,7 +155,11 @@ async function bootstrap() {
 
   const apolloServer = new ApolloServer({
     schema,
-    context: ({ req, res }: { req: Request; res: Response }) => ({ req, res })
+    context: ({ req, res }: { req: Request; res: Response }) => ({ 
+      req, 
+      res,
+      token: req.headers['x-gmail-token'] || null 
+    })
   });
 
   await apolloServer.start();
@@ -165,7 +169,7 @@ async function bootstrap() {
       origin: true,
       credentials: true,
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization']
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-gmail-token']
     }
   });
 

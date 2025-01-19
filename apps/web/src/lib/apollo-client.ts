@@ -17,12 +17,14 @@ const authLink = setContext(async (_, { headers }) => {
     // Get the current session
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
+    const gmailToken = session?.provider_token;
 
     // Return the headers to the context
     return {
       headers: {
         ...headers,
         authorization: token ? `Bearer ${token}` : '',
+        'x-gmail-token': gmailToken || '',
       }
     };
   } catch (error) {
