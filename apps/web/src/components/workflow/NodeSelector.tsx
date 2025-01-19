@@ -10,6 +10,7 @@ import {
 import { PlusCircle } from 'lucide-react';
 import { Node } from 'reactflow';
 import { useCallback } from 'react';
+import { CompletionConfig } from './nodes/openai/OpenAICompletionNode';
 
 interface NodeSelectorProps {
   onAddNode: (node: Node) => void;
@@ -56,7 +57,17 @@ export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
         prompt: '',
         model: 'gpt-3.5-turbo',
         maxTokens: 1024,
-        temperature: 0.7
+        temperature: 0.7,
+        onConfigChange: (config: CompletionConfig) => {
+          const updatedNode = {
+            ...newNode,
+            data: {
+              ...config,
+              onConfigChange: newNode.data.onConfigChange,
+            },
+          };
+          onAddNode(updatedNode);
+        },
       }
     };
     onAddNode(newNode);

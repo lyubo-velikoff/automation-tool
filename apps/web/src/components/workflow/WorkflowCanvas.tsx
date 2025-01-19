@@ -70,9 +70,21 @@ export default function WorkflowCanvas({
 
   const handleAddNode = useCallback(
     (newNode: Node) => {
-      setNodes((nds) => [...nds, newNode]);
+      if (newNode.id.includes('openai-completion')) {
+        const existingNode = nodes.find(n => n.id === newNode.id);
+        if (existingNode) {
+          setNodes(nodes.map(n => n.id === newNode.id ? newNode : n));
+        } else {
+          setNodes((nds) => [...nds, newNode]);
+        }
+      } else {
+        setNodes((nds) => [...nds, newNode]);
+      }
+      if (onSave) {
+        onSave([...nodes, newNode], edges);
+      }
     },
-    [setNodes],
+    [nodes, edges, setNodes, onSave],
   );
 
   return (
