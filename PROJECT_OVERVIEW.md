@@ -11,11 +11,14 @@
   - Gmail Trigger (poll for new emails)
   - Gmail Action (send emails)
   - OpenAI Completion (generate AI responses)
+  - Web Scraping (extract data from websites)
 - Node configuration:
   - Polling intervals
   - Email filters
   - Templates
   - AI model parameters
+  - CSS/XPath selectors
+  - URL targets
 
 ### 3. Data Model
 ```typescript
@@ -53,6 +56,7 @@ interface WorkflowEdge {
   - Type-safe schema
   - Real-time updates (planned)
   - OpenAI completions
+  - Web scraping operations
 - **REST** (Supplementary)
   - File uploads
   - Webhook endpoints

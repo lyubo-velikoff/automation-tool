@@ -14,7 +14,10 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.47.16",
+    "@types/cheerio": "^0.22.35",
     "apollo-server-express": "^3.13.0",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -23,6 +26,7 @@
     "googleapis": "^144.0.0",
     "graphql": "^16.8.1",
     "openai": "^4.79.1",
+    "rate-limiter-flexible": "^5.0.5",
     "reactflow": "^11.11.4",
     "reflect-metadata": "^0.2.2",
     "type-graphql": "2.0.0-rc.2",

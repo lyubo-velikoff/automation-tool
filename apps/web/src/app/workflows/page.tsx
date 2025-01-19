@@ -68,6 +68,21 @@ export default function WorkflowsPage() {
     },
     onCompleted: async (data) => {
       if (data.executeWorkflow.success) {
+        // Update nodes with execution results
+        setNodes(prevNodes => prevNodes.map(node => {
+          const nodeResults = data.executeWorkflow.results?.[node.id];
+          if (nodeResults && node.type === 'SCRAPING') {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                results: nodeResults.results
+              }
+            };
+          }
+          return node;
+        }));
+
         toast({
           title: "Success",
           description: data.executeWorkflow.message || "Workflow executed successfully!"
@@ -102,13 +117,18 @@ export default function WorkflowsPage() {
     });
   };
 
-  const cleanNodeForServer = (node: Node): CleanNode => ({
-    id: node.id,
-    type: node.type || 'default',
-    label: node.data?.label || 'Untitled Node',
-    position: node.position,
-    data: node.data || {},
-  });
+  const cleanNodeForServer = (node: Node): CleanNode => {
+    const cleanData = { ...node.data };
+    delete cleanData.onConfigChange;
+    
+    return {
+      id: node.id,
+      type: node.type || 'default',
+      label: node.data?.label || 'Untitled Node',
+      position: node.position,
+      data: cleanData,
+    };
+  };
 
   const handleSave = async () => {
     if (!workflowName) {

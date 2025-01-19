@@ -12,10 +12,12 @@ import ReactFlow, {
   Connection,
   NodeChange,
   EdgeChange,
+  NodeProps,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import NodeSelector from './NodeSelector';
 import AddNodeButton from './AddNodeButton';
+import { ScrapingNode } from './nodes/ScrapingNode';
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
@@ -24,21 +26,46 @@ interface WorkflowCanvasProps {
 }
 
 const nodeTypes = {
-  gmailTrigger: NodeSelector,
-  gmailAction: NodeSelector,
-  openaiCompletion: NodeSelector,
+  GMAIL_TRIGGER: NodeSelector,
+  GMAIL_ACTION: NodeSelector,
+  OPENAI: NodeSelector,
+  SCRAPING: (props: NodeProps) => (
+    <ScrapingNode 
+      {...props} 
+      id={props.id} 
+      data={{
+        ...props.data,
+        onConfigChange: (nodeId: string, data: NodeData) => {
+          if (props.data.onConfigChange) {
+            props.data.onConfigChange(nodeId, data);
+          }
+        }
+      }}
+    />
+  ),
 };
 
 interface NodeData {
+  // Gmail fields
   to?: string;
   subject?: string;
   body?: string;
   fromFilter?: string;
   subjectFilter?: string;
   pollingInterval?: string | number;
+  
+  // OpenAI fields
   prompt?: string;
   model?: string;
   maxTokens?: string | number;
+  
+  // Scraping fields
+  url?: string;
+  selector?: string;
+  selectorType?: 'css' | 'xpath';
+  attribute?: string;
+  
+  // Common fields
   onConfigChange?: (nodeId: string, data: NodeData) => void;
 }
 
@@ -73,7 +100,15 @@ export default function WorkflowCanvas({
   }, [setNodes]);
 
   const handleAddNode = useCallback((node: Node) => {
+    const defaultData = node.type === 'SCRAPING' ? {
+      url: '',
+      selector: '',
+      selectorType: 'css' as const,
+      attribute: '',
+    } : {};
+
     node.data = {
+      ...defaultData,
       ...node.data,
       onConfigChange: handleNodeDataChange,
     };

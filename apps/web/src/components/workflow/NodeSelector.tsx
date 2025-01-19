@@ -31,6 +31,10 @@ interface NodeData {
   model?: string;
   maxTokens?: string | number;
   onConfigChange?: (nodeId: string, data: NodeData) => void;
+  url?: string;
+  selectorType?: string;
+  selector?: string;
+  attribute?: string;
 }
 
 interface NodeSelectorProps {
@@ -237,13 +241,60 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
     </div>
   );
 
+  const renderScrapingNode = () => (
+    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
+      <div className="font-semibold mb-2">Web Scraping</div>
+      <div className="space-y-2">
+        <div>
+          <label className="text-sm">URL:</label>
+          <Input
+            value={data.url || ''}
+            onChange={(e) => handleDataChange('url', e.target.value)}
+            placeholder="https://example.com"
+          />
+        </div>
+        <div>
+          <label className="text-sm">Selector Type:</label>
+          <select
+            value={data.selectorType || 'css'}
+            onChange={(e) => handleDataChange('selectorType', e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option value="css">CSS Selector</option>
+            <option value="xpath">XPath</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm">Selector:</label>
+          <Input
+            value={data.selector || ''}
+            onChange={(e) => handleDataChange('selector', e.target.value)}
+            placeholder={data.selectorType === 'css' ? '.article h1' : '//h1'}
+          />
+        </div>
+        <div>
+          <label className="text-sm">Attribute (Optional):</label>
+          <Input
+            value={data.attribute || ''}
+            onChange={(e) => handleDataChange('attribute', e.target.value)}
+            placeholder="href"
+          />
+        </div>
+      </div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+
   switch (type) {
-    case 'gmailAction':
+    case 'GMAIL_ACTION':
       return renderGmailAction();
-    case 'gmailTrigger':
+    case 'GMAIL_TRIGGER':
       return renderGmailTrigger();
-    case 'openaiCompletion':
+    case 'OPENAI':
       return renderOpenAICompletion();
+    case 'SCRAPING':
+      return renderScrapingNode();
     default:
       return null;
   }

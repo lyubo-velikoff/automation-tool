@@ -15,9 +15,18 @@ export const CREATE_WORKFLOW = gql`
           y
         }
         data {
+          # Gmail fields
           pollingInterval
           fromFilter
           subjectFilter
+          to
+          subject
+          body
+          # Scraping fields
+          url
+          selector
+          selectorType
+          attribute
         }
       }
       edges {
@@ -52,6 +61,53 @@ export const EXECUTE_WORKFLOW = gql`
       success
       message
       executionId
+      results {
+        nodeId
+        status
+        results
+      }
+    }
+  }
+`;
+
+export const UPDATE_WORKFLOW = gql`
+  mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
+    updateWorkflow(input: $input) {
+      id
+      name
+      description
+      nodes {
+        id
+        type
+        label
+        position {
+          x
+          y
+        }
+        data {
+          # Gmail fields
+          pollingInterval
+          fromFilter
+          subjectFilter
+          to
+          subject
+          body
+          # Scraping fields
+          url
+          selector
+          selectorType
+          attribute
+        }
+      }
+      edges {
+        id
+        source
+        target
+      }
+      user_id
+      is_active
+      created_at
+      updated_at
     }
   }
 `; 

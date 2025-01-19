@@ -71,6 +71,7 @@ export class NodeData {
   @Field(() => String, { nullable: true })
   label?: string;
 
+  // Gmail fields
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
 
@@ -88,22 +89,36 @@ export class NodeData {
 
   @Field(() => String, { nullable: true })
   body?: string;
+
+  // Scraping fields
+  @Field(() => String, { nullable: true })
+  url?: string;
+
+  @Field(() => String, { nullable: true })
+  selector?: string;
+
+  @Field(() => String, { nullable: true })
+  selectorType?: 'css' | 'xpath';
+
+  @Field(() => String, { nullable: true })
+  attribute?: string;
 }
 
 @InputType()
 export class NodeDataInput {
   @Field(() => String, { nullable: true })
-  label?: string;
-
-  @Field(() => Number, { nullable: true })
-  pollingInterval?: number;
+  url?: string;
 
   @Field(() => String, { nullable: true })
-  fromFilter?: string;
+  selector?: string;
 
   @Field(() => String, { nullable: true })
-  subjectFilter?: string;
+  selectorType?: 'css' | 'xpath';
 
+  @Field(() => String, { nullable: true })
+  attribute?: string;
+
+  // Gmail fields
   @Field(() => String, { nullable: true })
   to?: string;
 
@@ -112,6 +127,25 @@ export class NodeDataInput {
 
   @Field(() => String, { nullable: true })
   body?: string;
+
+  @Field(() => String, { nullable: true })
+  fromFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  subjectFilter?: string;
+
+  @Field(() => String, { nullable: true })
+  pollingInterval?: string;
+
+  // OpenAI fields
+  @Field(() => String, { nullable: true })
+  prompt?: string;
+
+  @Field(() => String, { nullable: true })
+  model?: string;
+
+  @Field(() => String, { nullable: true })
+  maxTokens?: string;
 }
 
 @ObjectType()
