@@ -52,27 +52,30 @@ automation-tool/
 
 ### Unit Tests
 
-Run unit tests with Jest:
+The project uses Jest for unit testing. Tests are co-located with their implementation files.
 
 ```bash
-# Run all tests
+# Run all unit tests
 pnpm test
 
-# Watch mode
+# Run tests in watch mode
 pnpm test:watch
 
-# Coverage report
+# Run tests with coverage
 pnpm test:coverage
 ```
 
+Key test suites:
+- Gmail Integration (`apps/server/tests/gmail.test.ts`)
+- OpenAI Integration (`apps/server/tests/openai.test.ts`)
+- Web Scraping (`apps/server/tests/scraping.test.ts`)
+- Contract Tests (`apps/server/tests/contracts/`)
+
 ### E2E Tests
 
-Run end-to-end tests with Playwright:
+End-to-end tests use Playwright and cover the main workflow builder functionality.
 
 ```bash
-# Install Playwright browsers (first time only)
-pnpm exec playwright install
-
 # Run E2E tests
 pnpm test:e2e
 
@@ -80,14 +83,47 @@ pnpm test:e2e
 pnpm test:e2e:ui
 ```
 
+Key test scenarios:
+- Workflow Builder UI
+- Node Configuration
+- Workflow Execution
+- Authentication Flow
+
 ### Preview Deployments
 
-Each pull request automatically creates a preview deployment on Vercel. The preview URL will be posted as a comment in the PR.
+Each pull request gets a preview deployment via Vercel. The preview URL is automatically posted as a comment on the PR.
 
-To view the preview deployment:
-1. Open the pull request on GitHub
-2. Look for the "Vercel" bot comment
-3. Click the preview URL
+To set up preview deployments:
+
+1. Create a Vercel project and link it to your repository
+2. Add the following secrets to your GitHub repository:
+   ```
+   VERCEL_TOKEN=<your-vercel-token>
+   VERCEL_ORG_ID=<your-org-id>
+   VERCEL_PROJECT_ID=<your-project-id>
+   ```
+
+3. The preview deployment will be triggered automatically when you create or update a PR.
+
+### Development Workflow
+
+1. Create a feature branch:
+   ```bash
+   git checkout -b feature/your-feature
+   ```
+
+2. Make your changes and ensure all tests pass:
+   ```bash
+   pnpm test        # Run unit tests
+   pnpm test:e2e    # Run E2E tests
+   ```
+
+3. Create a pull request
+   - A preview deployment will be created automatically
+   - All tests will run in CI
+   - Review the preview deployment and test results
+
+4. After approval and successful tests, merge your PR
 
 ## License
 

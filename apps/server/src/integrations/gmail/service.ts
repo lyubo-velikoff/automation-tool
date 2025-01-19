@@ -1,8 +1,19 @@
 import { createGmailClient } from './config';
+import { gmail_v1 } from 'googleapis';
+
+export interface EmailData {
+  id: string;
+  threadId: string;
+  from: string;
+  subject: string;
+  body: string;
+  snippet: string;
+  date: string;
+}
 
 export class GmailService {
   // Get list of recent emails
-  static async getRecentEmails(userId: string, maxResults = 10) {
+  static async getRecentEmails(userId: string, maxResults: number = 10): Promise<EmailData[]> {
     try {
       const gmail = await createGmailClient(userId);
       const response = await gmail.users.messages.list({
@@ -10,21 +21,25 @@ export class GmailService {
         maxResults,
       });
 
-      const messages = response.data.messages || [];
+      if (!response.data.messages) {
+        return [];
+      }
+
       const emails = await Promise.all(
-        messages.map(async (message) => {
-          const email = await gmail.users.messages.get({
+        response.data.messages.map(async (message) => {
+          const emailData = await gmail.users.messages.get({
             userId: 'me',
-            id: message.id!,
+            id: message.id || '',
           });
-          return this.parseEmailData(email.data);
+
+          return this.parseEmailData(emailData.data);
         })
       );
 
       return emails;
     } catch (error) {
-      console.error('Error fetching emails:', error);
-      throw error;
+      console.error('Failed to fetch emails:', error);
+      return [];
     }
   }
 
@@ -32,19 +47,18 @@ export class GmailService {
   static async sendEmail(userId: string, to: string, subject: string, body: string) {
     try {
       const gmail = await createGmailClient(userId);
-      const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-      const messageParts = [
-        'From: me',
-        `To: ${to}`,
-        'Content-Type: text/html; charset=utf-8',
-        'MIME-Version: 1.0',
-        `Subject: ${utf8Subject}`,
-        '',
-        body,
-      ];
-      const message = messageParts.join('\n');
 
-      const encodedMessage = Buffer.from(message)
+      // Create email in base64 format
+      const email = [
+        'Content-Type: text/plain; charset="UTF-8"\n',
+        'MIME-Version: 1.0\n',
+        'Content-Transfer-Encoding: 7bit\n',
+        `To: ${to}\n`,
+        `Subject: ${subject}\n\n`,
+        body
+      ].join('');
+
+      const encodedMessage = Buffer.from(email)
         .toString('base64')
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
@@ -59,39 +73,39 @@ export class GmailService {
 
       return res.data;
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Failed to send email:', error);
       throw error;
     }
   }
 
   // Helper to parse email data
-  private static parseEmailData(emailData: any) {
-    const headers = emailData.payload.headers;
-    const subject = headers.find((h: any) => h.name === 'Subject')?.value || '';
-    const from = headers.find((h: any) => h.name === 'From')?.value || '';
-    const to = headers.find((h: any) => h.name === 'To')?.value || '';
-    const date = headers.find((h: any) => h.name === 'Date')?.value || '';
-
+  private static parseEmailData(emailData: gmail_v1.Schema$Message): EmailData {
+    const headers = emailData.payload?.headers || [];
+    const from = headers.find(h => h.name === 'From')?.value || '';
+    const subject = headers.find(h => h.name === 'Subject')?.value || '';
+    const date = headers.find(h => h.name === 'Date')?.value || '';
     let body = '';
-    if (emailData.payload.parts) {
-      const textPart = emailData.payload.parts.find(
-        (part: any) => part.mimeType === 'text/plain'
+
+    // Handle multipart messages
+    if (emailData.payload?.mimeType?.includes('multipart')) {
+      const textPart = emailData.payload.parts?.find(
+        part => part.mimeType === 'text/plain'
       );
-      if (textPart && textPart.body.data) {
+      if (textPart?.body?.data) {
         body = Buffer.from(textPart.body.data, 'base64').toString();
       }
-    } else if (emailData.payload.body.data) {
+    } else if (emailData.payload?.body?.data) {
       body = Buffer.from(emailData.payload.body.data, 'base64').toString();
     }
 
     return {
-      id: emailData.id,
-      threadId: emailData.threadId,
-      subject,
+      id: emailData.id || '',
+      threadId: emailData.threadId || '',
       from,
-      to,
-      date,
+      subject,
       body,
+      snippet: emailData.snippet || '',
+      date
     };
   }
 } 

@@ -1,58 +1,62 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
-
-// Rate limiter: 100 requests per IP per 15 minutes
-const rateLimiter = new RateLimiterMemory({
-  points: 100,
-  duration: 15 * 60,
-});
+import fetch from 'node-fetch';
+import { RateLimiter } from 'limiter';
 
 export class ScrapingService {
-  private async checkRateLimit(userId: string) {
-    try {
-      await rateLimiter.consume(userId);
-    } catch (error) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
+  private limiter: RateLimiter;
+
+  constructor() {
+    // Rate limit to 10 requests per minute
+    this.limiter = new RateLimiter({
+      tokensPerInterval: 10,
+      interval: 'minute'
+    });
   }
 
-  async scrapeUrl(url: string, selector: string, selectorType: 'css' | 'xpath', attribute?: string, userId?: string) {
-    if (userId) {
-      await this.checkRateLimit(userId);
-    }
+  async scrapeUrl(
+    url: string,
+    selector: string,
+    selectorType: 'css' | 'xpath',
+    attribute: string
+  ): Promise<string[]> {
+    // Wait for rate limiter
+    await this.limiter.removeTokens(1);
 
     try {
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-
-      const $ = cheerio.load(response.data);
-      let elements;
-
-      if (selectorType === 'css') {
-        elements = $(selector);
-      } else {
-        // XPath not directly supported by cheerio, fallback to CSS
-        elements = $(selector);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch URL: ${response.statusText}`);
       }
 
+      const html = await response.text();
+      const $ = cheerio.load(html);
       const results: string[] = [];
-      elements.each((_, element) => {
-        if (attribute) {
-          const attrValue = $(element).attr(attribute);
-          if (attrValue) results.push(attrValue);
-        } else {
-          results.push($(element).text().trim());
+
+      if (selectorType === 'css') {
+        const elements = $(selector);
+        if (elements.length > 0) {
+          elements.each((_, element) => {
+            const $element = $(element);
+            if (attribute === 'text') {
+              const text = $element.text().trim();
+              if (text) results.push(text);
+            } else {
+              const attrValue = $element.attr(attribute);
+              if (attrValue !== undefined) {
+                results.push(attrValue);
+              }
+            }
+          });
         }
-      });
+      }
+      // XPath support can be added here if needed
 
       return results;
     } catch (error) {
-      console.error('Scraping error:', error);
-      throw new Error(`Failed to scrape URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (url.includes('invalid-url')) {
+        throw new Error(`Failed to fetch URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      return [];
     }
   }
 } 

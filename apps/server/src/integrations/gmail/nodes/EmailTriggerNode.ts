@@ -1,60 +1,54 @@
 import { Field, ObjectType } from 'type-graphql';
-import { GmailService } from '../service';
+import { GmailService, EmailData } from '../service';
 
 @ObjectType()
 export class EmailTriggerConfig {
   @Field()
-  pollingInterval: number = 5; // Default 5 minutes
-
-  @Field({ nullable: true })
-  labelFilter?: string;
+  pollingInterval!: number;
 
   @Field({ nullable: true })
   fromFilter?: string;
 
   @Field({ nullable: true })
   subjectFilter?: string;
+
+  @Field({ nullable: true })
+  afterDate?: string;
 }
 
 export class EmailTriggerNode {
-  private lastCheckTime: Date;
+  private service: GmailService;
   private config: EmailTriggerConfig;
   private userId: string;
 
   constructor(userId: string, config: EmailTriggerConfig) {
     this.userId = userId;
     this.config = config;
-    this.lastCheckTime = new Date();
+    this.service = new GmailService();
   }
 
-  async checkForNewEmails() {
+  async checkForNewEmails(): Promise<EmailData[]> {
     try {
       const emails = await GmailService.getRecentEmails(this.userId);
-      const newEmails = emails.filter(email => {
-        const emailDate = new Date(email.date);
-        return emailDate > this.lastCheckTime &&
-          this.matchesFilters(email);
+      return emails.filter(email => {
+        if (this.config.fromFilter && !email.from.includes(this.config.fromFilter)) {
+          return false;
+        }
+        if (this.config.subjectFilter && !email.subject.includes(this.config.subjectFilter)) {
+          return false;
+        }
+        if (this.config.afterDate) {
+          const emailDate = new Date(email.date);
+          const filterDate = new Date(this.config.afterDate);
+          if (emailDate < filterDate) {
+            return false;
+          }
+        }
+        return true;
       });
-
-      this.lastCheckTime = new Date();
-      return newEmails;
     } catch (error) {
-      console.error('Error checking for new emails:', error);
-      throw error;
+      console.error('Failed to check for new emails:', error);
+      return [];
     }
-  }
-
-  private matchesFilters(email: any) {
-    if (this.config.fromFilter && 
-        !email.from.toLowerCase().includes(this.config.fromFilter.toLowerCase())) {
-      return false;
-    }
-
-    if (this.config.subjectFilter && 
-        !email.subject.toLowerCase().includes(this.config.subjectFilter.toLowerCase())) {
-      return false;
-    }
-
-    return true;
   }
 } 

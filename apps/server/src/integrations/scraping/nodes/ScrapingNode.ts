@@ -1,33 +1,58 @@
 import { Field, ObjectType } from 'type-graphql';
-import { BaseNode, NodeType } from '../../../types/nodes';
+import { ScrapingService } from '../service';
 
 @ObjectType()
 export class ScrapingNodeData {
   @Field()
-  url: string = '';
+  url!: string;
 
   @Field()
-  selector: string = '';
+  selector!: string;
 
   @Field()
-  selectorType: 'css' | 'xpath' = 'css';
+  selectorType!: 'css' | 'xpath';
 
-  @Field({ nullable: true })
-  attribute?: string;
+  @Field()
+  attribute!: string;
 }
 
 @ObjectType()
-export class ScrapingNode extends BaseNode {
-  static type = NodeType.SCRAPING;
-  
-  @Field(() => ScrapingNodeData)
-  data: ScrapingNodeData;
+export class ScrapingResult {
+  @Field()
+  success!: boolean;
 
-  constructor(data: ScrapingNodeData) {
-    super();
-    this.type = NodeType.SCRAPING;
-    this.data = data;
-    this.id = `scraping-${Date.now()}`;
-    this.label = 'Web Scraping';
+  @Field(() => [String])
+  results!: string[];
+}
+
+export class ScrapingNode {
+  private service: ScrapingService;
+  private config: ScrapingNodeData;
+
+  constructor(userId: string, config: ScrapingNodeData) {
+    this.service = new ScrapingService();
+    this.config = config;
+  }
+
+  async execute(context: Record<string, any>): Promise<ScrapingResult> {
+    try {
+      const results = await this.service.scrapeUrl(
+        this.config.url,
+        this.config.selector,
+        this.config.selectorType,
+        this.config.attribute
+      );
+
+      return {
+        success: true,
+        results
+      };
+    } catch (error) {
+      console.error('Failed to execute scraping node:', error);
+      return {
+        success: false,
+        results: []
+      };
+    }
   }
 } 
