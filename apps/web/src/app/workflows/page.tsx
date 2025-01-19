@@ -233,6 +233,7 @@ export default function WorkflowsPage() {
             initialNodes={nodes}
             initialEdges={edges}
             onSave={handleCanvasChange}
+            workflowId={currentWorkflowId || ''}
           />
         </div>
         {currentWorkflowId && (

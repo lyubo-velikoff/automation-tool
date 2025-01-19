@@ -20,12 +20,13 @@ import AddNodeButton from './AddNodeButton';
 import { ScrapingNode } from './nodes/ScrapingNode';
 import { ScheduleWorkflowDialog } from './ScheduleWorkflowDialog';
 import { Button } from '../ui/button';
+import { toast } from '../ui/use-toast';
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
   onSave?: (nodes: Node[], edges: Edge[]) => void;
-  workflowId: string;
+  workflowId?: string;
 }
 
 const nodeTypes = {
@@ -71,6 +72,15 @@ interface NodeData {
   // Common fields
   onConfigChange?: (nodeId: string, data: NodeData) => void;
 }
+
+// Helper function to clean up edge data
+const cleanEdgeData = (edge: Edge) => ({
+  id: edge.id,
+  source: edge.source,
+  target: edge.target,
+  sourceHandle: edge.sourceHandle,
+  targetHandle: edge.targetHandle
+});
 
 export default function WorkflowCanvas({
   initialNodes = [],
@@ -123,23 +133,35 @@ export default function WorkflowCanvas({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     if (onSave) {
-      onSave(nodes, edges);
+      onSave(nodes, edges.map(cleanEdgeData));
     }
   }, [onNodesChange, onSave, nodes, edges]);
 
   const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChange(changes);
     if (onSave) {
-      onSave(nodes, edges);
+      onSave(nodes, edges.map(cleanEdgeData));
     }
   }, [onEdgesChange, onSave, nodes, edges]);
+
+  const handleScheduleClick = () => {
+    if (!workflowId) {
+      toast({
+        title: "Error",
+        description: "Please save the workflow first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setScheduleDialogOpen(true);
+  };
 
   return (
     <div className="relative h-full w-full">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button
           variant="outline"
-          onClick={() => setScheduleDialogOpen(true)}
+          onClick={handleScheduleClick}
         >
           Schedule
         </Button>
@@ -158,13 +180,15 @@ export default function WorkflowCanvas({
         <Controls />
       </ReactFlow>
 
-      <ScheduleWorkflowDialog
-        open={scheduleDialogOpen}
-        onOpenChange={setScheduleDialogOpen}
-        workflowId={workflowId}
-        nodes={nodes}
-        edges={edges}
-      />
+      {workflowId && (
+        <ScheduleWorkflowDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          workflowId={workflowId}
+          nodes={nodes}
+          edges={edges}
+        />
+      )}
     </div>
   );
 } 

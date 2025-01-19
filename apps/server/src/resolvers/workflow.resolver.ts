@@ -5,7 +5,9 @@ import {
   CreateWorkflowInput,
   UpdateWorkflowInput,
   WorkflowNode,
-  WorkflowEdge
+  WorkflowEdge,
+  WorkflowNodeInput,
+  WorkflowEdgeInput
 } from "../schema/workflow";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
@@ -540,8 +542,8 @@ export class WorkflowResolver {
   @Mutation(() => Boolean)
   async startTimedWorkflow(
     @Arg('workflowId') workflowId: string,
-    @Arg('nodes', () => [WorkflowNode]) nodes: WorkflowNode[],
-    @Arg('edges', () => [WorkflowEdge]) edges: WorkflowEdge[],
+    @Arg('nodes', () => [WorkflowNodeInput]) nodes: WorkflowNodeInput[],
+    @Arg('edges', () => [WorkflowEdgeInput]) edges: WorkflowEdgeInput[],
     @Arg('intervalMinutes', () => Int) intervalMinutes: number
   ): Promise<boolean> {
     try {

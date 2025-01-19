@@ -37,16 +37,20 @@ const nodeOptions = [
 
 export default function AddNodeButton({ onAddNode }: AddNodeButtonProps) {
   const handleAddNode = (type: string) => {
+    const option = nodeOptions.find(opt => opt.type === type);
     const newNode: Node = {
       id: `${type}-${Date.now()}`,
       type,
       position: { x: 100, y: 100 },
-      data: type === 'SCRAPING' ? {
-        url: '',
-        selector: '',
-        selectorType: 'css',
-        attribute: '',
-      } : {},
+      data: {
+        label: option?.label || 'Untitled Node',
+        ...(type === 'SCRAPING' ? {
+          url: '',
+          selector: '',
+          selectorType: 'css',
+          attribute: '',
+        } : {}),
+      },
     };
     onAddNode(newNode);
   };

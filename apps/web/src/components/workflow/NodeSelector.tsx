@@ -21,6 +21,7 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface NodeData {
+  label?: string;
   to?: string;
   subject?: string;
   body?: string;
@@ -55,19 +56,26 @@ const commonSubjects = [
 ];
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
-  const handleDataChange = useCallback((field: string, value: string) => {
-    if (data.onConfigChange) {
-      data.onConfigChange(id, {
-        ...data,
-        [field]: value,
-      });
-    }
-  }, [id, data]);
+  const handleDataChange = useCallback(
+    (key: string, value: string | number) => {
+      if (data.onConfigChange) {
+        data.onConfigChange(id, { ...data, [key]: value });
+      }
+    },
+    [data, id]
+  );
 
   const renderGmailAction = () => (
     <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="font-semibold mb-2">Send Email</div>
-      <div className="space-y-2">
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm">Node Label:</label>
+          <Input
+            value={data.label || ''}
+            onChange={(e) => handleDataChange('label', e.target.value)}
+            placeholder="Enter node label"
+          />
+        </div>
         <div>
           <label className="text-sm">To:</label>
           <Popover>
@@ -173,8 +181,15 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
 
   const renderGmailTrigger = () => (
     <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="font-semibold mb-2">Gmail Trigger</div>
-      <div className="space-y-2">
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm">Node Label:</label>
+          <Input
+            value={data.label || ''}
+            onChange={(e) => handleDataChange('label', e.target.value)}
+            placeholder="Enter node label"
+          />
+        </div>
         <div>
           <label className="text-sm">From:</label>
           <Input
@@ -207,8 +222,15 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
 
   const renderOpenAICompletion = () => (
     <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="font-semibold mb-2">OpenAI Completion</div>
-      <div className="space-y-2">
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm">Node Label:</label>
+          <Input
+            value={data.label || ''}
+            onChange={(e) => handleDataChange('label', e.target.value)}
+            placeholder="Enter node label"
+          />
+        </div>
         <div>
           <label className="text-sm">Prompt:</label>
           <Textarea

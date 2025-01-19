@@ -113,7 +113,7 @@ export const UPDATE_WORKFLOW = gql`
 `; 
 
 export const START_TIMED_WORKFLOW = gql`
-  mutation StartTimedWorkflow($workflowId: String!, $nodes: [WorkflowNode!]!, $edges: [WorkflowEdge!]!, $intervalMinutes: Int!) {
+  mutation StartTimedWorkflow($workflowId: String!, $nodes: [WorkflowNodeInput!]!, $edges: [WorkflowEdgeInput!]!, $intervalMinutes: Int!) {
     startTimedWorkflow(
       workflowId: $workflowId
       nodes: $nodes

@@ -128,16 +128,7 @@ export class NodeData {
 @InputType()
 export class NodeDataInput {
   @Field(() => String, { nullable: true })
-  url?: string;
-
-  @Field(() => String, { nullable: true })
-  selector?: string;
-
-  @Field(() => String, { nullable: true })
-  selectorType?: 'css' | 'xpath';
-
-  @Field(() => String, { nullable: true })
-  attribute?: string;
+  label?: string;
 
   // Gmail fields
   @Field(() => String, { nullable: true })
@@ -167,6 +158,19 @@ export class NodeDataInput {
 
   @Field(() => String, { nullable: true })
   maxTokens?: string;
+
+  // Scraping fields
+  @Field(() => String, { nullable: true })
+  url?: string;
+
+  @Field(() => String, { nullable: true })
+  selector?: string;
+
+  @Field(() => String, { nullable: true })
+  selectorType?: string;
+
+  @Field(() => String, { nullable: true })
+  attribute?: string;
 }
 
 @ObjectType()
@@ -189,7 +193,6 @@ export class WorkflowNode {
 }
 
 @ObjectType()
-@InputType("WorkflowEdgeInput")
 export class WorkflowEdge {
   @Field()
   id!: string;
@@ -199,6 +202,30 @@ export class WorkflowEdge {
 
   @Field()
   target!: string;
+
+  @Field(() => String, { nullable: true })
+  sourceHandle?: string | null;
+
+  @Field(() => String, { nullable: true })
+  targetHandle?: string | null;
+}
+
+@InputType()
+export class WorkflowEdgeInput {
+  @Field()
+  id!: string;
+
+  @Field()
+  source!: string;
+
+  @Field()
+  target!: string;
+
+  @Field(() => String, { nullable: true })
+  sourceHandle?: string | null;
+
+  @Field(() => String, { nullable: true })
+  targetHandle?: string | null;
 }
 
 @ObjectType()
@@ -249,11 +276,11 @@ export class CreateWorkflowInput {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNode])
-  nodes!: WorkflowNode[];
+  @Field(() => [WorkflowNodeInput])
+  nodes!: WorkflowNodeInput[];
 
-  @Field(() => [WorkflowEdge])
-  edges!: WorkflowEdge[];
+  @Field(() => [WorkflowEdgeInput])
+  edges!: WorkflowEdgeInput[];
 }
 
 @InputType()
@@ -267,9 +294,42 @@ export class UpdateWorkflowInput {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNode], { nullable: true })
-  nodes?: WorkflowNode[];
+  @Field(() => [WorkflowNodeInput], { nullable: true })
+  nodes?: WorkflowNodeInput[];
 
-  @Field(() => [WorkflowEdge], { nullable: true })
-  edges?: WorkflowEdge[];
+  @Field(() => [WorkflowEdgeInput], { nullable: true })
+  edges?: WorkflowEdgeInput[];
+}
+
+@InputType()
+export class WorkflowNodeInput {
+  @Field()
+  id!: string;
+
+  @Field()
+  type!: string;
+
+  @Field()
+  label!: string;
+
+  @Field(() => Position)
+  position!: Position;
+
+  @Field(() => NodeDataInput, { nullable: true })
+  data?: NodeDataInput;
+
+  @Field(() => Float, { nullable: true })
+  width?: number;
+
+  @Field(() => Float, { nullable: true })
+  height?: number;
+
+  @Field(() => Boolean, { nullable: true })
+  selected?: boolean;
+
+  @Field(() => Position, { nullable: true })
+  positionAbsolute?: Position;
+
+  @Field(() => Boolean, { nullable: true })
+  dragging?: boolean;
 } 

@@ -78,10 +78,22 @@ export function ScheduleWorkflowDialog({
       return;
     }
 
+    // Restructure nodes to match backend schema
+    const formattedNodes = nodes.map(node => ({
+      id: node.id,
+      type: node.type,
+      label: node.data.label || 'Untitled Node',
+      position: node.position,
+      data: {
+        ...node.data,
+        label: undefined // Remove label from data since it's now at root level
+      }
+    }));
+
     await startWorkflow({
       variables: {
         workflowId,
-        nodes,
+        nodes: formattedNodes,
         edges,
         intervalMinutes: minutes,
       },
