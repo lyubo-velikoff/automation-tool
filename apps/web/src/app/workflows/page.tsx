@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Edge, XYPosition } from 'reactflow';
 import type { Node } from 'reactflow';
-import { createClient } from '@supabase/supabase-js';
 import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
 import ConnectionStatus from '@/components/workflow/ConnectionStatus';
 import OpenAISettingsDialog from '@/components/workflow/OpenAISettingsDialog';
@@ -15,11 +14,7 @@ import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from '@/graphql/mutations';
 import { PlayIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ExecutionHistory from '@/components/workflow/ExecutionHistory';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 interface CleanNode {
   id: string;
