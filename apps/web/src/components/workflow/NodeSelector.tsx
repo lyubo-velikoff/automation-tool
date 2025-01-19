@@ -174,8 +174,16 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
           />
         </div>
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        data-testid="target-handle"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        data-testid="source-handle"
+      />
     </div>
   );
 
@@ -216,7 +224,11 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
           />
         </div>
       </div>
-      <Handle type="source" position={Position.Right} />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        data-testid="source-handle"
+      />
     </div>
   );
 
@@ -258,8 +270,16 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
           />
         </div>
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        data-testid="target-handle"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        data-testid="source-handle"
+      />
     </div>
   );
 
@@ -303,8 +323,16 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
           />
         </div>
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        data-testid="target-handle"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        data-testid="source-handle"
+      />
     </div>
   );
 

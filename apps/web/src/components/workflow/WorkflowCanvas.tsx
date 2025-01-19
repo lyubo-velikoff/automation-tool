@@ -30,22 +30,36 @@ interface WorkflowCanvasProps {
 }
 
 const nodeTypes = {
-  GMAIL_TRIGGER: NodeSelector,
-  GMAIL_ACTION: NodeSelector,
-  OPENAI: NodeSelector,
+  GMAIL_TRIGGER: (props: NodeProps) => (
+    <div data-testid={`node-${props.type.toLowerCase()}`}>
+      <NodeSelector {...props} />
+    </div>
+  ),
+  GMAIL_ACTION: (props: NodeProps) => (
+    <div data-testid={`node-${props.type.toLowerCase()}`}>
+      <NodeSelector {...props} />
+    </div>
+  ),
+  OPENAI: (props: NodeProps) => (
+    <div data-testid={`node-${props.type.toLowerCase()}`}>
+      <NodeSelector {...props} />
+    </div>
+  ),
   SCRAPING: (props: NodeProps) => (
-    <ScrapingNode 
-      {...props} 
-      id={props.id} 
-      data={{
-        ...props.data,
-        onConfigChange: (nodeId: string, data: NodeData) => {
-          if (props.data.onConfigChange) {
-            props.data.onConfigChange(nodeId, data);
+    <div data-testid={`node-${props.type.toLowerCase()}`}>
+      <ScrapingNode 
+        {...props} 
+        id={props.id} 
+        data={{
+          ...props.data,
+          onConfigChange: (nodeId: string, data: NodeData) => {
+            if (props.data.onConfigChange) {
+              props.data.onConfigChange(nodeId, data);
+            }
           }
-        }
-      }}
-    />
+        }}
+      />
+    </div>
   ),
 };
 
@@ -157,7 +171,7 @@ export default function WorkflowCanvas({
   };
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" data-testid="workflow-canvas">
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button
           variant="outline"
@@ -174,6 +188,10 @@ export default function WorkflowCanvas({
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        defaultEdgeOptions={{
+          className: 'workflow-edge',
+          data: { testid: 'edge' }
+        }}
         fitView
       >
         <Background />

@@ -48,6 +48,47 @@ automation-tool/
 - `pnpm test` - Run tests across all applications
 - `pnpm lint` - Run linting across all applications
 
+## Testing
+
+### Unit Tests
+
+Run unit tests with Jest:
+
+```bash
+# Run all tests
+pnpm test
+
+# Watch mode
+pnpm test:watch
+
+# Coverage report
+pnpm test:coverage
+```
+
+### E2E Tests
+
+Run end-to-end tests with Playwright:
+
+```bash
+# Install Playwright browsers (first time only)
+pnpm exec playwright install
+
+# Run E2E tests
+pnpm test:e2e
+
+# Run E2E tests with UI
+pnpm test:e2e:ui
+```
+
+### Preview Deployments
+
+Each pull request automatically creates a preview deployment on Vercel. The preview URL will be posted as a comment in the PR.
+
+To view the preview deployment:
+1. Open the pull request on GitHub
+2. Look for the "Vercel" bot comment
+3. Click the preview URL
+
 ## License
 
 ISC 
