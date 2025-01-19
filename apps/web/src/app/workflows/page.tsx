@@ -97,7 +97,8 @@ export default function WorkflowsPage() {
       provider: 'github',
       options: {
         redirectTo: `${window.location.origin}/workflows`,
-      },
+        scopes: 'read:user user:email'
+      }
     });
   };
 
