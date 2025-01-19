@@ -26,21 +26,50 @@ interface Execution {
   id: string;
   execution_id: string;
   status: string;
-  results: Record<string, any>;
+  results: {
+    [nodeId: string]: {
+      status: 'success' | 'error';
+      result?: unknown;
+      error?: string;
+    };
+  };
   created_at: string;
 }
 
 export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchExecutions();
+    if (workflowId) {
+      fetchExecutions();
+    }
   }, [workflowId]);
 
   const fetchExecutions = async () => {
     try {
-      const { data, error } = await supabase
+      setError(null);
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No authenticated session');
+      }
+
+      // Create a new Supabase client with the session
+      const authenticatedClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          }
+        }
+      );
+
+      const { data, error } = await authenticatedClient
         .from('workflow_executions')
         .select('*')
         .eq('workflow_id', workflowId)
@@ -51,6 +80,7 @@ export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) 
       setExecutions(data || []);
     } catch (error) {
       console.error('Error fetching executions:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch execution history');
     } finally {
       setLoading(false);
     }
@@ -71,6 +101,24 @@ export default function ExecutionHistory({ workflowId }: ExecutionHistoryProps) 
 
   if (loading) {
     return <div>Loading execution history...</div>;
+  }
+
+  if (error) {
+    return (
+      <Card className="p-4">
+        <h3 className="text-lg font-semibold mb-4">Execution History</h3>
+        <div className="text-center text-red-500">{error}</div>
+      </Card>
+    );
+  }
+
+  if (executions.length === 0) {
+    return (
+      <Card className="p-4">
+        <h3 className="text-lg font-semibold mb-4">Execution History</h3>
+        <div className="text-center text-muted-foreground">No executions yet</div>
+      </Card>
+    );
   }
 
   return (

@@ -322,86 +322,102 @@ export class WorkflowResolver {
 
       const nodes = workflow.nodes as any[];
       const edges = workflow.edges as any[];
-
-      // Create a map of node connections
-      const nodeConnections = new Map<string, string[]>();
-      edges.forEach(edge => {
-        if (!nodeConnections.has(edge.source)) {
-          nodeConnections.set(edge.source, []);
-        }
-        nodeConnections.get(edge.source)!.push(edge.target);
-      });
-
-      // Find start nodes (nodes with no incoming edges)
-      const startNodes = nodes.filter(node => 
-        !edges.some(edge => edge.target === node.id)
-      );
-
-      // Store execution results
       const executionId = `exec-${Date.now()}`;
       const results = new Map<string, any>();
 
-      // Helper function to execute a node
-      const executeNode = async (node: any, inputs?: any) => {
-        try {
-          const credentials = await this.getNodeCredentials(context.user.id, node.type);
-          let result;
-
-          switch (node.type) {
-            case 'gmailTrigger':
-              result = await this.executeGmailTrigger(node, credentials);
-              break;
-            case 'gmailAction':
-              result = await this.executeGmailAction(node, context, inputs);
-              break;
-            case 'openaiCompletion':
-              result = await this.executeOpenAICompletion(node, credentials, inputs);
-              break;
-            default:
-              throw new Error(`Unknown node type: ${node.type}`);
+      try {
+        // Create a map of node connections
+        const nodeConnections = new Map<string, string[]>();
+        edges.forEach(edge => {
+          if (!nodeConnections.has(edge.source)) {
+            nodeConnections.set(edge.source, []);
           }
+          nodeConnections.get(edge.source)!.push(edge.target);
+        });
 
-          results.set(node.id, result);
+        // Find start nodes (nodes with no incoming edges)
+        const startNodes = nodes.filter(node => 
+          !edges.some(edge => edge.target === node.id)
+        );
 
-          // Execute connected nodes
-          const nextNodes = nodeConnections.get(node.id) || [];
-          for (const nextNodeId of nextNodes) {
-            const nextNode = nodes.find(n => n.id === nextNodeId);
-            if (nextNode) {
-              await executeNode(nextNode, result);
+        // Helper function to execute a node
+        const executeNode = async (node: any, inputs?: any) => {
+          try {
+            const credentials = await this.getNodeCredentials(context.user.id, node.type);
+            let result;
+
+            switch (node.type) {
+              case 'gmailTrigger':
+                result = await this.executeGmailTrigger(node, credentials);
+                break;
+              case 'gmailAction':
+                result = await this.executeGmailAction(node, context, inputs);
+                break;
+              case 'openaiCompletion':
+                result = await this.executeOpenAICompletion(node, credentials, inputs);
+                break;
+              default:
+                throw new Error(`Unknown node type: ${node.type}`);
             }
+
+            results.set(node.id, { status: 'success', result });
+
+            // Execute connected nodes
+            const nextNodes = nodeConnections.get(node.id) || [];
+            for (const nextNodeId of nextNodes) {
+              const nextNode = nodes.find(n => n.id === nextNodeId);
+              if (nextNode) {
+                await executeNode(nextNode, result);
+              }
+            }
+          } catch (error) {
+            results.set(node.id, { 
+              status: 'error', 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            });
+            throw error;
           }
-        } catch (error) {
-          console.error(`Error executing node ${node.id}:`, error);
-          throw error;
+        };
+
+        // Execute starting from each start node
+        for (const startNode of startNodes) {
+          await executeNode(startNode);
         }
-      };
 
-      // Execute starting from each start node
-      for (const startNode of startNodes) {
-        await executeNode(startNode);
+        // Store successful execution results
+        await supabase
+          .from('workflow_executions')
+          .insert([
+            {
+              workflow_id: workflowId,
+              user_id: context.user.id,
+              execution_id: executionId,
+              status: 'completed',
+              results: Object.fromEntries(results)
+            }
+          ]);
+
+        return {
+          success: true,
+          message: 'Workflow executed successfully',
+          executionId,
+        };
+      } catch (error) {
+        // Store failed execution results
+        await supabase
+          .from('workflow_executions')
+          .insert([
+            {
+              workflow_id: workflowId,
+              user_id: context.user.id,
+              execution_id: executionId,
+              status: 'failed',
+              results: Object.fromEntries(results)
+            }
+          ]);
+
+        throw error;
       }
-
-      // Store execution results in the database
-      const { error: resultError } = await supabase
-        .from('workflow_executions')
-        .insert([
-          {
-            workflow_id: workflowId,
-            user_id: context.user.id,
-            execution_id: executionId,
-            status: 'completed',
-            results: Object.fromEntries(results)
-          }
-        ]);
-
-      if (resultError) throw resultError;
-
-      return {
-        success: true,
-        message: 'Workflow executed successfully',
-        executionId,
-      };
     } catch (error) {
       console.error('Workflow execution error:', error);
       return {
