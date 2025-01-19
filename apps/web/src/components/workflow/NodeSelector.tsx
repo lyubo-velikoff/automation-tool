@@ -11,6 +11,8 @@ import { PlusCircle } from 'lucide-react';
 import { Node } from 'reactflow';
 import { useCallback } from 'react';
 import { CompletionConfig } from './nodes/openai/OpenAICompletionNode';
+import { EmailConfig } from './nodes/gmail/GmailActionNode';
+import { TriggerConfig } from './nodes/gmail/GmailTriggerNode';
 
 interface NodeSelectorProps {
   onAddNode: (node: Node) => void;
@@ -26,7 +28,17 @@ export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
       data: {
         pollingInterval: 5,
         fromFilter: '',
-        subjectFilter: ''
+        subjectFilter: '',
+        onConfigChange: (config: TriggerConfig) => {
+          const updatedNode = {
+            ...newNode,
+            data: {
+              ...config,
+              onConfigChange: newNode.data.onConfigChange,
+            },
+          };
+          onAddNode(updatedNode);
+        },
       }
     };
     onAddNode(newNode);
@@ -41,7 +53,17 @@ export default function NodeSelector({ onAddNode }: NodeSelectorProps) {
       data: {
         to: '',
         subject: '',
-        body: ''
+        body: '',
+        onConfigChange: (config: EmailConfig) => {
+          const updatedNode = {
+            ...newNode,
+            data: {
+              ...config,
+              onConfigChange: newNode.data.onConfigChange,
+            },
+          };
+          onAddNode(updatedNode);
+        },
       }
     };
     onAddNode(newNode);
