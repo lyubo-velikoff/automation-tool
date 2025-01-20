@@ -19,6 +19,16 @@ export function Header() {
               Automation Tool
             </span>
           </Link>
+          <Link className="mr-6 flex items-center space-x-2" href="/workflows">
+            <span className="hidden sm:inline-block">
+              Workflows
+            </span>
+          </Link>
+          <Link className="mr-6 flex items-center space-x-2" href="/connections">
+            <span className="hidden sm:inline-block">
+              Connections
+            </span>
+          </Link>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">

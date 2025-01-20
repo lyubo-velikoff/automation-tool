@@ -221,7 +221,6 @@ export default function WorkflowsPage() {
         </div>
 
 
-
       {/* Execution history overlay on the right */}
       {currentWorkflowId && (
         <div className="bg-background/80 backdrop-blur-sm border-l overflow-auto z-10">
