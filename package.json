@@ -5,6 +5,7 @@
   "packageManager": "pnpm@8.15.4",
   "scripts": {
     "dev": "turbo run dev",
+    "temporal:dev": "cd apps/server && (temporal.exe server start-dev || temporal server start-dev)",
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
@@ -14,6 +15,7 @@
     "dev:server": "turbo run dev --filter server"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "turbo": "latest"
   },
   "resolutions": {
