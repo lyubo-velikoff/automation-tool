@@ -17,6 +17,7 @@ import ExecutionHistory from '@/components/workflow/ExecutionHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { WorkflowLoadingSkeleton } from '@/components/workflow/loading-skeleton';
+import { HeaderWrapper } from '@/components/HeaderWrapper';
 
 interface CleanNode {
   id: string;
@@ -178,52 +179,61 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex items-center gap-4 p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="workflow-name">Workflow Name:</Label>
-          <Input
-            id="workflow-name"
-            value={workflowName}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWorkflowName(e.target.value)}
-            placeholder="Enter workflow name"
-            className="w-64"
-          />
-        </div>
-        <Button onClick={handleSave} disabled={saveLoading}>
-          {saveLoading ? 'Saving...' : 'Save Workflow'}
-        </Button>
-        <Button 
-          onClick={handleExecute} 
-          disabled={executeLoading || !currentWorkflowId}
-          variant="secondary"
-          className="gap-2"
-        >
-          <PlayIcon className="h-4 w-4" />
-          {executeLoading ? 'Executing...' : 'Test Workflow'}
-        </Button>
-        <div className="ml-auto">
-          <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
-        </div>
+    <div className="relative h-screen overflow-hidden">
+      {/* Full screen canvas */}
+      <div className="absolute inset-0">
+        <HeaderWrapper />
+        <WorkflowCanvas
+          initialNodes={nodes}
+          initialEdges={edges}
+          onSave={handleCanvasChange}
+          workflowId={currentWorkflowId || ''}
+        />
       </div>
-      <div className="flex-1 grid grid-cols-[1fr,400px]">
-        <div className="h-full">
-          <WorkflowCanvas
-            initialNodes={nodes}
-            initialEdges={edges}
-            onSave={handleCanvasChange}
-            workflowId={currentWorkflowId || ''}
-          />
-        </div>
-        {currentWorkflowId && (
-          <div className="border-l p-4 overflow-auto">
-            <ExecutionHistory 
-              ref={executionHistoryRef}
-              workflowId={currentWorkflowId} 
+      {/* Overlay controls at the top */}
+      <div className="absolute top-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-b z-10">
+        <div className="flex items-center gap-4 p-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="workflow-name">Workflow Name:</Label>
+            <Input
+              id="workflow-name"
+              value={workflowName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWorkflowName(e.target.value)}
+              placeholder="Enter workflow name"
+              className="w-64"
             />
           </div>
-        )}
+          <Button onClick={handleSave} disabled={saveLoading}>
+            {saveLoading ? 'Saving...' : 'Save Workflow'}
+          </Button>
+          <Button 
+            onClick={handleExecute} 
+            disabled={executeLoading || !currentWorkflowId}
+            variant="secondary"
+            className="gap-2"
+          >
+            <PlayIcon className="h-4 w-4" />
+            {executeLoading ? 'Executing...' : 'Test Workflow'}
+          </Button>
+          <div className="ml-auto">
+            <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
+          </div>
+        </div>
+
+
+
+      {/* Execution history overlay on the right */}
+      {currentWorkflowId && (
+        <div className="bg-background/80 backdrop-blur-sm border-l overflow-auto z-10">
+          <ExecutionHistory 
+            ref={executionHistoryRef}
+            workflowId={currentWorkflowId} 
+          />
+        </div>
+      )}
+
       </div>
+
       <OpenAISettingsDialog
         open={openAISettingsOpen}
         onOpenChange={setOpenAISettingsOpen}

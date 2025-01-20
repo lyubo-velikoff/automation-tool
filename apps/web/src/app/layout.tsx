@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from '@/components/ui/toaster';
-import { HeaderWrapper } from '@/components/HeaderWrapper';
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -32,7 +31,6 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Providers>
-          <HeaderWrapper />
           {children}
           <Toaster />
         </Providers>
