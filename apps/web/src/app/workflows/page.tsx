@@ -1,23 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { Edge, XYPosition } from 'reactflow';
-import type { Node } from 'reactflow';
-import WorkflowCanvas from '@/components/workflow/WorkflowCanvas';
-import ConnectionStatus from '@/components/workflow/ConnectionStatus';
-import OpenAISettingsDialog from '@/components/workflow/OpenAISettingsDialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useMutation } from '@apollo/client';
-import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from '@/graphql/mutations';
-import { PlayIcon } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import ExecutionHistory from '@/components/workflow/ExecutionHistory';
-import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
-import { WorkflowLoadingSkeleton } from '@/components/workflow/loading-skeleton';
-import { HeaderWrapper } from '@/components/HeaderWrapper';
+import { useState, useRef } from "react";
+import { Edge, XYPosition } from "reactflow";
+import type { Node } from "reactflow";
+import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
+import ConnectionStatus from "@/components/workflow/ConnectionStatus";
+import OpenAISettingsDialog from "@/components/workflow/OpenAISettingsDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useMutation } from "@apollo/client";
+import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from "@/graphql/mutations";
+import { PlayIcon } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import ExecutionHistory from "@/components/workflow/ExecutionHistory";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
+import { HeaderWrapper } from "@/components/HeaderWrapper";
+import { Header } from "@/components/ui/Header";
 
 interface CleanNode {
   id: string;
@@ -28,93 +29,100 @@ interface CleanNode {
 }
 
 export default function WorkflowsPage() {
-  const [workflowName, setWorkflowName] = useState('');
+  const [workflowName, setWorkflowName] = useState("");
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
-  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
+  const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(
+    null
+  );
   const { toast } = useToast();
-  const executionHistoryRef = useRef<{ fetchExecutions: () => Promise<void> }>(null);
+  const executionHistoryRef = useRef<{ fetchExecutions: () => Promise<void> }>(
+    null
+  );
   const { session, loading } = useAuth();
-  const router = useRouter();
 
-  const [createWorkflow, { loading: saveLoading }] = useMutation(CREATE_WORKFLOW, {
-    onError: (error) => {
-      console.error('GraphQL error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save workflow"
-      });
-    },
-    onCompleted: (data) => {
-      setCurrentWorkflowId(data.createWorkflow.id);
-      toast({
-        title: "Success",
-        description: "Workflow saved successfully!"
-      });
-    }
-  });
-
-  const [executeWorkflow, { loading: executeLoading }] = useMutation(EXECUTE_WORKFLOW, {
-    onError: (error) => {
-      console.error('Execution error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to execute workflow"
-      });
-    },
-    onCompleted: async (data) => {
-      if (data.executeWorkflow.success) {
-        // Update nodes with execution results
-        setNodes(prevNodes => prevNodes.map(node => {
-          const nodeResults = data.executeWorkflow.results?.[node.id];
-          if (nodeResults && node.type === 'SCRAPING') {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                results: nodeResults.results
-              }
-            };
-          }
-          return node;
-        }));
-
-        toast({
-          title: "Success",
-          description: data.executeWorkflow.message || "Workflow executed successfully!"
-        });
-      } else {
+  const [createWorkflow, { loading: saveLoading }] = useMutation(
+    CREATE_WORKFLOW,
+    {
+      onError: (error) => {
+        console.error("GraphQL error:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: data.executeWorkflow.message || "Failed to execute workflow"
+          description: "Failed to save workflow"
+        });
+      },
+      onCompleted: (data) => {
+        setCurrentWorkflowId(data.createWorkflow.id);
+        toast({
+          title: "Success",
+          description: "Workflow saved successfully!"
         });
       }
-      
-      // Always fetch executions, regardless of success or failure
-      await executionHistoryRef.current?.fetchExecutions();
     }
-  });
+  );
 
-  useEffect(() => {
-    if (!loading && !session) {
-      router.replace('/');
+  const [executeWorkflow, { loading: executeLoading }] = useMutation(
+    EXECUTE_WORKFLOW,
+    {
+      onError: (error) => {
+        console.error("Execution error:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to execute workflow"
+        });
+      },
+      onCompleted: async (data) => {
+        if (data.executeWorkflow.success) {
+          // Update nodes with execution results
+          setNodes((prevNodes) =>
+            prevNodes.map((node) => {
+              const nodeResults = data.executeWorkflow.results?.[node.id];
+              if (nodeResults && node.type === "SCRAPING") {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    results: nodeResults.results
+                  }
+                };
+              }
+              return node;
+            })
+          );
+
+          toast({
+            title: "Success",
+            description:
+              data.executeWorkflow.message || "Workflow executed successfully!"
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description:
+              data.executeWorkflow.message || "Failed to execute workflow"
+          });
+        }
+
+        // Always fetch executions, regardless of success or failure
+        await executionHistoryRef.current?.fetchExecutions();
+      }
     }
-  }, [session, loading, router]);
+  );
 
   const cleanNodeForServer = (node: Node): CleanNode => {
     const cleanData = { ...node.data };
     delete cleanData.onConfigChange;
-    
+
     return {
       id: node.id,
-      type: node.type || 'default',
-      label: node.data?.label || 'Untitled Node',
+      type: node.type || "default",
+      label: node.data?.label || "Untitled Node",
       position: node.position,
-      data: cleanData,
+      data: cleanData
     };
   };
 
@@ -133,7 +141,7 @@ export default function WorkflowsPage() {
         variables: {
           input: {
             name: workflowName,
-            description: '',
+            description: "",
             nodes: nodes.map(cleanNodeForServer),
             edges
           }
@@ -141,10 +149,10 @@ export default function WorkflowsPage() {
       });
 
       if (!data?.createWorkflow) {
-        throw new Error('No data returned from mutation');
+        throw new Error("No data returned from mutation");
       }
     } catch (error) {
-      console.error('Error saving workflow:', error);
+      console.error("Error saving workflow:", error);
     }
   };
 
@@ -179,58 +187,54 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="relative h-screen overflow-hidden">
+    <div className='relative h-screen overflow-hidden'>
       {/* Full screen canvas */}
-      <div className="absolute inset-0">
-        <HeaderWrapper />
+      <div className='absolute inset-0'>
+        <Header />
         <WorkflowCanvas
           initialNodes={nodes}
           initialEdges={edges}
           onSave={handleCanvasChange}
-          workflowId={currentWorkflowId || ''}
+          workflowId={currentWorkflowId || ""}
         />
       </div>
       {/* Overlay controls at the top */}
-      <div className="absolute top-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-b z-10">
-        <div className="flex items-center gap-4 p-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="workflow-name">Workflow Name:</Label>
+      <div className='absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-b z-10'>
+        <div className='flex justify-center items-center gap-4 p-4'>
+          <div className='flex justify-center items-center gap-2'>
             <Input
-              id="workflow-name"
+              id='workflow-name'
               value={workflowName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setWorkflowName(e.target.value)}
-              placeholder="Enter workflow name"
-              className="w-64"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setWorkflowName(e.target.value)
+              }
+              placeholder='Enter workflow name'
+              className='w-64'
             />
           </div>
           <Button onClick={handleSave} disabled={saveLoading}>
-            {saveLoading ? 'Saving...' : 'Save Workflow'}
+            {saveLoading ? "Saving..." : "Save"}
           </Button>
-          <Button 
-            onClick={handleExecute} 
+          <Button
+            onClick={handleExecute}
             disabled={executeLoading || !currentWorkflowId}
-            variant="secondary"
-            className="gap-2"
+            variant='secondary'
+            className='gap-2'
           >
-            <PlayIcon className="h-4 w-4" />
-            {executeLoading ? 'Executing...' : 'Test Workflow'}
+            <PlayIcon className='h-4 w-4' />
+            {executeLoading ? "Executing..." : "Test"}
           </Button>
-          <div className="ml-auto">
-            <ConnectionStatus onOpenAISettings={() => setOpenAISettingsOpen(true)} />
+        </div>
+
+        {/* Execution history overlay on the right */}
+        {currentWorkflowId && (
+          <div className='bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
+            <ExecutionHistory
+              ref={executionHistoryRef}
+              workflowId={currentWorkflowId}
+            />
           </div>
-        </div>
-
-
-      {/* Execution history overlay on the right */}
-      {currentWorkflowId && (
-        <div className="bg-background/80 backdrop-blur-sm border-l overflow-auto z-10">
-          <ExecutionHistory 
-            ref={executionHistoryRef}
-            workflowId={currentWorkflowId} 
-          />
-        </div>
-      )}
-
+        )}
       </div>
 
       <OpenAISettingsDialog
@@ -242,4 +246,4 @@ export default function WorkflowsPage() {
       />
     </div>
   );
-} 
+}
