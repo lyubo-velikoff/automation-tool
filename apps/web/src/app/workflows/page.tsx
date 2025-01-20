@@ -85,7 +85,6 @@ export default function WorkflowsPage() {
           title: "Success",
           description: data.executeWorkflow.message || "Workflow executed successfully!"
         });
-        await executionHistoryRef.current?.fetchExecutions();
       } else {
         toast({
           variant: "destructive",
@@ -93,6 +92,9 @@ export default function WorkflowsPage() {
           description: data.executeWorkflow.message || "Failed to execute workflow"
         });
       }
+      
+      // Always fetch executions, regardless of success or failure
+      await executionHistoryRef.current?.fetchExecutions();
     }
   });
 

@@ -12,17 +12,18 @@ interface ExecutionHistoryProps {
   workflowId: string;
 }
 
+interface NodeResult {
+  nodeId: string;
+  status: 'success' | 'error';
+  results: string[];
+}
+
 interface Execution {
   id: string;
   execution_id: string;
   status: string;
-  results: {
-    [nodeId: string]: {
-      status: 'success' | 'error';
-      result?: unknown;
-      error?: string;
-    };
-  };
+  message?: string;
+  results: NodeResult[];
   created_at: string;
 }
 
@@ -37,7 +38,7 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  
   const fetchExecutions = async () => {
     try {
       setError(null);
@@ -49,6 +50,10 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
         .limit(10);
 
       if (fetchError) throw fetchError;
+      
+      // Log the data to help debug
+      console.log('Fetched executions:', data);
+      
       setExecutions(data || []);
     } catch (error) {
       console.error('Error fetching executions:', error);
@@ -64,11 +69,13 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
 
   useEffect(() => {
     if (workflowId) {
+      console.log('Fetching executions for workflow:', workflowId);
       fetchExecutions();
     }
   }, [workflowId]);
 
   const getStatusColor = (status: string) => {
+    console.log('Getting status color for:', status);
     switch (status.toLowerCase()) {
       case 'completed':
         return 'bg-green-500';
@@ -77,8 +84,53 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
       case 'running':
         return 'bg-blue-500';
       default:
+        console.log('Unknown status:', status);
         return 'bg-gray-500';
     }
+  };
+
+  const renderResults = (execution: Execution) => {
+    console.log('Rendering execution:', execution);
+    if (!execution.results?.length) {
+      return (
+        <div className="space-y-2">
+          {execution.message && (
+            <div className="text-sm text-muted-foreground">
+              Message: {execution.message}
+            </div>
+          )}
+          <span className="text-muted-foreground">No node results available</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {execution.message && (
+          <div className="text-sm text-muted-foreground">
+            Message: {execution.message}
+          </div>
+        )}
+        {execution.results.map((result, index) => (
+          <div key={`${result.nodeId}-${index}`} className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Node: {result.nodeId}</span>
+              <Badge 
+                variant="secondary"
+                className={`${result.status === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}
+              >
+                {result.status}
+              </Badge>
+            </div>
+            {result.results?.map((item, i) => (
+              <div key={i} className="text-sm pl-4 text-muted-foreground">
+                {item}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -134,9 +186,7 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
                   {formatDistanceToNow(new Date(execution.created_at), { addSuffix: true })}
                 </TableCell>
                 <TableCell>
-                  <pre className="text-xs overflow-auto max-w-md">
-                    {JSON.stringify(execution.results, null, 2)}
-                  </pre>
+                  {renderResults(execution)}
                 </TableCell>
               </TableRow>
             ))}
