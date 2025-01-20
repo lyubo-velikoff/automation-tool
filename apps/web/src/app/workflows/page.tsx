@@ -14,8 +14,9 @@ import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from '@/graphql/mutations';
 import { PlayIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ExecutionHistory from '@/components/workflow/ExecutionHistory';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { WorkflowLoadingSkeleton } from '@/components/workflow/loading-skeleton';
 
 interface CleanNode {
   id: string;
@@ -29,12 +30,12 @@ export default function WorkflowsPage() {
   const [workflowName, setWorkflowName] = useState('');
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const { toast } = useToast();
   const executionHistoryRef = useRef<{ fetchExecutions: () => Promise<void> }>(null);
-  const { signIn } = useAuth();
+  const { session, loading } = useAuth();
+  const router = useRouter();
 
   const [createWorkflow, { loading: saveLoading }] = useMutation(CREATE_WORKFLOW, {
     onError: (error) => {
@@ -96,17 +97,10 @@ export default function WorkflowsPage() {
   });
 
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsAuthenticated(!!user);
-  };
-
-  const handleLogin = async () => {
-    signIn();
-  };
+    if (!loading && !session) {
+      router.replace('/');
+    }
+  }, [session, loading, router]);
 
   const cleanNodeForServer = (node: Node): CleanNode => {
     const cleanData = { ...node.data };
@@ -127,15 +121,6 @@ export default function WorkflowsPage() {
         variant: "destructive",
         title: "Error",
         description: "Please enter a workflow name"
-      });
-      return;
-    }
-
-    if (!isAuthenticated) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to save workflows"
       });
       return;
     }
@@ -180,13 +165,14 @@ export default function WorkflowsPage() {
     setEdges(updatedEdges);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold mb-4">Please log in to continue</h1>
-        <Button onClick={handleLogin}>Login with GitHub</Button>
-      </div>
-    );
+  // Show loading skeleton while checking auth
+  if (loading) {
+    return <WorkflowLoadingSkeleton />;
+  }
+
+  // If not authenticated, don't render anything (will be redirected)
+  if (!session) {
+    return null;
   }
 
   return (
