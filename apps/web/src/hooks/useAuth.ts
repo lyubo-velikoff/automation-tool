@@ -1,10 +1,14 @@
+'use client';
+
 import { useEffect, useState, useCallback } from 'react';
 import { createClientComponentClient, type Session } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
+  const router = useRouter();
   
   const supabase = createClientComponentClient();
 
@@ -33,6 +37,8 @@ export function useAuth() {
           authWindow.close();
           setAuthWindow(null);
         }
+        // Navigate to workflows after successful auth
+        router.push('/workflows');
       }
     };
 
@@ -42,7 +48,7 @@ export function useAuth() {
       subscription.unsubscribe();
       window.removeEventListener('message', handleMessage);
     };
-  }, [supabase.auth, authWindow]);
+  }, [supabase.auth, authWindow, router]);
 
   const signIn = useCallback(() => {
     // Close any existing auth windows
@@ -78,7 +84,9 @@ export function useAuth() {
       authWindow.close();
       setAuthWindow(null);
     }
-  }, [supabase.auth, authWindow]);
+    // Navigate to home page after sign out
+    router.push('/');
+  }, [supabase.auth, authWindow, router]);
 
   return {
     session,

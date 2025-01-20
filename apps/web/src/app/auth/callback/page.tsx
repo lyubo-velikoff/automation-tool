@@ -29,8 +29,6 @@ export default function AuthCallback() {
               { type: 'AUTH_COMPLETE', session },
               window.location.origin
             );
-            console.log('Redirecting parent window to /workflows...');
-            window.opener.location.href = '/workflows';
             console.log('Closing popup window...');
             window.close();
           } else {
@@ -42,11 +40,6 @@ export default function AuthCallback() {
         }
       } catch (error) {
         console.error('Error in callback handler:', error);
-      } finally {
-        if (window.opener) {
-          console.log('Ensuring popup window is closed...');
-          window.close();
-        }
       }
     };
 
