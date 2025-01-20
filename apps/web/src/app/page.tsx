@@ -8,12 +8,14 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/ui/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const { signIn } = useAuth();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -28,17 +30,12 @@ export default function Home() {
   const handleGithubSignIn = async () => {
     setIsLoading(true);
     try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/workflows`,
-          scopes: 'read:user user:email'
-        }
-      });
+      signIn(); // Use our popup-based authentication
     } catch (error) {
       console.error('Login failed:', error);
-      setIsLoading(false);
       setError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -114,18 +111,11 @@ export default function Home() {
               </span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            type="button"
-            disabled={isLoading}
-            onClick={handleGithubSignIn}
-          >
-            {isLoading ? (
+          <Button onClick={handleGithubSignIn} disabled={isLoading}>
+            {isLoading && (
               <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Icons.gitHub className="mr-2 h-4 w-4" />
             )}
-            GitHub
+            Sign in with GitHub
           </Button>
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>

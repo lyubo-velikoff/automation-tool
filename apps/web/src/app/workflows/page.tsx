@@ -15,6 +15,7 @@ import { PlayIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ExecutionHistory from '@/components/workflow/ExecutionHistory';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CleanNode {
   id: string;
@@ -33,6 +34,7 @@ export default function WorkflowsPage() {
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
   const { toast } = useToast();
   const executionHistoryRef = useRef<{ fetchExecutions: () => Promise<void> }>(null);
+  const { signIn } = useAuth();
 
   const [createWorkflow, { loading: saveLoading }] = useMutation(CREATE_WORKFLOW, {
     onError: (error) => {
@@ -103,13 +105,7 @@ export default function WorkflowsPage() {
   };
 
   const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/workflows`,
-        scopes: 'read:user user:email'
-      }
-    });
+    signIn();
   };
 
   const cleanNodeForServer = (node: Node): CleanNode => {

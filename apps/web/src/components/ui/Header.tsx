@@ -1,67 +1,46 @@
 'use client';
 
-import { useTheme } from 'next-themes';
-import { Moon, Sun, User } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from './button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useEffect, useState } from 'react';
+import { Icons } from './icons';
 import Link from 'next/link';
-import { User as SupabaseUser } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    const getUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error('Error fetching user:', error.message);
-          return;
-        }
-        setUser(user);
-      } catch (error) {
-        console.error('Error in getUser:', error);
-      }
-    };
-    getUser();
-  }, []);
-
-  if (!mounted) return null;
+  const { session, loading, signIn, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between">
+      <div className="container flex h-14 items-center m-auto">
         <div className="mr-4 flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
+          <Link className="mr-6 flex items-center space-x-2" href="/">
+            <Icons.logo className="h-6 w-6" />
             <span className="hidden font-bold sm:inline-block">
               Automation Tool
             </span>
           </Link>
         </div>
-        <div className="flex items-center justify-end space-x-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
+        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
+          <div className="w-full flex-1 md:w-auto md:flex-none">
+            {/* Add any additional header items here */}
+          </div>
+          <nav className="flex items-center space-x-2">
+            <ThemeToggle />
+            {loading ? (
+              <Button variant="ghost" size="sm" disabled>
+                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </Button>
+            ) : session ? (
+              <Button variant="ghost" size="sm" onClick={signOut}>
+                Sign Out
+              </Button>
             ) : (
-              <Moon className="h-5 w-5" />
+              <Button variant="ghost" size="sm" onClick={signIn}>
+                Sign In
+              </Button>
             )}
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-          <Avatar>
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback>
-              <User className="h-5 w-5" />
-            </AvatarFallback>
-          </Avatar>
+          </nav>
         </div>
       </div>
     </header>
