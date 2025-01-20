@@ -9,23 +9,25 @@ export default function ConnectionsPage() {
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
 
   return (
-    <div className='container mx-auto py-8'>
+    <>
       <Header />
-      <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-        <div className='flex flex-col gap-4'>
-          <ConnectionStatus
-            onOpenAISettings={() => setOpenAISettingsOpen(true)}
-          />
+      <div className='container mx-auto py-8'>
+        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+          <div className='flex flex-col gap-4'>
+            <ConnectionStatus
+              onOpenAISettings={() => setOpenAISettingsOpen(true)}
+            />
+          </div>
         </div>
-      </div>
 
-      <OpenAISettingsDialog
-        open={openAISettingsOpen}
-        onOpenChange={setOpenAISettingsOpen}
-        onSuccess={() => {
-          window.location.reload();
-        }}
-      />
-    </div>
+        <OpenAISettingsDialog
+          open={openAISettingsOpen}
+          onOpenChange={setOpenAISettingsOpen}
+          onSuccess={() => {
+            window.location.reload();
+          }}
+        />
+      </div>
+    </>
   );
 }

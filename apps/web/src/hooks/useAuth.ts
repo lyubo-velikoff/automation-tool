@@ -24,9 +24,6 @@ export function useAuth() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
-      if (session) {
-        router.push('/workflows');
-      }
     });
 
     // Listen for messages from popup
@@ -39,7 +36,6 @@ export function useAuth() {
           authWindow.close();
         }
         setAuthWindow(null);
-        router.push('/workflows');
       }
     };
 
