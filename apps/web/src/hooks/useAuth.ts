@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClientComponentClient, type Session } from '@supabase/auth-helpers-nextjs';
+import { type Session } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
   const router = useRouter();
-  
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     // Check for initial session
@@ -25,6 +24,9 @@ export function useAuth() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
+      if (session) {
+        router.push('/workflows');
+      }
     });
 
     // Listen for messages from popup
@@ -33,26 +35,37 @@ export function useAuth() {
 
       if (event.data?.type === 'AUTH_COMPLETE') {
         setSession(event.data.session);
-        if (authWindow) {
+        if (authWindow && !authWindow.closed) {
           authWindow.close();
-          setAuthWindow(null);
         }
-        // Navigate to workflows after successful auth
+        setAuthWindow(null);
         router.push('/workflows');
       }
     };
 
     window.addEventListener('message', handleMessage);
 
+    // Check if auth window is still open periodically
+    const checkAuthWindow = setInterval(() => {
+      if (authWindow && authWindow.closed) {
+        setAuthWindow(null);
+      }
+    }, 1000);
+
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('message', handleMessage);
+      clearInterval(checkAuthWindow);
+      // Close auth window if component unmounts
+      if (authWindow && !authWindow.closed) {
+        authWindow.close();
+      }
     };
-  }, [supabase.auth, authWindow, router]);
+  }, [authWindow, router]);
 
   const signIn = useCallback(() => {
     // Close any existing auth windows
-    if (authWindow) {
+    if (authWindow && !authWindow.closed) {
       authWindow.close();
     }
 
@@ -80,13 +93,13 @@ export function useAuth() {
     await supabase.auth.signOut();
     setSession(null);
     // Close any open auth windows
-    if (authWindow) {
+    if (authWindow && !authWindow.closed) {
       authWindow.close();
-      setAuthWindow(null);
     }
+    setAuthWindow(null);
     // Navigate to home page after sign out
     router.push('/');
-  }, [supabase.auth, authWindow, router]);
+  }, [authWindow, router]);
 
   return {
     session,
