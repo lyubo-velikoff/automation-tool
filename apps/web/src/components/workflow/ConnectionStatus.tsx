@@ -9,13 +9,7 @@ import {
 } from '@/components/ui/card';
 import { useMutation } from '@apollo/client';
 import { VALIDATE_OPENAI_CONNECTION } from '@/graphql/mutations';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
+import { supabase } from '@/lib/supabase';
 interface ServiceStatus {
   gmail: boolean;
   openai: boolean;

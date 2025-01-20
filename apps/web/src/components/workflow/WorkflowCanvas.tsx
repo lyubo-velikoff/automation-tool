@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -29,22 +29,18 @@ interface WorkflowCanvasProps {
   workflowId?: string;
 }
 
-const nodeTypes = {
-  GMAIL_TRIGGER: (props: NodeProps) => (
-    <div data-testid={`node-${props.type.toLowerCase()}`}>
-      <NodeSelector {...props} />
-    </div>
-  ),
-  GMAIL_ACTION: (props: NodeProps) => (
-    <div data-testid={`node-${props.type.toLowerCase()}`}>
-      <NodeSelector {...props} />
-    </div>
-  ),
-  OPENAI: (props: NodeProps) => (
-    <div data-testid={`node-${props.type.toLowerCase()}`}>
-      <NodeSelector {...props} />
-    </div>
-  ),
+// Memoized node components
+const BasicNode = (props: NodeProps) => (
+  <div data-testid={`node-${props.type.toLowerCase()}`}>
+    <NodeSelector {...props} />
+  </div>
+);
+
+// Define nodeTypes outside the component
+const getNodeTypes = () => ({
+  GMAIL_TRIGGER: BasicNode,
+  GMAIL_ACTION: BasicNode,
+  OPENAI: BasicNode,
   SCRAPING: (props: NodeProps) => (
     <div data-testid={`node-${props.type.toLowerCase()}`}>
       <ScrapingNode 
@@ -61,7 +57,7 @@ const nodeTypes = {
       />
     </div>
   ),
-};
+});
 
 interface NodeData {
   // Gmail fields
@@ -106,11 +102,6 @@ export default function WorkflowCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
   const handleNodeDataChange = useCallback((nodeId: string, newData: NodeData) => {
     setNodes((nds) =>
       nds.map((node) => {
@@ -127,6 +118,14 @@ export default function WorkflowCanvas({
       })
     );
   }, [setNodes]);
+
+  // Memoize nodeTypes
+  const nodeTypes = useMemo(() => getNodeTypes(), []);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
   const handleAddNode = useCallback((node: Node) => {
     const defaultData = node.type === 'SCRAPING' ? {

@@ -1,22 +1,12 @@
-import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { Card } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from 'date-fns';
+'use client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
+import { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ExecutionHistoryProps {
   workflowId: string;
@@ -51,33 +41,14 @@ const ExecutionHistory = forwardRef<ExecutionHistoryRef, ExecutionHistoryProps>(
   const fetchExecutions = async () => {
     try {
       setError(null);
-      // Get the current session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No authenticated session');
-      }
-
-      // Create a new Supabase client with the session
-      const authenticatedClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
-          }
-        }
-      );
-
-      const { data, error } = await authenticatedClient
+      const { data, error: fetchError } = await supabase
         .from('workflow_executions')
         .select('*')
         .eq('workflow_id', workflowId)
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
       setExecutions(data || []);
     } catch (error) {
       console.error('Error fetching executions:', error);
