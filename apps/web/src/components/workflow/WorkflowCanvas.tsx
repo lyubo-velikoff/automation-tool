@@ -76,8 +76,6 @@ function WorkflowCanvasInner() {
       <ScheduleWorkflowDialog
         open={scheduleDialogOpen}
         onOpenChange={setScheduleDialogOpen}
-        nodes={nodes}
-        edges={edges}
       />
       <OpenAISettingsDialog
         open={openAISettingsOpen}

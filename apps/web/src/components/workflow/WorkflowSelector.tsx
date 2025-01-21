@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
@@ -35,7 +35,7 @@ interface Workflow {
 export function WorkflowSelector() {
   const [open, setOpen] = useState(false);
   const { data } = useQuery(GET_WORKFLOWS);
-  const { setWorkflowId, setWorkflowName, setNodes, setEdges } = useWorkflow();
+  const { setNodes, setWorkflowId, setWorkflowName, setEdges } = useWorkflow();
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(
     null
   );
@@ -43,7 +43,6 @@ export function WorkflowSelector() {
   // Sort workflows by updated_at or created_at
   const sortedWorkflows = useMemo(() => {
     if (!data?.workflows) return [];
-
     return [...data.workflows].sort((a, b) => {
       const dateA = new Date(a.updated_at || a.created_at);
       const dateB = new Date(b.updated_at || b.created_at);
@@ -51,54 +50,72 @@ export function WorkflowSelector() {
     });
   }, [data?.workflows]);
 
-  const handleSelect = (workflow: Workflow) => {
-    console.log("Original nodes:", workflow.nodes);
-    console.log("Original workflow:", workflow);
+  const processNodes = useCallback(
+    (inputNodes: Node<NodeData>[]) => {
+      console.log("Processing nodes:", inputNodes);
+      return inputNodes.map((node) => {
+        // Create the node structure that ReactFlow expects
+        const processedNode: Node<NodeData> = {
+          id: node.id,
+          type: node.type || "GMAIL_ACTION",
+          position: node.position || { x: 100, y: 100 },
+          data: {
+            label: node.data?.label || `${node.type} Node`,
+            to: node.data?.to,
+            subject: node.data?.subject,
+            body: node.data?.body,
+            fromFilter: node.data?.fromFilter,
+            subjectFilter: node.data?.subjectFilter,
+            pollingInterval: node.data?.pollingInterval,
+            prompt: node.data?.prompt,
+            model: node.data?.model,
+            maxTokens: node.data?.maxTokens,
+            url: node.data?.url,
+            selector: node.data?.selector,
+            selectorType: node.data?.selectorType,
+            attribute: node.data?.attribute,
+            onConfigChange: (nodeId: string, newData: NodeData) => {
+              console.log("Node config change:", nodeId, newData);
+              // Create a new array with the updated node
+              const updatedNodes = processNodes(inputNodes).map((n) =>
+                n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
+              );
+              setNodes(updatedNodes);
+            }
+          },
+          draggable: true,
+          connectable: true,
+          selectable: true,
+          width: 350,
+          height: 200
+        };
 
-    setSelectedWorkflow(workflow);
-    setWorkflowId(workflow.id);
-    setWorkflowName(workflow.name);
+        console.log("Processed node:", processedNode);
+        return processedNode;
+      });
+    },
+    [setNodes]
+  );
 
-    // Process nodes to ensure they have the correct structure
-    const processedNodes = workflow.nodes.map((node) => {
-      // Preserve the original node data structure
-      const nodeData: NodeData = {
-        ...node.data,
-        label: node.data?.label || `${node.type} Node`,
-        onConfigChange: (nodeId: string, newData: NodeData) => {
-          console.log("Config change for node:", nodeId, newData);
-          const updatedNodes = processedNodes.map((n) =>
-            n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
-          );
-          setNodes(updatedNodes);
-        }
-      };
+  const handleSelect = useCallback(
+    (workflow: Workflow) => {
+      console.log("Selecting workflow:", workflow);
 
-      // Create the node structure that ReactFlow expects
-      const processedNode: Node<NodeData> = {
-        id: node.id,
-        type: node.type || "GMAIL_ACTION",
-        position: node.position || { x: 100, y: 100 },
-        data: nodeData,
-        draggable: true,
-        connectable: true,
-        selectable: true,
-        width: 350,
-        height: 200
-      };
+      // First, process and set the nodes
+      const processedNodes = processNodes(workflow.nodes);
+      console.log("Final processed nodes:", processedNodes);
+      setNodes(processedNodes);
 
-      console.log("Processed node:", processedNode);
-      return processedNode;
-    });
+      // Then update the workflow state
+      setWorkflowId(workflow.id);
+      setWorkflowName(workflow.name);
+      setEdges(workflow.edges || []);
 
-    console.log("Setting nodes:", processedNodes);
-    setNodes(processedNodes);
-
-    console.log("Setting edges:", workflow.edges || []);
-    setEdges(workflow.edges || []);
-
-    setOpen(false);
-  };
+      setSelectedWorkflow(workflow);
+      setOpen(false);
+    },
+    [processNodes, setNodes, setWorkflowId, setWorkflowName, setEdges]
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

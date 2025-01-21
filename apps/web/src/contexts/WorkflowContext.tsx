@@ -23,6 +23,12 @@ interface WorkflowContextType {
   setEdges: (edges: Edge[]) => void;
   setIsExecuting: (isExecuting: boolean) => void;
   setIsSaving: (isSaving: boolean) => void;
+  setWorkflowState: (state: {
+    workflowId: string;
+    workflowName: string;
+    nodes: Node<NodeData>[];
+    edges: Edge[];
+  }) => void;
   handleSave: (name: string, nodes: Node[], edges: Edge[]) => Promise<void>;
   handleExecute: (nodes: Node[], edges: Edge[]) => Promise<void>;
   handleSchedule: (nodes: Node[], edges: Edge[]) => void;
@@ -48,20 +54,25 @@ export function WorkflowProvider({
 }: WorkflowProviderProps) {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("");
-  const [nodes, setNodesState] = useState<Node<NodeData>[]>([]);
-  const [edges, setEdgesState] = useState<Edge[]>([]);
+  const [nodes, setNodes] = useState<Node<NodeData>[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const setNodes = useCallback((newNodes: Node<NodeData>[]) => {
-    console.log("Setting nodes in context:", newNodes);
-    setNodesState(newNodes);
-  }, []);
-
-  const setEdges = useCallback((newEdges: Edge[]) => {
-    console.log("Setting edges in context:", newEdges);
-    setEdgesState(newEdges);
-  }, []);
+  const setWorkflowState = useCallback(
+    (state: {
+      workflowId: string;
+      workflowName: string;
+      nodes: Node<NodeData>[];
+      edges: Edge[];
+    }) => {
+      setWorkflowId(state.workflowId);
+      setWorkflowName(state.workflowName);
+      setNodes(state.nodes);
+      setEdges(state.edges);
+    },
+    []
+  );
 
   const handleSave = useCallback(
     async (name: string, nodes: Node[], edges: Edge[]) => {
@@ -121,6 +132,7 @@ export function WorkflowProvider({
         setEdges,
         setIsExecuting,
         setIsSaving,
+        setWorkflowState,
         handleSave,
         handleExecute,
         handleSchedule,

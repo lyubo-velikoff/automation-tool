@@ -16,23 +16,18 @@ import {
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { toast } from "../ui/use-toast";
-import { Node, Edge } from "reactflow";
 import { useWorkflow } from "@/contexts/WorkflowContext";
 
 interface ScheduleWorkflowDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  nodes: Node[];
-  edges: Edge[];
 }
 
 export function ScheduleWorkflowDialog({
   open,
-  onOpenChange,
-  nodes,
-  edges
+  onOpenChange
 }: ScheduleWorkflowDialogProps) {
-  const { workflowId } = useWorkflow();
+  const { workflowId, nodes, edges } = useWorkflow();
   const [intervalMinutes, setIntervalMinutes] = useState("15");
   const [isScheduled, setIsScheduled] = useState(false);
 
