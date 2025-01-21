@@ -17,16 +17,50 @@ import {
 } from "@/components/ui/popover";
 import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
 import { Icons } from "@/components/ui/icons";
+import { Node, Edge } from "reactflow";
 
-export const WorkflowSelector = () => {
+export const WorkflowSelector = ({
+  onWorkflowSelect
+}: {
+  onWorkflowSelect?: (nodes: Node[], edges: Edge[]) => void;
+}) => {
   const [open, setOpen] = React.useState(false);
   const {
     options = [],
     loading,
     error,
     selectedWorkflow,
-    setSelectedWorkflow
+    setSelectedWorkflow,
+    selectedWorkflowData
   } = useWorkflowSelection();
+
+  // Handle workflow data changes
+  React.useEffect(() => {
+    if (selectedWorkflowData?.nodes) {
+      console.log("Processing workflow selection:", selectedWorkflow);
+      console.log("Workflow data:", selectedWorkflowData);
+
+      const processedNodes = selectedWorkflowData.nodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        position: {
+          x: node.position?.x ?? 100,
+          y: node.position?.y ?? 100
+        },
+        data: {
+          ...node.data,
+          label: node.label || `${node.type} Node`
+        },
+        draggable: true,
+        connectable: true,
+        selectable: true,
+        width: 350,
+        height: 200
+      }));
+
+      onWorkflowSelect?.(processedNodes, selectedWorkflowData.edges || []);
+    }
+  }, [selectedWorkflowData, selectedWorkflow, onWorkflowSelect]);
 
   // Handle error state
   if (error) {
@@ -36,6 +70,12 @@ export const WorkflowSelector = () => {
       </Button>
     );
   }
+
+  const handleSelect = (currentValue: string) => {
+    const isDeselecting = currentValue === selectedWorkflow;
+    setSelectedWorkflow(isDeselecting ? null : currentValue);
+    setOpen(false);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -69,12 +109,7 @@ export const WorkflowSelector = () => {
                   <CommandItem
                     key={option.value}
                     value={option.value}
-                    onSelect={(currentValue) => {
-                      setSelectedWorkflow(
-                        currentValue === selectedWorkflow ? null : currentValue
-                      );
-                      setOpen(false);
-                    }}
+                    onSelect={handleSelect}
                   >
                     <Check
                       className={cn(

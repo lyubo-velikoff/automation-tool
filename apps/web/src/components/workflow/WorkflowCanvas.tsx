@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useMemo } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -12,20 +12,19 @@ import ReactFlow, {
   Connection,
   NodeChange,
   EdgeChange,
-  NodeProps,
-  XYPosition
+  XYPosition,
+  ReactFlowProvider
 } from "reactflow";
 import "reactflow/dist/style.css";
-import NodeSelector from "./NodeSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlayIcon } from "lucide-react";
 import AddNodeButton from "./AddNodeButton";
-import { cn } from "@/lib/utils";
 import OpenAISettingsDialog from "./OpenAISettingsDialog";
 import { ScheduleWorkflowDialog } from "./ScheduleWorkflowDialog";
 import { WorkflowSelector } from "./WorkflowSelector";
 import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
+import { BasicNode, nodeTypes as defaultNodeTypes } from "./nodeTypes";
 
 interface WorkflowCanvasProps {
   onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
@@ -35,27 +34,6 @@ interface WorkflowCanvasProps {
   isSaving?: boolean;
   currentWorkflowId?: string | null;
 }
-
-// Memoized node components
-const BasicNode = (props: NodeProps) => (
-  <div
-    className={cn(
-      "rounded-lg shadow-lg border",
-      "bg-background text-foreground"
-    )}
-    data-testid={`node-${props.type.toLowerCase()}`}
-  >
-    <NodeSelector {...props} />
-  </div>
-);
-
-// Define nodeTypes outside the component
-const nodeTypes = {
-  GMAIL_TRIGGER: BasicNode,
-  GMAIL_ACTION: BasicNode,
-  OPENAI: BasicNode,
-  SCRAPING: BasicNode
-};
 
 interface NodeData {
   // Gmail fields
@@ -82,7 +60,7 @@ interface NodeData {
   label?: string;
 }
 
-export default function WorkflowCanvas({
+function WorkflowCanvasInner({
   onSave,
   onExecute,
   onSchedule,
@@ -97,35 +75,22 @@ export default function WorkflowCanvas({
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const { selectedWorkflowData } = useWorkflowSelection();
 
-  // Load workflow data when selected
-  useEffect(() => {
-    if (selectedWorkflowData) {
-      setWorkflowName(selectedWorkflowData.name);
-      setNodes(
-        selectedWorkflowData.nodes.map((node) => ({
-          ...node,
-          data: {
-            ...node.data,
-            onConfigChange: handleNodeDataChange
-          }
-        }))
-      );
-      setEdges(selectedWorkflowData.edges);
-    }
-  }, [selectedWorkflowData, setNodes, setEdges]);
-
   const handleNodeDataChange = useCallback(
     (nodeId: string, newData: NodeData) => {
+      console.log("Handling node data change:", { nodeId, newData });
       setNodes((nds) =>
         nds.map((node) => {
           if (node.id === nodeId) {
-            return {
+            const updatedNode = {
               ...node,
               data: {
                 ...newData,
-                onConfigChange: handleNodeDataChange
+                onConfigChange: handleNodeDataChange,
+                label: newData.label || `${node.type} Node`
               }
             };
+            console.log("Updated node:", updatedNode);
+            return updatedNode;
           }
           return node;
         })
@@ -133,6 +98,20 @@ export default function WorkflowCanvas({
     },
     [setNodes]
   );
+
+  // Memoize nodeTypes
+  const nodeTypes = useMemo(() => {
+    const types = {
+      ...defaultNodeTypes,
+      GMAIL_ACTION: BasicNode,
+      GMAIL_TRIGGER: BasicNode,
+      OPENAI: BasicNode,
+      SCRAPING: BasicNode,
+      default: BasicNode
+    };
+    console.log("Available node types:", Object.keys(types));
+    return types;
+  }, []);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -143,6 +122,7 @@ export default function WorkflowCanvas({
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      console.log("Node changes:", changes);
       onNodesChange(changes);
     },
     [onNodesChange]
@@ -150,6 +130,7 @@ export default function WorkflowCanvas({
 
   const handleEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
+      console.log("Edge changes:", changes);
       onEdgesChange(changes);
     },
     [onEdgesChange]
@@ -157,6 +138,7 @@ export default function WorkflowCanvas({
 
   const handleAddNode = useCallback(
     (node: Node) => {
+      console.log("handleAddNode called with:", node);
       const position: XYPosition = node.position || { x: 100, y: 100 };
       const nodeWithHandlers = {
         ...node,
@@ -170,7 +152,13 @@ export default function WorkflowCanvas({
         }
       };
 
-      setNodes((nds) => [...nds, nodeWithHandlers]);
+      console.log("Adding new node with handlers:", nodeWithHandlers);
+      setNodes((nds) => {
+        console.log("Current nodes before adding:", nds);
+        const newNodes = [...nds, nodeWithHandlers];
+        console.log("New nodes array after adding:", newNodes);
+        return newNodes;
+      });
     },
     [nodes, handleNodeDataChange, setNodes]
   );
@@ -194,9 +182,24 @@ export default function WorkflowCanvas({
     setScheduleDialogOpen(true);
   };
 
+  const handleWorkflowSelect = useCallback(
+    (nodes: Node[], edges: Edge[]) => {
+      console.log("Workflow selected, updating canvas with:", { nodes, edges });
+      setNodes(nodes);
+      setEdges(edges);
+      if (selectedWorkflowData) {
+        setWorkflowName(selectedWorkflowData.name);
+      }
+    },
+    [setNodes, setEdges, selectedWorkflowData]
+  );
+
   return (
-    <div className='flex flex-col w-full h-full' data-testid='workflow-canvas'>
-      <div className='flex-grow relative'>
+    <div
+      className='flex flex-col w-full h-[calc(100vh-4rem)]'
+      data-testid='workflow-canvas'
+    >
+      <div className='flex-grow relative h-[calc(100%-4rem)]'>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -212,6 +215,14 @@ export default function WorkflowCanvas({
           minZoom={0.1}
           maxZoom={4}
           fitView
+          className='h-full'
+          snapToGrid
+          snapGrid={[15, 15]}
+          onInit={() => {
+            console.log("ReactFlow initialized");
+            console.log("Current nodes:", nodes);
+            console.log("Current edges:", edges);
+          }}
         >
           <Background />
           <Controls className='absolute bottom-4 left-4' />
@@ -219,7 +230,7 @@ export default function WorkflowCanvas({
       </div>
 
       <div className='flex items-center gap-4 p-4 border-t bg-background/80 backdrop-blur-sm'>
-        <WorkflowSelector />
+        <WorkflowSelector onWorkflowSelect={handleWorkflowSelect} />
         <Input
           value={workflowName}
           onChange={(e) => setWorkflowName(e.target.value)}
@@ -255,10 +266,15 @@ export default function WorkflowCanvas({
       <OpenAISettingsDialog
         open={openAISettingsOpen}
         onOpenChange={setOpenAISettingsOpen}
-        onSuccess={() => {
-          window.location.reload();
-        }}
       />
     </div>
+  );
+}
+
+export default function WorkflowCanvas(props: WorkflowCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <WorkflowCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }

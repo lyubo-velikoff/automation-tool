@@ -53,24 +53,28 @@ interface NodeSelectorProps {
 }
 
 const commonEmails = [
-  { value: "lyubo.velikoff@gmail.com", label: "Lyubo Velikov" }
-  // Add more common emails here
+  { value: "user1@example.com", label: "User 1" },
+  { value: "user2@example.com", label: "User 2" }
 ];
 
 const commonSubjects = [
-  { value: "Test", label: "Test Email" },
-  { value: "Daily Report", label: "Daily Report" },
-  { value: "Weekly Update", label: "Weekly Update" }
+  { value: "Meeting Summary", label: "Meeting Summary" },
+  { value: "Weekly Report", label: "Weekly Report" }
 ];
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
   const handleDataChange = useCallback(
     (key: string, value: string | number) => {
       if (data.onConfigChange) {
-        data.onConfigChange(id, { ...data, [key]: value });
+        const newData = {
+          ...data,
+          [key]: value,
+          label: key === "label" ? String(value) : data.label || `${type} Node`
+        };
+        data.onConfigChange(id, newData);
       }
     },
-    [data, id]
+    [data, id, type]
   );
 
   const renderGmailAction = () => (
@@ -314,6 +318,14 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
         <CardDescription>Configure web scraping settings</CardDescription>
       </CardHeader>
       <CardContent className='space-y-4'>
+        <div className='space-y-2'>
+          <Label>Node Label</Label>
+          <Input
+            value={data.label || ""}
+            onChange={(e) => handleDataChange("label", e.target.value)}
+            placeholder='Enter node label'
+          />
+        </div>
         <div className='space-y-2'>
           <Label>URL</Label>
           <Input
