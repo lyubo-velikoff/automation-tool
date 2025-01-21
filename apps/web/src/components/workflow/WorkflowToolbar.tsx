@@ -1,47 +1,50 @@
-import { Node, Edge } from "reactflow";
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlayIcon } from "lucide-react";
 import { WorkflowSelector } from "./WorkflowSelector";
 import AddNodeButton from "./AddNodeButton";
+import { useWorkflow } from "@/contexts/WorkflowContext";
 
 interface WorkflowToolbarProps {
-  workflowName: string;
-  onWorkflowNameChange: (name: string) => void;
-  onWorkflowSelect: (nodes: Node[], edges: Edge[]) => void;
-  onSave: () => void;
-  onExecute: () => void;
-  onSchedule: () => void;
-  onAddNode: (node: Node) => void;
-  isSaving?: boolean;
-  isExecuting?: boolean;
+  onAddNode: (type: string) => void;
+  isSaving: boolean;
+  isExecuting: boolean;
 }
 
 export function WorkflowToolbar({
-  workflowName,
-  onWorkflowNameChange,
-  onWorkflowSelect,
-  onSave,
-  onExecute,
-  onSchedule,
   onAddNode,
-  isSaving = false,
-  isExecuting = false
+  isSaving,
+  isExecuting
 }: WorkflowToolbarProps) {
+  const {
+    workflowName,
+    nodes,
+    edges,
+    setWorkflowName,
+    handleSave,
+    handleExecute,
+    handleSchedule
+  } = useWorkflow();
+
   return (
     <div className='flex items-center gap-4 p-4 border-t bg-background/80 backdrop-blur-sm'>
-      <WorkflowSelector onWorkflowSelect={onWorkflowSelect} />
+      <WorkflowSelector />
       <Input
         value={workflowName}
-        onChange={(e) => onWorkflowNameChange(e.target.value)}
+        onChange={(e) => setWorkflowName(e.target.value)}
         placeholder='Enter workflow name'
         className='w-64'
       />
-      <Button onClick={onSave} disabled={isSaving}>
+      <Button
+        onClick={() => handleSave(workflowName, nodes, edges)}
+        disabled={isSaving}
+      >
         {isSaving ? "Saving..." : "Save"}
       </Button>
       <Button
-        onClick={onExecute}
+        onClick={() => handleExecute(nodes, edges)}
         disabled={isExecuting}
         variant='secondary'
         className='gap-2'
@@ -49,7 +52,7 @@ export function WorkflowToolbar({
         <PlayIcon className='h-4 w-4' />
         {isExecuting ? "Executing..." : "Test"}
       </Button>
-      <Button variant='outline' onClick={onSchedule}>
+      <Button variant='outline' onClick={() => handleSchedule(nodes, edges)}>
         Schedule
       </Button>
       <AddNodeButton onAddNode={onAddNode} />

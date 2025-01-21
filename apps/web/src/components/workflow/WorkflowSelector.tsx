@@ -1,6 +1,6 @@
-import * as React from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+"use client";
+
+import { useWorkflow } from "@/contexts/WorkflowContext";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -15,65 +15,38 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover";
-import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
-import { Icons } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@apollo/client";
+import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
 
-interface WorkflowSelectorProps {
-  onWorkflowSelect?: (nodes: Node[], edges: Edge[]) => void;
+interface Workflow {
+  id: string;
+  name: string;
+  nodes: Node[];
+  edges: Edge[];
 }
 
-export const WorkflowSelector = ({
-  onWorkflowSelect
-}: WorkflowSelectorProps) => {
-  const [open, setOpen] = React.useState(false);
-  const {
-    options = [],
-    loading,
-    error,
-    selectedWorkflow,
-    setSelectedWorkflow,
-    selectedWorkflowData
-  } = useWorkflowSelection();
+export function WorkflowSelector() {
+  const [open, setOpen] = useState(false);
+  const { data } = useQuery(GET_WORKFLOWS);
+  const { setWorkflowId, setWorkflowName, setNodes, setEdges } = useWorkflow();
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(
+    null
+  );
 
-  // Process workflow data when it changes
-  React.useEffect(() => {
-    if (!selectedWorkflowData?.nodes) return;
-
-    const processedNodes = selectedWorkflowData.nodes.map((node) => ({
-      id: node.id,
-      type: node.type,
-      position: {
-        x: node.position?.x ?? 100,
-        y: node.position?.y ?? 100
-      },
-      data: {
-        ...node.data,
-        label: node.label || `${node.type} Node`
-      },
-      draggable: true,
-      connectable: true,
-      selectable: true,
-      width: 350,
-      height: 200
-    }));
-
-    onWorkflowSelect?.(processedNodes, selectedWorkflowData.edges || []);
-  }, [selectedWorkflowData, onWorkflowSelect]);
-
-  const handleSelect = (currentValue: string) => {
-    const isDeselecting = currentValue === selectedWorkflow;
-    setSelectedWorkflow(isDeselecting ? null : currentValue);
+  const handleSelect = (workflow: Workflow) => {
+    setSelectedWorkflow(workflow);
+    setWorkflowId(workflow.id);
+    setWorkflowName(workflow.name);
+    setNodes(workflow.nodes);
+    setEdges(workflow.edges);
     setOpen(false);
   };
 
-  if (error) {
-    return (
-      <Button variant='outline' className='w-[250px] justify-between' disabled>
-        <span className='text-destructive'>Error loading workflows</span>
-      </Button>
-    );
-  }
+  const options = data?.workflows || [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -82,51 +55,39 @@ export const WorkflowSelector = ({
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='w-[250px] justify-between'
-          disabled={loading}
+          className='w-[200px] justify-between'
         >
-          {loading ? (
-            <Icons.spinner className='mr-2 h-4 w-4 animate-spin' />
-          ) : selectedWorkflow ? (
-            options.find((option) => option.value === selectedWorkflow)
-              ?.label ?? "Unknown workflow"
-          ) : (
-            "Select workflow..."
-          )}
+          {selectedWorkflow ? selectedWorkflow.name : "Select workflow..."}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-[250px] p-0'>
+      <PopoverContent className='w-[200px] p-0'>
         <Command>
-          <CommandInput placeholder='Search workflow...' />
+          <CommandInput placeholder='Search workflows...' />
           <CommandList>
-            <CommandEmpty>No workflow found.</CommandEmpty>
+            <CommandEmpty>No workflows found.</CommandEmpty>
             <CommandGroup>
-              {Array.isArray(options) && options.length > 0 ? (
-                options.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={handleSelect}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedWorkflow === option.value
-                          ? "opacity-100"
-                          : "opacity-0"
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))
-              ) : (
-                <CommandItem disabled>No workflows available</CommandItem>
-              )}
+              {options.map((workflow: Workflow) => (
+                <CommandItem
+                  key={workflow.id}
+                  value={workflow.id}
+                  onSelect={() => handleSelect(workflow)}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedWorkflow?.id === workflow.id
+                        ? "opacity-100"
+                        : "opacity-0"
+                    )}
+                  />
+                  {workflow.name}
+                </CommandItem>
+              ))}
             </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
   );
-};
+}

@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback } from "react";
 import {
   Node,
@@ -6,104 +8,64 @@ import {
   useEdgesState,
   addEdge,
   Connection,
-  XYPosition
+  NodeChange,
+  EdgeChange
 } from "reactflow";
-import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { useWorkflow } from "@/contexts/WorkflowContext";
 
-export interface UseNodeManagementProps {
-  onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
-  onExecute?: (nodes: Node[], edges: Edge[]) => void;
-  onSchedule?: (nodes: Node[], edges: Edge[]) => void;
-}
-
-export function useNodeManagement({
-  onSave,
-  onExecute,
-  onSchedule
-}: UseNodeManagementProps = {}) {
+export function useNodeManagement() {
+  const { setNodes: setContextNodes, setEdges: setContextEdges } = useWorkflow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const handleNodeDataChange = useCallback(
-    (nodeId: string, newData: NodeData) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...newData,
-                onConfigChange: handleNodeDataChange,
-                label: newData.label || `${node.type} Node`
-              }
-            };
-          }
-          return node;
-        })
-      );
-    },
-    [setNodes]
-  );
-
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) => {
+      const newEdges = addEdge(params, edges);
+      setEdges(newEdges);
+      setContextEdges(newEdges);
+    },
+    [edges, setEdges, setContextEdges]
   );
 
   const handleAddNode = useCallback(
-    (node: Node) => {
-      const position: XYPosition = node.position || { x: 100, y: 100 };
-      const nodeWithHandlers = {
-        ...node,
-        id: node.id || `node-${nodes.length + 1}`,
-        type: node.type || "default",
-        position,
-        data: {
-          ...node.data,
-          onConfigChange: handleNodeDataChange,
-          label: node.data?.label || `${node.type || "Default"} Node`
-        }
+    (type: string) => {
+      const newNode: Node = {
+        id: `${type}-${Date.now()}`,
+        type,
+        position: { x: 100, y: 100 },
+        data: { label: `${type} Node` }
       };
 
-      setNodes((nds) => [...nds, nodeWithHandlers]);
+      const newNodes = [...nodes, newNode];
+      setNodes(newNodes);
+      setContextNodes(newNodes);
     },
-    [nodes, handleNodeDataChange, setNodes]
+    [nodes, setNodes, setContextNodes]
   );
-
-  const handleSave = useCallback(
-    (workflowName: string) => {
-      if (onSave) onSave(workflowName, nodes, edges);
-    },
-    [nodes, edges, onSave]
-  );
-
-  const handleExecute = useCallback(() => {
-    if (onExecute) onExecute(nodes, edges);
-  }, [nodes, edges, onExecute]);
-
-  const handleSchedule = useCallback(() => {
-    if (onSchedule) onSchedule(nodes, edges);
-  }, [nodes, edges, onSchedule]);
 
   const handleWorkflowSelect = useCallback(
-    (newNodes: Node[], newEdges: Edge[]) => {
-      setNodes(newNodes);
-      setEdges(newEdges);
+    (selectedNodes: Node[], selectedEdges: Edge[]) => {
+      setNodes(selectedNodes);
+      setEdges(selectedEdges);
+      setContextNodes(selectedNodes);
+      setContextEdges(selectedEdges);
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges, setContextNodes, setContextEdges]
   );
 
   return {
     nodes,
     edges,
-    onNodesChange,
-    onEdgesChange,
+    onNodesChange: (changes: NodeChange[]) => {
+      onNodesChange(changes);
+      setContextNodes(nodes);
+    },
+    onEdgesChange: (changes: EdgeChange[]) => {
+      onEdgesChange(changes);
+      setContextEdges(edges);
+    },
     onConnect,
-    handleNodeDataChange,
     handleAddNode,
-    handleSave,
-    handleExecute,
-    handleSchedule,
     handleWorkflowSelect
   };
 } 

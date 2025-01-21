@@ -14,56 +14,25 @@ import { ScheduleWorkflowDialog } from "./ScheduleWorkflowDialog";
 import { useNodeManagement } from "@/hooks/useNodeManagement";
 import { NODE_TYPES } from "./config/nodeTypes";
 import { WorkflowToolbar } from "./WorkflowToolbar";
+import { WorkflowProvider, useWorkflow } from "@/contexts/WorkflowContext";
+import { ExecutionHistory } from "./ExecutionHistory";
+import { useWorkflowExecution } from "@/hooks/useWorkflowExecution";
 
 interface WorkflowCanvasProps {
-  onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
-  onExecute?: (nodes: Node[], edges: Edge[]) => void;
+  onSave?: (name: string, nodes: Node[], edges: Edge[]) => Promise<void>;
+  onExecute?: (nodes: Node[], edges: Edge[]) => Promise<void>;
   onSchedule?: (nodes: Node[], edges: Edge[]) => void;
-  isExecuting?: boolean;
-  isSaving?: boolean;
-  currentWorkflowId?: string | null;
 }
 
-function WorkflowCanvasInner({
-  onSave,
-  onExecute,
-  onSchedule,
-  isExecuting = false,
-  isSaving = false,
-  currentWorkflowId
-}: WorkflowCanvasProps) {
-  const [workflowName, setWorkflowName] = useState("");
+function WorkflowCanvasInner() {
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
-  const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    handleAddNode,
-    handleWorkflowSelect
-  } = useNodeManagement({
-    onSave: onSave
-      ? (name, nodes, edges) => onSave(name, nodes, edges)
-      : undefined,
-    onExecute: onExecute
-      ? (nodes, edges) => onExecute(nodes, edges)
-      : undefined,
-    onSchedule: onSchedule
-      ? (nodes, edges) => onSchedule(nodes, edges)
-      : undefined
-  });
+  const { workflowId, nodes, edges, isExecuting, isSaving } = useWorkflow();
+  const { executionHistory, currentExecution } = useWorkflowExecution({});
 
-  const handleWorkflowNameChange = (name: string) => {
-    setWorkflowName(name);
-  };
-
-  const handleScheduleClick = () => {
-    if (onSchedule) onSchedule(nodes, edges);
-    setScheduleDialogOpen(true);
-  };
+  const { onNodesChange, onEdgesChange, onConnect, handleAddNode } =
+    useNodeManagement();
 
   return (
     <div
@@ -95,23 +64,23 @@ function WorkflowCanvasInner({
         </ReactFlow>
       </div>
 
-      <WorkflowToolbar
-        workflowName={workflowName}
-        onWorkflowNameChange={handleWorkflowNameChange}
-        onWorkflowSelect={handleWorkflowSelect}
-        onSave={() => onSave?.(workflowName, nodes, edges)}
-        onExecute={() => onExecute?.(nodes, edges)}
-        onSchedule={handleScheduleClick}
-        onAddNode={handleAddNode}
-        isSaving={isSaving}
-        isExecuting={isExecuting}
-      />
+      <div className='flex flex-col gap-4'>
+        <WorkflowToolbar
+          onAddNode={handleAddNode}
+          isSaving={isSaving}
+          isExecuting={isExecuting}
+        />
+        <ExecutionHistory
+          history={executionHistory}
+          currentExecution={currentExecution}
+          className='mx-4 mb-4'
+        />
+      </div>
 
-      {currentWorkflowId && (
+      {workflowId && (
         <ScheduleWorkflowDialog
           open={scheduleDialogOpen}
           onOpenChange={setScheduleDialogOpen}
-          workflowId={currentWorkflowId}
           nodes={nodes}
           edges={edges}
         />
@@ -127,7 +96,9 @@ function WorkflowCanvasInner({
 export default function WorkflowCanvas(props: WorkflowCanvasProps) {
   return (
     <ReactFlowProvider>
-      <WorkflowCanvasInner {...props} />
+      <WorkflowProvider {...props}>
+        <WorkflowCanvasInner />
+      </WorkflowProvider>
     </ReactFlowProvider>
   );
 }

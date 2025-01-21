@@ -1,7 +1,5 @@
 "use client";
 
-import { useRef } from "react";
-import { Edge, Node } from "reactflow";
 import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
 import { useMutation } from "@apollo/client";
 import {
@@ -10,130 +8,45 @@ import {
   UPDATE_WORKFLOW
 } from "@/graphql/mutations";
 import { useToast } from "@/components/ui/use-toast";
-import ExecutionHistory from "@/components/workflow/ExecutionHistory";
+import { ExecutionHistory } from "@/components/workflow/ExecutionHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
-import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
+import { WorkflowProvider, useWorkflow } from "@/contexts/WorkflowContext";
 import { Header } from "@/components/ui/Header";
+import { Node, Edge } from "reactflow";
 
-interface CleanNode {
-  id: string;
-  type: string;
-  label: string;
-  position: { x: number; y: number };
+interface CleanNode extends Omit<Node, "data"> {
   data: Record<string, unknown>;
 }
 
-export default function WorkflowsPage() {
+function WorkflowsPageContent() {
   const { toast } = useToast();
-  const executionHistoryRef = useRef<{ fetchExecutions: () => Promise<void> }>(
-    null
-  );
   const { session, loading } = useAuth();
-  const { selectedWorkflow } = useWorkflowSelection();
+  const { workflowId } = useWorkflow();
 
-  const [createWorkflow, { loading: saveLoading }] = useMutation(
-    CREATE_WORKFLOW,
-    {
-      onError: (error) => {
-        console.error("GraphQL error:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to save workflow"
-        });
-      },
-      onCompleted: () => {
-        toast({
-          title: "Success",
-          description: "Workflow saved successfully!"
-        });
-      }
-    }
-  );
-
-  const [updateWorkflow, { loading: updateLoading }] = useMutation(
-    UPDATE_WORKFLOW,
-    {
-      onError: (error) => {
-        console.error("GraphQL error:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to update workflow"
-        });
-      },
-      onCompleted: () => {
-        toast({
-          title: "Success",
-          description: "Workflow updated successfully!"
-        });
-      }
-    }
-  );
-
-  const [executeWorkflow, { loading: executeLoading }] = useMutation(
-    EXECUTE_WORKFLOW,
-    {
-      onError: (error) => {
-        console.error("Execution error:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to execute workflow"
-        });
-      },
-      onCompleted: async (data) => {
-        if (data.executeWorkflow.success) {
-          toast({
-            title: "Success",
-            description:
-              data.executeWorkflow.message || "Workflow executed successfully!"
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description:
-              data.executeWorkflow.message || "Failed to execute workflow"
-          });
-        }
-
-        await executionHistoryRef.current?.fetchExecutions();
-      }
-    }
-  );
+  const [createWorkflow] = useMutation(CREATE_WORKFLOW);
+  const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
+  const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
 
   const cleanNodeForServer = (node: Node): CleanNode => {
-    const cleanData = { ...node.data };
-    delete cleanData.onConfigChange;
-
+    const { data, ...rest } = node;
     return {
-      id: node.id,
-      type: node.type || "default",
-      label: node.data?.label || "Untitled Node",
-      position: node.position,
-      data: cleanData
+      ...rest,
+      data: {
+        ...data,
+        onConfigChange: undefined
+      }
     };
   };
 
   const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
-    if (!name) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please enter a workflow name"
-      });
-      return;
-    }
-
     const cleanNodes = nodes.map(cleanNodeForServer);
 
-    if (selectedWorkflow) {
+    if (workflowId) {
       // Update existing workflow
       await updateWorkflow({
         variables: {
-          id: selectedWorkflow,
+          id: workflowId,
           input: {
             name,
             nodes: cleanNodes,
@@ -156,11 +69,11 @@ export default function WorkflowsPage() {
   };
 
   const handleExecute = async (nodes: Node[], edges: Edge[]) => {
-    if (!selectedWorkflow) {
+    if (!workflowId) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Please save the workflow first"
+        title: "No workflow selected",
+        description: "Please select a workflow to execute"
       });
       return;
     }
@@ -169,7 +82,7 @@ export default function WorkflowsPage() {
 
     await executeWorkflow({
       variables: {
-        workflowId: selectedWorkflow,
+        workflowId,
         nodes: cleanNodes,
         edges
       }
@@ -185,25 +98,28 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className='relative h-screen overflow-hidden'>
+    <div className='relative h-screen'>
       <Header />
       <div className='h-[calc(100vh-4rem)]'>
-        <WorkflowCanvas
-          onSave={handleSave}
-          onExecute={handleExecute}
-          isExecuting={executeLoading}
-          isSaving={saveLoading || updateLoading}
-          currentWorkflowId={selectedWorkflow}
-        />
+        <WorkflowCanvas onSave={handleSave} onExecute={handleExecute} />
       </div>
-      {selectedWorkflow && (
+      {workflowId && (
         <div className='absolute bottom-20 right-2 w-1/3 bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
           <ExecutionHistory
-            workflowId={selectedWorkflow}
-            ref={executionHistoryRef}
+            history={[]}
+            currentExecution={null}
+            className='mx-4 mb-4'
           />
         </div>
       )}
     </div>
+  );
+}
+
+export default function WorkflowsPage() {
+  return (
+    <WorkflowProvider>
+      <WorkflowsPageContent />
+    </WorkflowProvider>
   );
 }

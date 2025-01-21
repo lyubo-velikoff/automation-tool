@@ -5,7 +5,6 @@ import NodeSelector from "./NodeSelector";
 
 // Memoized node component
 export const BasicNode = memo((props: NodeProps) => {
-  console.log("Rendering BasicNode:", props);
   return (
     <div
       className={cn(
