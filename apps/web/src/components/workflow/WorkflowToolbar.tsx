@@ -25,7 +25,8 @@ export function WorkflowToolbar({
     handleExecute,
     handleSchedule,
     isSaving,
-    isExecuting
+    isExecuting,
+    workflowId
   } = useWorkflow();
 
   return (
@@ -44,7 +45,7 @@ export function WorkflowToolbar({
         {isSaving ? "Saving..." : "Save"}
       </Button>
       <Button
-        onClick={() => handleExecute(nodes, edges)}
+        onClick={() => handleExecute(workflowId)}
         disabled={isExecuting}
         variant='secondary'
         className='gap-2'

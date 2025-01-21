@@ -56,8 +56,8 @@ export const VALIDATE_OPENAI_CONNECTION = gql`
 `;
 
 export const EXECUTE_WORKFLOW = gql`
-  mutation ExecuteWorkflow($workflowId: String!, $nodes: [WorkflowNodeInput!]!, $edges: [WorkflowEdgeInput!]!) {
-    executeWorkflow(workflowId: $workflowId, nodes: $nodes, edges: $edges) {
+  mutation ExecuteWorkflow($workflowId: String!) {
+    executeWorkflow(workflowId: $workflowId) {
       success
       message
       executionId

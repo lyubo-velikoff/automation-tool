@@ -15,15 +15,15 @@ export interface ExecutionResult {
 }
 
 export interface UseWorkflowExecutionProps {
-  onExecute?: (nodes: Node[], edges: Edge[]) => Promise<void>;
+  onExecute?: (workflowId: string) => Promise<void>;
 }
 
 export function useWorkflowExecution({ onExecute }: UseWorkflowExecutionProps = {}) {
-  const { workflowId } = useWorkflow();
+  const { workflowId, nodes, edges } = useWorkflow();
   const [executionHistory, setExecutionHistory] = useState<ExecutionResult[]>([]);
   const [currentExecution, setCurrentExecution] = useState<ExecutionResult | null>(null);
 
-  const handleExecute = useCallback(async (nodes: Node[], edges: Edge[]) => {
+  const handleExecute = useCallback(async (workflowId: string) => {
     if (!workflowId || !onExecute) return;
     
     const executionId = `exec-${Date.now()}`;
@@ -41,7 +41,7 @@ export function useWorkflowExecution({ onExecute }: UseWorkflowExecutionProps = 
     setExecutionHistory(prev => [newExecution, ...prev]);
 
     try {
-      await onExecute(nodes, edges);
+      await onExecute(workflowId);
       
       // Update execution status to success
       const successExecution: ExecutionResult = {
@@ -67,7 +67,7 @@ export function useWorkflowExecution({ onExecute }: UseWorkflowExecutionProps = 
         prev.map(exec => exec.id === executionId ? errorExecution : exec)
       );
     }
-  }, [workflowId, onExecute]);
+  }, [workflowId, nodes, edges, onExecute]);
 
   const clearHistory = useCallback(() => {
     setExecutionHistory([]);

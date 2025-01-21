@@ -31,6 +31,7 @@ export function useWorkflowHandlers() {
     try {
       await updateWorkflow({
         variables: {
+          id: name,
           input: {
             name,
             nodes: cleanNodes,
@@ -40,49 +41,51 @@ export function useWorkflowHandlers() {
       });
 
       toast({
-        title: "Workflow saved",
-        description: "Your workflow has been saved successfully"
+        title: "Success",
+        description: "Workflow saved successfully"
       });
     } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Save failed",
-        description: error instanceof Error ? error.message : "An error occurred"
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save workflow",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
-  const handleExecute = async (nodes: Node[], edges: Edge[]) => {
+  const handleExecute = async (workflowId: string) => {
     try {
-      const cleanNodes = nodes.map(cleanNodeForServer);
       await executeWorkflow({
         variables: {
-          nodes: cleanNodes,
-          edges
+          workflowId
         }
       });
 
       toast({
-        title: "Workflow executed",
-        description: "The workflow was executed successfully"
+        title: "Success",
+        description: "Workflow executed successfully"
       });
     } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Execution failed",
-        description: error instanceof Error ? error.message : "An error occurred"
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to execute workflow",
+        variant: "destructive"
       });
+      throw error;
     }
   };
 
-  const handleSchedule = (_nodes: Node[], _edges: Edge[]) => {
-    // For now, just show a toast since we haven't implemented scheduling yet
-    // We'll use the nodes and edges parameters when we implement scheduling
+  const handleSchedule = async () => {
     toast({
-      title: "Schedule workflow",
+      title: "Coming Soon",
       description: "Scheduling functionality will be implemented soon"
     });
   };
 
-  return { handleSave, handleExecute, handleSchedule };
+  return {
+    handleSave,
+    handleExecute,
+    handleSchedule
+  };
 } 
