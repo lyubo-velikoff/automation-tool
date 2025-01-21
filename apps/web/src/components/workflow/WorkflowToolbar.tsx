@@ -9,10 +9,12 @@ import { useWorkflow } from "@/contexts/WorkflowContext";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;
+  onScheduleClick: () => void;
 }
 
 export function WorkflowToolbar({
   onAddNode,
+  onScheduleClick
 }: WorkflowToolbarProps) {
   const {
     workflowName,
@@ -23,7 +25,7 @@ export function WorkflowToolbar({
     handleExecute,
     handleSchedule,
     isSaving,
-    isExecuting,
+    isExecuting
   } = useWorkflow();
 
   return (
@@ -50,7 +52,13 @@ export function WorkflowToolbar({
         <PlayIcon className='h-4 w-4' />
         {isExecuting ? "Executing..." : "Test"}
       </Button>
-      <Button variant='outline' onClick={() => handleSchedule(nodes, edges)}>
+      <Button
+        variant='outline'
+        onClick={() => {
+          handleSchedule(nodes, edges);
+          onScheduleClick();
+        }}
+      >
         Schedule
       </Button>
       <AddNodeButton onAddNode={onAddNode} />

@@ -24,9 +24,9 @@ export function ExecutionHistory({
   currentExecution,
   className
 }: ExecutionHistoryProps) {
-  // if (history.length === 0) {
-  //   return null;
-  // }
+  if (history.length === 0) {
+    return null;
+  }
 
   return (
     <Card className={cn("w-full", className)}>

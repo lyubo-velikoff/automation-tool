@@ -89,21 +89,10 @@ export function WorkflowProvider({
 
   const handleExecute = useCallback(
     async (nodes: Node[], edges: Edge[]) => {
-      if (!onExecute || !workflowId) {
-        console.log("Cannot execute: missing onExecute or workflowId", {
-          onExecute,
-          workflowId
-        });
-        return;
-      }
+      if (!onExecute || !workflowId) return;
 
       setIsExecuting(true);
       try {
-        console.log("Context executing workflow with:", {
-          workflowId,
-          nodes,
-          edges
-        });
         await onExecute(nodes, edges);
       } finally {
         setIsExecuting(false);

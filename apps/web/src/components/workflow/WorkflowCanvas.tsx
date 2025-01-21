@@ -73,7 +73,10 @@ function WorkflowCanvas({
         </div>
 
         <div className='flex flex-col gap-4'>
-          <WorkflowToolbar onAddNode={handleAddNode} />
+          <WorkflowToolbar
+            onAddNode={handleAddNode}
+            onScheduleClick={() => setScheduleDialogOpen(true)}
+          />
           {workflowId && (
             <ExecutionHistory
               history={executionHistory}
