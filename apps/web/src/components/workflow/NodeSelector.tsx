@@ -4,21 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Handle, Position } from "reactflow";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -53,16 +39,6 @@ interface NodeSelectorProps {
   data: NodeData;
   type: string;
 }
-
-const commonEmails = [
-  { value: "user1@example.com", label: "User 1" },
-  { value: "user2@example.com", label: "User 2" }
-];
-
-const commonSubjects = [
-  { value: "Meeting Summary", label: "Meeting Summary" },
-  { value: "Weekly Report", label: "Weekly Report" }
-];
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
@@ -228,43 +204,6 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             </div>
             <div className='space-y-2'>
               <Label>To</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant='outline'
-                    role='combobox'
-                    className='w-full justify-between'
-                  >
-                    {data.to || "Select recipient..."}
-                    <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className='w-[300px] p-0'>
-                  <Command>
-                    <CommandInput placeholder='Search email...' />
-                    <CommandEmpty>No email found.</CommandEmpty>
-                    <CommandGroup>
-                      {commonEmails.map((email) => (
-                        <CommandItem
-                          key={email.value}
-                          value={email.value}
-                          onSelect={() => handleDataChange("to", email.value)}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              data.to === email.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {email.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
               <Input
                 value={data.to || ""}
                 onChange={(e) => handleDataChange("to", e.target.value)}
@@ -273,45 +212,6 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             </div>
             <div className='space-y-2'>
               <Label>Subject</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant='outline'
-                    role='combobox'
-                    className='w-full justify-between'
-                  >
-                    {data.subject || "Select subject..."}
-                    <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className='w-[300px] p-0'>
-                  <Command>
-                    <CommandInput placeholder='Search subject...' />
-                    <CommandEmpty>No subject found.</CommandEmpty>
-                    <CommandGroup>
-                      {commonSubjects.map((subject) => (
-                        <CommandItem
-                          key={subject.value}
-                          value={subject.value}
-                          onSelect={() =>
-                            handleDataChange("subject", subject.value)
-                          }
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              data.subject === subject.value
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {subject.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
               <Input
                 value={data.subject || ""}
                 onChange={(e) => handleDataChange("subject", e.target.value)}
