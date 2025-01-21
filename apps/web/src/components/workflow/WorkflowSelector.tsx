@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
@@ -27,6 +27,8 @@ interface Workflow {
   name: string;
   nodes: Node[];
   edges: Edge[];
+  updated_at?: string;
+  created_at: string;
 }
 
 export function WorkflowSelector() {
@@ -37,16 +39,36 @@ export function WorkflowSelector() {
     null
   );
 
+  // Sort workflows by updated_at or created_at
+  const sortedWorkflows = useMemo(() => {
+    if (!data?.workflows) return [];
+
+    return [...data.workflows].sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [data?.workflows]);
+
   const handleSelect = (workflow: Workflow) => {
     setSelectedWorkflow(workflow);
     setWorkflowId(workflow.id);
     setWorkflowName(workflow.name);
-    setNodes(workflow.nodes);
-    setEdges(workflow.edges);
+
+    // Process nodes to ensure they have the correct structure
+    const processedNodes = workflow.nodes.map((node) => ({
+      ...node,
+      position: node.position || { x: 100, y: 100 },
+      data: {
+        ...node.data,
+        label: node.data?.label || `${node.type} Node`
+      }
+    }));
+
+    setNodes(processedNodes);
+    setEdges(workflow.edges || []);
     setOpen(false);
   };
-
-  const options = data?.workflows || [];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -67,7 +89,7 @@ export function WorkflowSelector() {
           <CommandList>
             <CommandEmpty>No workflows found.</CommandEmpty>
             <CommandGroup>
-              {options.map((workflow: Workflow) => (
+              {sortedWorkflows.map((workflow: Workflow) => (
                 <CommandItem
                   key={workflow.id}
                   value={workflow.id}
