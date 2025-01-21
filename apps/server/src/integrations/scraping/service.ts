@@ -37,9 +37,12 @@ export class ScrapingService {
         if (elements.length > 0) {
           elements.each((_, element) => {
             const $element = $(element);
-            if (attribute === 'text') {
+            if (attribute === 'text' || !attribute) {
               const text = $element.text().trim();
               if (text) results.push(text);
+            } else if (attribute === 'html') {
+              const html = $element.html();
+              if (html) results.push(html.trim());
             } else {
               const attrValue = $element.attr(attribute);
               if (attrValue !== undefined) {
@@ -48,14 +51,22 @@ export class ScrapingService {
             }
           });
         }
+      } else if (selectorType === 'xpath') {
+        // XPath support can be added here if needed
+        throw new Error('XPath support not implemented yet');
       }
-      // XPath support can be added here if needed
 
-      return results;
+      return results.map(result => {
+        // If the result is HTML-like, extract only text
+        if (result.includes('<') && result.includes('>')) {
+          const $temp = cheerio.load(result);
+          return $temp.text().trim();
+        }
+        return result.trim();
+      }).filter(Boolean);
+
     } catch (error) {
-      if (url.includes('invalid-url')) {
-        throw new Error(`Failed to fetch URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      console.error('Scraping error:', error);
       return [];
     }
   }
