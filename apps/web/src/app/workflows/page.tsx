@@ -2,16 +2,11 @@
 
 import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
 import { useMutation } from "@apollo/client";
-import {
-  CREATE_WORKFLOW,
-  EXECUTE_WORKFLOW,
-  UPDATE_WORKFLOW
-} from "@/graphql/mutations";
+import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW } from "@/graphql/mutations";
 import { useToast } from "@/components/ui/use-toast";
-import { ExecutionHistory } from "@/components/workflow/ExecutionHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
-import { WorkflowProvider, useWorkflow } from "@/contexts/WorkflowContext";
+import { WorkflowProvider } from "@/contexts/WorkflowContext";
 import { Header } from "@/components/ui/Header";
 import { Node, Edge } from "reactflow";
 
@@ -19,34 +14,28 @@ interface CleanNode extends Omit<Node, "data"> {
   data: Record<string, unknown>;
 }
 
-function WorkflowsPageContent() {
-  const { toast } = useToast();
-  const { session, loading } = useAuth();
-  const { workflowId } = useWorkflow();
+function cleanNodeForServer(node: Node): CleanNode {
+  const { data, ...rest } = node;
+  return {
+    ...rest,
+    data: {
+      ...data,
+      onConfigChange: undefined
+    }
+  };
+}
 
-  const [createWorkflow] = useMutation(CREATE_WORKFLOW);
+function useWorkflowHandlers() {
+  const { toast } = useToast();
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
-
-  const cleanNodeForServer = (node: Node): CleanNode => {
-    const { data, ...rest } = node;
-    return {
-      ...rest,
-      data: {
-        ...data,
-        onConfigChange: undefined
-      }
-    };
-  };
 
   const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
     const cleanNodes = nodes.map(cleanNodeForServer);
 
-    if (workflowId) {
-      // Update existing workflow
+    try {
       await updateWorkflow({
         variables: {
-          id: workflowId,
           input: {
             name,
             nodes: cleanNodes,
@@ -54,40 +43,56 @@ function WorkflowsPageContent() {
           }
         }
       });
-    } else {
-      // Create new workflow
-      await createWorkflow({
-        variables: {
-          input: {
-            name,
-            nodes: cleanNodes,
-            edges
-          }
-        }
+
+      toast({
+        title: "Workflow saved",
+        description: "Your workflow has been saved successfully"
+      });
+    } catch (error) {
+      console.error("Failed to save workflow:", error);
+      toast({
+        variant: "destructive",
+        title: "Save failed",
+        description:
+          error instanceof Error ? error.message : "An error occurred"
       });
     }
   };
 
   const handleExecute = async (nodes: Node[], edges: Edge[]) => {
-    if (!workflowId) {
+    console.log("handleExecute called with:", { nodes, edges });
+
+    try {
+      const cleanNodes = nodes.map(cleanNodeForServer);
+      console.log("Executing workflow with:", { cleanNodes, edges });
+
+      await executeWorkflow({
+        variables: {
+          nodes: cleanNodes,
+          edges
+        }
+      });
+
+      toast({
+        title: "Workflow executed",
+        description: "The workflow was executed successfully"
+      });
+    } catch (error) {
+      console.error("Workflow execution failed:", error);
       toast({
         variant: "destructive",
-        title: "No workflow selected",
-        description: "Please select a workflow to execute"
+        title: "Execution failed",
+        description:
+          error instanceof Error ? error.message : "An error occurred"
       });
-      return;
     }
-
-    const cleanNodes = nodes.map(cleanNodeForServer);
-
-    await executeWorkflow({
-      variables: {
-        workflowId,
-        nodes: cleanNodes,
-        edges
-      }
-    });
   };
+
+  return { handleSave, handleExecute };
+}
+
+function WorkflowsPageContent() {
+  const { session, loading } = useAuth();
 
   if (loading) {
     return <WorkflowLoadingSkeleton />;
@@ -98,27 +103,20 @@ function WorkflowsPageContent() {
   }
 
   return (
-    <div className='relative h-screen'>
+    <div className='flex flex-col h-screen'>
       <Header />
-      <div className='h-[calc(100vh-4rem)]'>
-        <WorkflowCanvas onSave={handleSave} onExecute={handleExecute} />
+      <div className='flex-grow'>
+        <WorkflowCanvas />
       </div>
-      {workflowId && (
-        <div className='absolute bottom-20 right-2 w-1/3 bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
-          <ExecutionHistory
-            history={[]}
-            currentExecution={null}
-            className='mx-4 mb-4'
-          />
-        </div>
-      )}
     </div>
   );
 }
 
 export default function WorkflowsPage() {
+  const { handleSave, handleExecute } = useWorkflowHandlers();
+
   return (
-    <WorkflowProvider>
+    <WorkflowProvider onSave={handleSave} onExecute={handleExecute}>
       <WorkflowsPageContent />
     </WorkflowProvider>
   );
