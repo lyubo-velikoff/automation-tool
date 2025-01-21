@@ -56,20 +56,25 @@ export function useWorkflowHandlers() {
 
   const handleExecute = async (workflowId: string) => {
     try {
-      await executeWorkflow({
+      const { data } = await executeWorkflow({
         variables: {
           workflowId
         }
       });
+
+      if (!data.executeWorkflow.success) {
+        throw new Error(data.executeWorkflow.message);
+      }
 
       toast({
         title: "Success",
         description: "Workflow executed successfully"
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to execute workflow";
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to execute workflow",
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;

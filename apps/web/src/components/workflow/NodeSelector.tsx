@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Handle, Position } from "reactflow";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabase";
 
 interface NodeData {
   label?: string;
@@ -63,6 +64,29 @@ const commonSubjects = [
 ];
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
+
+  useEffect(() => {
+    checkGmailConnection();
+  }, []);
+
+  const checkGmailConnection = async () => {
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+    setIsGmailConnected(session?.provider_token != null);
+  };
+
+  const handleGmailConnect = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/gmail.modify",
+        redirectTo: `${window.location.origin}/workflows`
+      }
+    });
+  };
+
   const handleDataChange = useCallback(
     (key: string, value: string | number) => {
       if (data.onConfigChange) {
@@ -84,113 +108,128 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
         <CardDescription>Configure email sending settings</CardDescription>
       </CardHeader>
       <CardContent className='space-y-4'>
-        <div className='space-y-2'>
-          <Label>Node Label</Label>
-          <Input
-            value={data.label || ""}
-            onChange={(e) => handleDataChange("label", e.target.value)}
-            placeholder='Enter node label'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>To</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant='outline'
-                role='combobox'
-                className='w-full justify-between'
-              >
-                {data.to || "Select recipient..."}
-                <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className='w-[300px] p-0'>
-              <Command>
-                <CommandInput placeholder='Search email...' />
-                <CommandEmpty>No email found.</CommandEmpty>
-                <CommandGroup>
-                  {commonEmails.map((email) => (
-                    <CommandItem
-                      key={email.value}
-                      value={email.value}
-                      onSelect={() => handleDataChange("to", email.value)}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          data.to === email.value ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {email.label}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          <Input
-            value={data.to || ""}
-            onChange={(e) => handleDataChange("to", e.target.value)}
-            placeholder='Or type email manually'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>Subject</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant='outline'
-                role='combobox'
-                className='w-full justify-between'
-              >
-                {data.subject || "Select subject..."}
-                <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className='w-[300px] p-0'>
-              <Command>
-                <CommandInput placeholder='Search subject...' />
-                <CommandEmpty>No subject found.</CommandEmpty>
-                <CommandGroup>
-                  {commonSubjects.map((subject) => (
-                    <CommandItem
-                      key={subject.value}
-                      value={subject.value}
-                      onSelect={() =>
-                        handleDataChange("subject", subject.value)
-                      }
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          data.subject === subject.value
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {subject.label}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          <Input
-            value={data.subject || ""}
-            onChange={(e) => handleDataChange("subject", e.target.value)}
-            placeholder='Or type subject manually'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>Body</Label>
-          <Textarea
-            value={data.body || ""}
-            onChange={(e) => handleDataChange("body", e.target.value)}
-            placeholder='Email content'
-            rows={4}
-          />
-        </div>
+        {!isGmailConnected ? (
+          <div className='space-y-2'>
+            <p className='text-sm text-muted-foreground'>
+              Connect your Gmail account to send emails
+            </p>
+            <Button onClick={handleGmailConnect} className='w-full'>
+              Connect Gmail
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className='space-y-2'>
+              <Label>Node Label</Label>
+              <Input
+                value={data.label || ""}
+                onChange={(e) => handleDataChange("label", e.target.value)}
+                placeholder='Enter node label'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>To</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant='outline'
+                    role='combobox'
+                    className='w-full justify-between'
+                  >
+                    {data.to || "Select recipient..."}
+                    <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className='w-[300px] p-0'>
+                  <Command>
+                    <CommandInput placeholder='Search email...' />
+                    <CommandEmpty>No email found.</CommandEmpty>
+                    <CommandGroup>
+                      {commonEmails.map((email) => (
+                        <CommandItem
+                          key={email.value}
+                          value={email.value}
+                          onSelect={() => handleDataChange("to", email.value)}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              data.to === email.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {email.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Input
+                value={data.to || ""}
+                onChange={(e) => handleDataChange("to", e.target.value)}
+                placeholder='Or type email manually'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Subject</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant='outline'
+                    role='combobox'
+                    className='w-full justify-between'
+                  >
+                    {data.subject || "Select subject..."}
+                    <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className='w-[300px] p-0'>
+                  <Command>
+                    <CommandInput placeholder='Search subject...' />
+                    <CommandEmpty>No subject found.</CommandEmpty>
+                    <CommandGroup>
+                      {commonSubjects.map((subject) => (
+                        <CommandItem
+                          key={subject.value}
+                          value={subject.value}
+                          onSelect={() =>
+                            handleDataChange("subject", subject.value)
+                          }
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              data.subject === subject.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {subject.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Input
+                value={data.subject || ""}
+                onChange={(e) => handleDataChange("subject", e.target.value)}
+                placeholder='Or type subject manually'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Body</Label>
+              <Textarea
+                value={data.body || ""}
+                onChange={(e) => handleDataChange("body", e.target.value)}
+                placeholder='Email content'
+                rows={4}
+              />
+            </div>
+          </>
+        )}
       </CardContent>
       <Handle
         type='target'
@@ -212,41 +251,56 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
         <CardDescription>Configure email trigger settings</CardDescription>
       </CardHeader>
       <CardContent className='space-y-4'>
-        <div className='space-y-2'>
-          <Label>Node Label</Label>
-          <Input
-            value={data.label || ""}
-            onChange={(e) => handleDataChange("label", e.target.value)}
-            placeholder='Enter node label'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>From</Label>
-          <Input
-            value={data.fromFilter || ""}
-            onChange={(e) => handleDataChange("fromFilter", e.target.value)}
-            placeholder='Filter by sender'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>Subject contains</Label>
-          <Input
-            value={data.subjectFilter || ""}
-            onChange={(e) => handleDataChange("subjectFilter", e.target.value)}
-            placeholder='Filter by subject'
-          />
-        </div>
-        <div className='space-y-2'>
-          <Label>Check every (minutes)</Label>
-          <Input
-            type='number'
-            value={data.pollingInterval || "5"}
-            onChange={(e) =>
-              handleDataChange("pollingInterval", e.target.value)
-            }
-            placeholder='Minutes'
-          />
-        </div>
+        {!isGmailConnected ? (
+          <div className='space-y-2'>
+            <p className='text-sm text-muted-foreground'>
+              Connect your Gmail account to monitor emails
+            </p>
+            <Button onClick={handleGmailConnect} className='w-full'>
+              Connect Gmail
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className='space-y-2'>
+              <Label>Node Label</Label>
+              <Input
+                value={data.label || ""}
+                onChange={(e) => handleDataChange("label", e.target.value)}
+                placeholder='Enter node label'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>From</Label>
+              <Input
+                value={data.fromFilter || ""}
+                onChange={(e) => handleDataChange("fromFilter", e.target.value)}
+                placeholder='Filter by sender'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Subject contains</Label>
+              <Input
+                value={data.subjectFilter || ""}
+                onChange={(e) =>
+                  handleDataChange("subjectFilter", e.target.value)
+                }
+                placeholder='Filter by subject'
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Check every (minutes)</Label>
+              <Input
+                type='number'
+                value={data.pollingInterval || "5"}
+                onChange={(e) =>
+                  handleDataChange("pollingInterval", e.target.value)
+                }
+                placeholder='Minutes'
+              />
+            </div>
+          </>
+        )}
       </CardContent>
       <Handle
         type='source'
