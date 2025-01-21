@@ -182,8 +182,8 @@ export class WorkflowNode {
   @Field()
   type!: string;
 
-  @Field()
-  label!: string;
+  @Field(() => String, { nullable: true })
+  label?: string;
 
   @Field(() => Position)
   position!: Position;
@@ -309,8 +309,8 @@ export class WorkflowNodeInput {
   @Field()
   type!: string;
 
-  @Field()
-  label!: string;
+  @Field(() => String, { nullable: true })
+  label?: string;
 
   @Field(() => Position)
   position!: Position;

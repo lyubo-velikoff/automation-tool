@@ -96,7 +96,14 @@ export class WorkflowResolver {
       .eq("is_active", true);
 
     if (error) throw error;
-    return data.map((w: any) => new Workflow(w));
+
+    return data.map((w: any) => ({
+      ...w,
+      nodes: w.nodes.map((node: any) => ({
+        ...node,
+        label: node.label || `${node.type} Node`,
+      })),
+    }));
   }
 
   @Query(() => Workflow)
@@ -114,7 +121,14 @@ export class WorkflowResolver {
 
     if (error) throw error;
     if (!data) throw new Error("Workflow not found");
-    return new Workflow(data);
+
+    return {
+      ...data,
+      nodes: data.nodes.map((node: any) => ({
+        ...node,
+        label: node.label || `${node.type} Node`,
+      })),
+    };
   }
 
   @Mutation(() => Workflow)

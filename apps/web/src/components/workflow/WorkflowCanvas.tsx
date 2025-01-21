@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -24,6 +24,8 @@ import AddNodeButton from "./AddNodeButton";
 import { cn } from "@/lib/utils";
 import OpenAISettingsDialog from "./OpenAISettingsDialog";
 import { ScheduleWorkflowDialog } from "./ScheduleWorkflowDialog";
+import { WorkflowSelector } from "./WorkflowSelector";
+import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
 
 interface WorkflowCanvasProps {
   onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
@@ -93,6 +95,24 @@ export default function WorkflowCanvas({
   const [workflowName, setWorkflowName] = useState("");
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const { selectedWorkflowData } = useWorkflowSelection();
+
+  // Load workflow data when selected
+  useEffect(() => {
+    if (selectedWorkflowData) {
+      setWorkflowName(selectedWorkflowData.name);
+      setNodes(
+        selectedWorkflowData.nodes.map((node) => ({
+          ...node,
+          data: {
+            ...node.data,
+            onConfigChange: handleNodeDataChange
+          }
+        }))
+      );
+      setEdges(selectedWorkflowData.edges);
+    }
+  }, [selectedWorkflowData, setNodes, setEdges]);
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, newData: NodeData) => {
@@ -199,6 +219,7 @@ export default function WorkflowCanvas({
       </div>
 
       <div className='flex items-center gap-4 p-4 border-t bg-background/80 backdrop-blur-sm'>
+        <WorkflowSelector />
         <Input
           value={workflowName}
           onChange={(e) => setWorkflowName(e.target.value)}
@@ -221,18 +242,16 @@ export default function WorkflowCanvas({
           Schedule
         </Button>
         <AddNodeButton onAddNode={handleAddNode} />
-
-
       </div>
       {currentWorkflowId && (
-          <ScheduleWorkflowDialog
-            open={scheduleDialogOpen}
-            onOpenChange={setScheduleDialogOpen}
-            workflowId={currentWorkflowId}
-            nodes={nodes}
-            edges={edges}
-          />
-        )}
+        <ScheduleWorkflowDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          workflowId={currentWorkflowId}
+          nodes={nodes}
+          edges={edges}
+        />
+      )}
       <OpenAISettingsDialog
         open={openAISettingsOpen}
         onOpenChange={setOpenAISettingsOpen}

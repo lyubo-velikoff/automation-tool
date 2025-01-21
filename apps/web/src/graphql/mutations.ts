@@ -56,8 +56,8 @@ export const VALIDATE_OPENAI_CONNECTION = gql`
 `;
 
 export const EXECUTE_WORKFLOW = gql`
-  mutation ExecuteWorkflow($workflowId: String!) {
-    executeWorkflow(workflowId: $workflowId) {
+  mutation ExecuteWorkflow($workflowId: String!, $nodes: [WorkflowNodeInput!]!, $edges: [WorkflowEdgeInput!]!) {
+    executeWorkflow(workflowId: $workflowId, nodes: $nodes, edges: $edges) {
       success
       message
       executionId
@@ -71,8 +71,8 @@ export const EXECUTE_WORKFLOW = gql`
 `;
 
 export const UPDATE_WORKFLOW = gql`
-  mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
-    updateWorkflow(input: $input) {
+  mutation UpdateWorkflow($id: String!, $input: UpdateWorkflowInput!) {
+    updateWorkflow(id: $id, input: $input) {
       id
       name
       description
@@ -114,17 +114,18 @@ export const UPDATE_WORKFLOW = gql`
 
 export const START_TIMED_WORKFLOW = gql`
   mutation StartTimedWorkflow($workflowId: String!, $nodes: [WorkflowNodeInput!]!, $edges: [WorkflowEdgeInput!]!, $intervalMinutes: Int!) {
-    startTimedWorkflow(
-      workflowId: $workflowId
-      nodes: $nodes
-      edges: $edges
-      intervalMinutes: $intervalMinutes
-    )
+    startTimedWorkflow(workflowId: $workflowId, nodes: $nodes, edges: $edges, intervalMinutes: $intervalMinutes) {
+      success
+      message
+    }
   }
 `;
 
 export const STOP_TIMED_WORKFLOW = gql`
   mutation StopTimedWorkflow($workflowId: String!) {
-    stopTimedWorkflow(workflowId: $workflowId)
+    stopTimedWorkflow(workflowId: $workflowId) {
+      success
+      message
+    }
   }
 `; 
