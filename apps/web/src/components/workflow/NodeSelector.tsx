@@ -1,24 +1,32 @@
-'use client';
+"use client";
 
-import { useCallback } from 'react';
-import { Handle, Position } from 'reactflow';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { useCallback } from "react";
+import { Handle, Position } from "reactflow";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
-} from "@/components/ui/command"
+  CommandItem
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
+  PopoverTrigger
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 interface NodeData {
   label?: string;
@@ -45,14 +53,14 @@ interface NodeSelectorProps {
 }
 
 const commonEmails = [
-  { value: 'lyubo.velikoff@gmail.com', label: 'Lyubo Velikov' },
+  { value: "lyubo.velikoff@gmail.com", label: "Lyubo Velikov" }
   // Add more common emails here
 ];
 
 const commonSubjects = [
-  { value: 'Test', label: 'Test Email' },
-  { value: 'Daily Report', label: 'Daily Report' },
-  { value: 'Weekly Update', label: 'Weekly Update' },
+  { value: "Test", label: "Test Email" },
+  { value: "Daily Report", label: "Daily Report" },
+  { value: "Weekly Update", label: "Weekly Update" }
 ];
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
@@ -66,39 +74,43 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
   );
 
   const renderGmailAction = () => (
-    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm">Node Label:</label>
+    <Card className='w-[350px]'>
+      <CardHeader>
+        <CardTitle className='text-base'>Send Email</CardTitle>
+        <CardDescription>Configure email sending settings</CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='space-y-2'>
+          <Label>Node Label</Label>
           <Input
-            value={data.label || ''}
-            onChange={(e) => handleDataChange('label', e.target.value)}
-            placeholder="Enter node label"
+            value={data.label || ""}
+            onChange={(e) => handleDataChange("label", e.target.value)}
+            placeholder='Enter node label'
           />
         </div>
-        <div>
-          <label className="text-sm">To:</label>
+        <div className='space-y-2'>
+          <Label>To</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between"
+                variant='outline'
+                role='combobox'
+                className='w-full justify-between'
               >
                 {data.to || "Select recipient..."}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
+            <PopoverContent className='w-[300px] p-0'>
               <Command>
-                <CommandInput placeholder="Search email..." />
+                <CommandInput placeholder='Search email...' />
                 <CommandEmpty>No email found.</CommandEmpty>
                 <CommandGroup>
                   {commonEmails.map((email) => (
                     <CommandItem
                       key={email.value}
                       value={email.value}
-                      onSelect={() => handleDataChange('to', email.value)}
+                      onSelect={() => handleDataChange("to", email.value)}
                     >
                       <Check
                         className={cn(
@@ -114,40 +126,43 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             </PopoverContent>
           </Popover>
           <Input
-            value={data.to || ''}
-            onChange={(e) => handleDataChange('to', e.target.value)}
-            placeholder="Or type email manually"
-            className="mt-2"
+            value={data.to || ""}
+            onChange={(e) => handleDataChange("to", e.target.value)}
+            placeholder='Or type email manually'
           />
         </div>
-        <div>
-          <label className="text-sm">Subject:</label>
+        <div className='space-y-2'>
+          <Label>Subject</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                variant="outline"
-                role="combobox"
-                className="w-full justify-between"
+                variant='outline'
+                role='combobox'
+                className='w-full justify-between'
               >
                 {data.subject || "Select subject..."}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
+            <PopoverContent className='w-[300px] p-0'>
               <Command>
-                <CommandInput placeholder="Search subject..." />
+                <CommandInput placeholder='Search subject...' />
                 <CommandEmpty>No subject found.</CommandEmpty>
                 <CommandGroup>
                   {commonSubjects.map((subject) => (
                     <CommandItem
                       key={subject.value}
                       value={subject.value}
-                      onSelect={() => handleDataChange('subject', subject.value)}
+                      onSelect={() =>
+                        handleDataChange("subject", subject.value)
+                      }
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          data.subject === subject.value ? "opacity-100" : "opacity-0"
+                          data.subject === subject.value
+                            ? "opacity-100"
+                            : "opacity-0"
                         )}
                       />
                       {subject.label}
@@ -158,194 +173,206 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             </PopoverContent>
           </Popover>
           <Input
-            value={data.subject || ''}
-            onChange={(e) => handleDataChange('subject', e.target.value)}
-            placeholder="Or type subject manually"
-            className="mt-2"
+            value={data.subject || ""}
+            onChange={(e) => handleDataChange("subject", e.target.value)}
+            placeholder='Or type subject manually'
           />
         </div>
-        <div>
-          <label className="text-sm">Body:</label>
+        <div className='space-y-2'>
+          <Label>Body</Label>
           <Textarea
-            value={data.body || ''}
-            onChange={(e) => handleDataChange('body', e.target.value)}
-            placeholder="Email content"
+            value={data.body || ""}
+            onChange={(e) => handleDataChange("body", e.target.value)}
+            placeholder='Email content'
             rows={4}
           />
         </div>
-      </div>
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        data-testid="target-handle"
+      </CardContent>
+      <Handle
+        type='target'
+        position={Position.Left}
+        data-testid='target-handle'
       />
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        data-testid="source-handle"
+      <Handle
+        type='source'
+        position={Position.Right}
+        data-testid='source-handle'
       />
-    </div>
+    </Card>
   );
 
   const renderGmailTrigger = () => (
-    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm">Node Label:</label>
+    <Card>
+      <CardHeader>
+        <CardTitle className='text-base'>Email Trigger</CardTitle>
+        <CardDescription>Configure email trigger settings</CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='space-y-2'>
+          <Label>Node Label</Label>
           <Input
-            value={data.label || ''}
-            onChange={(e) => handleDataChange('label', e.target.value)}
-            placeholder="Enter node label"
+            value={data.label || ""}
+            onChange={(e) => handleDataChange("label", e.target.value)}
+            placeholder='Enter node label'
           />
         </div>
-        <div>
-          <label className="text-sm">From:</label>
+        <div className='space-y-2'>
+          <Label>From</Label>
           <Input
-            value={data.fromFilter || ''}
-            onChange={(e) => handleDataChange('fromFilter', e.target.value)}
-            placeholder="Filter by sender"
+            value={data.fromFilter || ""}
+            onChange={(e) => handleDataChange("fromFilter", e.target.value)}
+            placeholder='Filter by sender'
           />
         </div>
-        <div>
-          <label className="text-sm">Subject contains:</label>
+        <div className='space-y-2'>
+          <Label>Subject contains</Label>
           <Input
-            value={data.subjectFilter || ''}
-            onChange={(e) => handleDataChange('subjectFilter', e.target.value)}
-            placeholder="Filter by subject"
+            value={data.subjectFilter || ""}
+            onChange={(e) => handleDataChange("subjectFilter", e.target.value)}
+            placeholder='Filter by subject'
           />
         </div>
-        <div>
-          <label className="text-sm">Check every:</label>
+        <div className='space-y-2'>
+          <Label>Check every (minutes)</Label>
           <Input
-            type="number"
-            value={data.pollingInterval || '5'}
-            onChange={(e) => handleDataChange('pollingInterval', e.target.value)}
-            placeholder="Minutes"
+            type='number'
+            value={data.pollingInterval || "5"}
+            onChange={(e) =>
+              handleDataChange("pollingInterval", e.target.value)
+            }
+            placeholder='Minutes'
           />
         </div>
-      </div>
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        data-testid="source-handle"
+      </CardContent>
+      <Handle
+        type='source'
+        position={Position.Right}
+        data-testid='source-handle'
       />
-    </div>
+    </Card>
   );
 
   const renderOpenAICompletion = () => (
-    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm">Node Label:</label>
+    <Card>
+      <CardHeader>
+        <CardTitle className='text-base'>OpenAI Completion</CardTitle>
+        <CardDescription>Configure AI completion settings</CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='space-y-2'>
+          <Label>Node Label</Label>
           <Input
-            value={data.label || ''}
-            onChange={(e) => handleDataChange('label', e.target.value)}
-            placeholder="Enter node label"
+            value={data.label || ""}
+            onChange={(e) => handleDataChange("label", e.target.value)}
+            placeholder='Enter node label'
           />
         </div>
-        <div>
-          <label className="text-sm">Prompt:</label>
+        <div className='space-y-2'>
+          <Label>Prompt</Label>
           <Textarea
-            value={data.prompt || ''}
-            onChange={(e) => handleDataChange('prompt', e.target.value)}
-            placeholder="Enter your prompt"
+            value={data.prompt || ""}
+            onChange={(e) => handleDataChange("prompt", e.target.value)}
+            placeholder='Enter your prompt'
             rows={4}
           />
         </div>
-        <div>
-          <label className="text-sm">Model:</label>
+        <div className='space-y-2'>
+          <Label>Model</Label>
           <Input
-            value={data.model || 'gpt-3.5-turbo'}
-            onChange={(e) => handleDataChange('model', e.target.value)}
-            placeholder="Model name"
+            value={data.model || "gpt-3.5-turbo"}
+            onChange={(e) => handleDataChange("model", e.target.value)}
+            placeholder='Model name'
           />
         </div>
-        <div>
-          <label className="text-sm">Max Tokens:</label>
+        <div className='space-y-2'>
+          <Label>Max Tokens</Label>
           <Input
-            type="number"
-            value={data.maxTokens || '100'}
-            onChange={(e) => handleDataChange('maxTokens', e.target.value)}
-            placeholder="Maximum tokens"
+            type='number'
+            value={data.maxTokens || "100"}
+            onChange={(e) => handleDataChange("maxTokens", e.target.value)}
+            placeholder='Maximum tokens'
           />
         </div>
-      </div>
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        data-testid="target-handle"
+      </CardContent>
+      <Handle
+        type='target'
+        position={Position.Left}
+        data-testid='target-handle'
       />
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        data-testid="source-handle"
+      <Handle
+        type='source'
+        position={Position.Right}
+        data-testid='source-handle'
       />
-    </div>
+    </Card>
   );
 
   const renderScrapingNode = () => (
-    <div className="p-4 border rounded-lg bg-white shadow-sm w-[300px]">
-      <div className="font-semibold mb-2">Web Scraping</div>
-      <div className="space-y-2">
-        <div>
-          <label className="text-sm">URL:</label>
+    <Card>
+      <CardHeader>
+        <CardTitle className='text-base'>Web Scraping</CardTitle>
+        <CardDescription>Configure web scraping settings</CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='space-y-2'>
+          <Label>URL</Label>
           <Input
-            value={data.url || ''}
-            onChange={(e) => handleDataChange('url', e.target.value)}
-            placeholder="https://example.com"
+            value={data.url || ""}
+            onChange={(e) => handleDataChange("url", e.target.value)}
+            placeholder='https://example.com'
           />
         </div>
-        <div>
-          <label className="text-sm">Selector Type:</label>
+        <div className='space-y-2'>
+          <Label>Selector Type</Label>
           <select
-            value={data.selectorType || 'css'}
-            onChange={(e) => handleDataChange('selectorType', e.target.value)}
-            className="w-full border rounded p-2"
+            value={data.selectorType || "css"}
+            onChange={(e) => handleDataChange("selectorType", e.target.value)}
+            className='w-full border rounded p-2'
           >
-            <option value="css">CSS Selector</option>
-            <option value="xpath">XPath</option>
+            <option value='css'>CSS Selector</option>
+            <option value='xpath'>XPath</option>
           </select>
         </div>
-        <div>
-          <label className="text-sm">Selector:</label>
+        <div className='space-y-2'>
+          <Label>Selector</Label>
           <Input
-            value={data.selector || ''}
-            onChange={(e) => handleDataChange('selector', e.target.value)}
-            placeholder={data.selectorType === 'css' ? '.article h1' : '//h1'}
+            value={data.selector || ""}
+            onChange={(e) => handleDataChange("selector", e.target.value)}
+            placeholder={data.selectorType === "css" ? ".article h1" : "//h1"}
           />
         </div>
-        <div>
-          <label className="text-sm">Attribute (Optional):</label>
+        <div className='space-y-2'>
+          <Label>Attribute (Optional)</Label>
           <Input
-            value={data.attribute || ''}
-            onChange={(e) => handleDataChange('attribute', e.target.value)}
-            placeholder="href"
+            value={data.attribute || ""}
+            onChange={(e) => handleDataChange("attribute", e.target.value)}
+            placeholder='href'
           />
         </div>
-      </div>
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        data-testid="target-handle"
+      </CardContent>
+      <Handle
+        type='target'
+        position={Position.Left}
+        data-testid='target-handle'
       />
-      <Handle 
-        type="source" 
-        position={Position.Right} 
-        data-testid="source-handle"
+      <Handle
+        type='source'
+        position={Position.Right}
+        data-testid='source-handle'
       />
-    </div>
+    </Card>
   );
 
   switch (type) {
-    case 'GMAIL_ACTION':
+    case "GMAIL_ACTION":
       return renderGmailAction();
-    case 'GMAIL_TRIGGER':
+    case "GMAIL_TRIGGER":
       return renderGmailTrigger();
-    case 'OPENAI':
+    case "OPENAI":
       return renderOpenAICompletion();
-    case 'SCRAPING':
+    case "SCRAPING":
       return renderScrapingNode();
     default:
       return null;
   }
-} 
+}

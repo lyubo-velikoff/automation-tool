@@ -36,7 +36,7 @@ interface WorkflowCanvasProps {
 const BasicNode = (props: NodeProps) => (
   <div
     className={cn(
-      "rounded-lg shadow-lg border p-4",
+      "rounded-lg shadow-lg border",
       "bg-background text-foreground"
     )}
     data-testid={`node-${props.type.toLowerCase()}`}
