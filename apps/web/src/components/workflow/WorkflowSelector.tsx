@@ -19,11 +19,13 @@ import { useWorkflowSelection } from "@/hooks/useWorkflowSelection";
 import { Icons } from "@/components/ui/icons";
 import { Node, Edge } from "reactflow";
 
+interface WorkflowSelectorProps {
+  onWorkflowSelect?: (nodes: Node[], edges: Edge[]) => void;
+}
+
 export const WorkflowSelector = ({
   onWorkflowSelect
-}: {
-  onWorkflowSelect?: (nodes: Node[], edges: Edge[]) => void;
-}) => {
+}: WorkflowSelectorProps) => {
   const [open, setOpen] = React.useState(false);
   const {
     options = [],
@@ -34,35 +36,37 @@ export const WorkflowSelector = ({
     selectedWorkflowData
   } = useWorkflowSelection();
 
-  // Handle workflow data changes
+  // Process workflow data when it changes
   React.useEffect(() => {
-    if (selectedWorkflowData?.nodes) {
-      console.log("Processing workflow selection:", selectedWorkflow);
-      console.log("Workflow data:", selectedWorkflowData);
+    if (!selectedWorkflowData?.nodes) return;
 
-      const processedNodes = selectedWorkflowData.nodes.map((node) => ({
-        id: node.id,
-        type: node.type,
-        position: {
-          x: node.position?.x ?? 100,
-          y: node.position?.y ?? 100
-        },
-        data: {
-          ...node.data,
-          label: node.label || `${node.type} Node`
-        },
-        draggable: true,
-        connectable: true,
-        selectable: true,
-        width: 350,
-        height: 200
-      }));
+    const processedNodes = selectedWorkflowData.nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      position: {
+        x: node.position?.x ?? 100,
+        y: node.position?.y ?? 100
+      },
+      data: {
+        ...node.data,
+        label: node.label || `${node.type} Node`
+      },
+      draggable: true,
+      connectable: true,
+      selectable: true,
+      width: 350,
+      height: 200
+    }));
 
-      onWorkflowSelect?.(processedNodes, selectedWorkflowData.edges || []);
-    }
-  }, [selectedWorkflowData, selectedWorkflow, onWorkflowSelect]);
+    onWorkflowSelect?.(processedNodes, selectedWorkflowData.edges || []);
+  }, [selectedWorkflowData, onWorkflowSelect]);
 
-  // Handle error state
+  const handleSelect = (currentValue: string) => {
+    const isDeselecting = currentValue === selectedWorkflow;
+    setSelectedWorkflow(isDeselecting ? null : currentValue);
+    setOpen(false);
+  };
+
   if (error) {
     return (
       <Button variant='outline' className='w-[250px] justify-between' disabled>
@@ -70,12 +74,6 @@ export const WorkflowSelector = ({
       </Button>
     );
   }
-
-  const handleSelect = (currentValue: string) => {
-    const isDeselecting = currentValue === selectedWorkflow;
-    setSelectedWorkflow(isDeselecting ? null : currentValue);
-    setOpen(false);
-  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
