@@ -17,12 +17,13 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import NodeSelector from "./NodeSelector";
-import { ScrapingNode } from "./nodes/ScrapingNode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlayIcon } from "lucide-react";
 import AddNodeButton from "./AddNodeButton";
 import { cn } from "@/lib/utils";
+import OpenAISettingsDialog from "./OpenAISettingsDialog";
+import { ScheduleWorkflowDialog } from "./ScheduleWorkflowDialog";
 
 interface WorkflowCanvasProps {
   onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
@@ -30,6 +31,7 @@ interface WorkflowCanvasProps {
   onSchedule?: (nodes: Node[], edges: Edge[]) => void;
   isExecuting?: boolean;
   isSaving?: boolean;
+  currentWorkflowId?: string | null;
 }
 
 // Memoized node components
@@ -83,11 +85,14 @@ export default function WorkflowCanvas({
   onExecute,
   onSchedule,
   isExecuting = false,
-  isSaving = false
+  isSaving = false,
+  currentWorkflowId
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [workflowName, setWorkflowName] = useState("");
+  const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, newData: NodeData) => {
@@ -162,10 +167,11 @@ export default function WorkflowCanvas({
     }
   };
 
-  const handleSchedule = () => {
+  const handleScheduleClick = () => {
     if (onSchedule) {
       onSchedule(nodes, edges);
     }
+    setScheduleDialogOpen(true);
   };
 
   return (
@@ -211,11 +217,29 @@ export default function WorkflowCanvas({
           <PlayIcon className='h-4 w-4' />
           {isExecuting ? "Executing..." : "Test"}
         </Button>
-        <Button variant='outline' onClick={handleSchedule}>
+        <Button variant='outline' onClick={handleScheduleClick}>
           Schedule
         </Button>
         <AddNodeButton onAddNode={handleAddNode} />
+
+
       </div>
+      {currentWorkflowId && (
+          <ScheduleWorkflowDialog
+            open={scheduleDialogOpen}
+            onOpenChange={setScheduleDialogOpen}
+            workflowId={currentWorkflowId}
+            nodes={nodes}
+            edges={edges}
+          />
+        )}
+      <OpenAISettingsDialog
+        open={openAISettingsOpen}
+        onOpenChange={setOpenAISettingsOpen}
+        onSuccess={() => {
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

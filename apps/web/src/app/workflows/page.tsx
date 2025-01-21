@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import { Edge, Node } from "reactflow";
 import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
-import OpenAISettingsDialog from "@/components/workflow/OpenAISettingsDialog";
 import { useMutation } from "@apollo/client";
 import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from "@/graphql/mutations";
 import { useToast } from "@/components/ui/use-toast";
@@ -11,7 +10,6 @@ import ExecutionHistory from "@/components/workflow/ExecutionHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
 import { Header } from "@/components/ui/Header";
-import { ScheduleWorkflowDialog } from "@/components/workflow/ScheduleWorkflowDialog";
 
 interface CleanNode {
   id: string;
@@ -22,7 +20,6 @@ interface CleanNode {
 }
 
 export default function WorkflowsPage() {
-  const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(
     null
   );
@@ -31,9 +28,6 @@ export default function WorkflowsPage() {
     null
   );
   const { session, loading } = useAuth();
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-  const [currentNodes, setCurrentNodes] = useState<Node[]>([]);
-  const [currentEdges, setCurrentEdges] = useState<Edge[]>([]);
 
   const [createWorkflow, { loading: saveLoading }] = useMutation(
     CREATE_WORKFLOW,
@@ -69,23 +63,6 @@ export default function WorkflowsPage() {
       },
       onCompleted: async (data) => {
         if (data.executeWorkflow.success) {
-          // Update nodes with execution results
-          setCurrentNodes((prevNodes) =>
-            prevNodes.map((node) => {
-              const nodeResults = data.executeWorkflow.results?.[node.id];
-              if (nodeResults && node.type === "SCRAPING") {
-                return {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    results: nodeResults.results
-                  }
-                };
-              }
-              return node;
-            })
-          );
-
           toast({
             title: "Success",
             description:
@@ -143,9 +120,6 @@ export default function WorkflowsPage() {
       if (!data?.createWorkflow) {
         throw new Error("No data returned from mutation");
       }
-
-      setCurrentNodes(nodes);
-      setCurrentEdges(edges);
     } catch (error) {
       console.error("Error saving workflow:", error);
     }
@@ -166,7 +140,7 @@ export default function WorkflowsPage() {
     });
   };
 
-  const handleSchedule = (nodes: Node[], edges: Edge[]) => {
+  const handleSchedule = () => {
     if (!currentWorkflowId) {
       toast({
         title: "Error",
@@ -175,9 +149,6 @@ export default function WorkflowsPage() {
       });
       return;
     }
-    setCurrentNodes(nodes);
-    setCurrentEdges(edges);
-    setScheduleDialogOpen(true);
   };
 
   // Show loading skeleton while checking auth
@@ -200,6 +171,7 @@ export default function WorkflowsPage() {
           onSchedule={handleSchedule}
           isExecuting={executeLoading}
           isSaving={saveLoading}
+          currentWorkflowId={currentWorkflowId}
         />
       </div>
 
@@ -211,24 +183,6 @@ export default function WorkflowsPage() {
             workflowId={currentWorkflowId}
           />
         </div>
-      )}
-
-      <OpenAISettingsDialog
-        open={openAISettingsOpen}
-        onOpenChange={setOpenAISettingsOpen}
-        onSuccess={() => {
-          window.location.reload();
-        }}
-      />
-
-      {currentWorkflowId && (
-        <ScheduleWorkflowDialog
-          open={scheduleDialogOpen}
-          onOpenChange={setScheduleDialogOpen}
-          workflowId={currentWorkflowId}
-          nodes={currentNodes}
-          edges={currentEdges}
-        />
       )}
     </div>
   );
