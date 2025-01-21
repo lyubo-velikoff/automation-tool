@@ -22,6 +22,7 @@ import { useQuery } from "@apollo/client";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
 import { NodeData } from "./config/nodeTypes";
+import { useNodeManagement } from "@/hooks/useNodeManagement";
 
 interface Workflow {
   id: string;
@@ -35,7 +36,8 @@ interface Workflow {
 export function WorkflowSelector() {
   const [open, setOpen] = useState(false);
   const { data } = useQuery(GET_WORKFLOWS);
-  const { setNodes, setWorkflowId, setWorkflowName, setEdges } = useWorkflow();
+  const { setWorkflowId, setWorkflowName } = useWorkflow();
+  const { handleWorkflowSelect } = useNodeManagement();
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(
     null
   );
@@ -50,71 +52,21 @@ export function WorkflowSelector() {
     });
   }, [data?.workflows]);
 
-  const processNodes = useCallback(
-    (inputNodes: Node<NodeData>[]) => {
-      console.log("Processing nodes:", inputNodes);
-      return inputNodes.map((node) => {
-        // Create the node structure that ReactFlow expects
-        const processedNode: Node<NodeData> = {
-          id: node.id,
-          type: node.type || "GMAIL_ACTION",
-          position: node.position || { x: 100, y: 100 },
-          data: {
-            label: node.data?.label || `${node.type} Node`,
-            to: node.data?.to,
-            subject: node.data?.subject,
-            body: node.data?.body,
-            fromFilter: node.data?.fromFilter,
-            subjectFilter: node.data?.subjectFilter,
-            pollingInterval: node.data?.pollingInterval,
-            prompt: node.data?.prompt,
-            model: node.data?.model,
-            maxTokens: node.data?.maxTokens,
-            url: node.data?.url,
-            selector: node.data?.selector,
-            selectorType: node.data?.selectorType,
-            attribute: node.data?.attribute,
-            onConfigChange: (nodeId: string, newData: NodeData) => {
-              console.log("Node config change:", nodeId, newData);
-              // Create a new array with the updated node
-              const updatedNodes = processNodes(inputNodes).map((n) =>
-                n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
-              );
-              setNodes(updatedNodes);
-            }
-          },
-          draggable: true,
-          connectable: true,
-          selectable: true,
-          width: 350,
-          height: 200
-        };
-
-        console.log("Processed node:", processedNode);
-        return processedNode;
-      });
-    },
-    [setNodes]
-  );
-
   const handleSelect = useCallback(
     (workflow: Workflow) => {
       console.log("Selecting workflow:", workflow);
 
-      // First, process and set the nodes
-      const processedNodes = processNodes(workflow.nodes);
-      console.log("Final processed nodes:", processedNodes);
-      setNodes(processedNodes);
-
-      // Then update the workflow state
+      // Update workflow state
       setWorkflowId(workflow.id);
       setWorkflowName(workflow.name);
-      setEdges(workflow.edges || []);
+
+      // Update nodes and edges through useNodeManagement
+      handleWorkflowSelect(workflow.nodes, workflow.edges || []);
 
       setSelectedWorkflow(workflow);
       setOpen(false);
     },
-    [processNodes, setNodes, setWorkflowId, setWorkflowName, setEdges]
+    [handleWorkflowSelect, setWorkflowId, setWorkflowName]
   );
 
   return (
