@@ -36,6 +36,8 @@ export function useAuth() {
           authWindow.close();
         }
         setAuthWindow(null);
+        // Add back redirection only for popup authentication completion
+        router.push('/workflows');
       }
     };
 
