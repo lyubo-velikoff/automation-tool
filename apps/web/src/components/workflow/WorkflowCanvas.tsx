@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -12,22 +12,33 @@ import ReactFlow, {
   Connection,
   NodeChange,
   EdgeChange,
-  NodeProps
+  NodeProps,
+  XYPosition
 } from "reactflow";
 import "reactflow/dist/style.css";
 import NodeSelector from "./NodeSelector";
 import { ScrapingNode } from "./nodes/ScrapingNode";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PlayIcon } from "lucide-react";
+import AddNodeButton from "./AddNodeButton";
+import { cn } from "@/lib/utils";
 
 interface WorkflowCanvasProps {
-  initialNodes?: Node[];
-  initialEdges?: Edge[];
-  onSave?: (nodes: Node[], edges: Edge[]) => void;
+  onSave?: (name: string, nodes: Node[], edges: Edge[]) => void;
+  onExecute?: (nodes: Node[], edges: Edge[]) => void;
+  onSchedule?: (nodes: Node[], edges: Edge[]) => void;
+  isExecuting?: boolean;
+  isSaving?: boolean;
 }
 
 // Memoized node components
 const BasicNode = (props: NodeProps) => (
   <div
-    className='bg-white rounded-lg shadow-lg border border-gray-200 p-4'
+    className={cn(
+      "rounded-lg shadow-lg border p-4",
+      "bg-background text-foreground"
+    )}
     data-testid={`node-${props.type.toLowerCase()}`}
   >
     <NodeSelector {...props} />
@@ -41,7 +52,10 @@ const nodeTypes = {
   OPENAI: BasicNode,
   SCRAPING: (props: NodeProps) => (
     <div
-      className='bg-white rounded-lg shadow-lg border border-gray-200'
+      className={cn(
+        "rounded-lg shadow-lg border",
+        "bg-background text-foreground"
+      )}
       data-testid={`node-${props.type.toLowerCase()}`}
     >
       <ScrapingNode
@@ -82,24 +96,19 @@ interface NodeData {
 
   // Common fields
   onConfigChange?: (nodeId: string, data: NodeData) => void;
+  label?: string;
 }
 
-// Helper function to clean up edge data
-const cleanEdgeData = (edge: Edge) => ({
-  id: edge.id,
-  source: edge.source,
-  target: edge.target,
-  sourceHandle: edge.sourceHandle,
-  targetHandle: edge.targetHandle
-});
-
 export default function WorkflowCanvas({
-  initialNodes = [],
-  initialEdges = [],
-  onSave
+  onSave,
+  onExecute,
+  onSchedule,
+  isExecuting = false,
+  isSaving = false
 }: WorkflowCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [workflowName, setWorkflowName] = useState("");
 
   const handleNodeDataChange = useCallback(
     (nodeId: string, newData: NodeData) => {
@@ -117,73 +126,117 @@ export default function WorkflowCanvas({
           return node;
         })
       );
-      if (onSave) {
-        onSave(nodes, edges);
-      }
     },
-    [setNodes, nodes, edges, onSave]
+    [setNodes]
   );
 
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => addEdge(params, eds));
-      if (onSave) {
-        onSave(nodes, edges);
-      }
     },
-    [setEdges, nodes, edges, onSave]
+    [setEdges]
   );
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChange(changes);
-      if (onSave) {
-        const updatedNodes = nodes.map((node) => ({
-          ...node,
-          position: {
-            x: Math.max(0, node.position.x),
-            y: Math.max(0, node.position.y)
-          }
-        }));
-        onSave(updatedNodes, edges.map(cleanEdgeData));
-      }
     },
-    [onNodesChange, onSave, nodes, edges]
+    [onNodesChange]
   );
 
   const handleEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       onEdgesChange(changes);
-      if (onSave) {
-        onSave(nodes, edges.map(cleanEdgeData));
-      }
     },
-    [onEdgesChange, onSave, nodes, edges]
+    [onEdgesChange]
   );
 
+  const handleAddNode = useCallback(
+    (node: Node) => {
+      const position: XYPosition = node.position || { x: 100, y: 100 };
+      const nodeWithHandlers = {
+        ...node,
+        id: node.id || `node-${nodes.length + 1}`,
+        type: node.type || "default",
+        position,
+        data: {
+          ...node.data,
+          onConfigChange: handleNodeDataChange,
+          label: node.data?.label || `${node.type || "Default"} Node`
+        }
+      };
+
+      setNodes((nds) => [...nds, nodeWithHandlers]);
+    },
+    [nodes, handleNodeDataChange, setNodes]
+  );
+
+  const handleSave = () => {
+    if (onSave) {
+      onSave(workflowName, nodes, edges);
+    }
+  };
+
+  const handleExecute = () => {
+    if (onExecute) {
+      onExecute(nodes, edges);
+    }
+  };
+
+  const handleSchedule = () => {
+    if (onSchedule) {
+      onSchedule(nodes, edges);
+    }
+  };
+
   return (
-    <div className='w-full h-full' data-testid='workflow-canvas'>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        defaultEdgeOptions={{
-          className: "workflow-edge",
-          type: "smoothstep"
-          // animated: true,
-          // style: { stroke: "#64748b", strokeWidth: 2 }
-        }}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        minZoom={0.1}
-        maxZoom={4}
-        fitView
-      >
-        <Background />
-        <Controls className='absolute bottom-4 left-4' />
-      </ReactFlow>
+    <div className='flex flex-col w-full h-full' data-testid='workflow-canvas'>
+      <div className='flex-grow relative'>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={{
+            className: "workflow-edge",
+            type: "smoothstep"
+          }}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          minZoom={0.1}
+          maxZoom={4}
+          fitView
+        >
+          <Background />
+          <Controls className='absolute bottom-4 left-4' />
+        </ReactFlow>
+      </div>
+
+      <div className='flex items-center gap-4 p-4 border-t bg-background/80 backdrop-blur-sm'>
+        <Input
+          value={workflowName}
+          onChange={(e) => setWorkflowName(e.target.value)}
+          placeholder='Enter workflow name'
+          className='w-64'
+        />
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save"}
+        </Button>
+        <Button
+          onClick={handleExecute}
+          disabled={isExecuting}
+          variant='secondary'
+          className='gap-2'
+        >
+          <PlayIcon className='h-4 w-4' />
+          {isExecuting ? "Executing..." : "Test"}
+        </Button>
+        <Button variant='outline' onClick={handleSchedule}>
+          Schedule
+        </Button>
+        <AddNodeButton onAddNode={handleAddNode} />
+      </div>
     </div>
   );
 }

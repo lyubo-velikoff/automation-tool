@@ -1,45 +1,27 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Edge, XYPosition } from "reactflow";
-import type { Node } from "reactflow";
+import { useState, useRef } from "react";
+import { Edge, Node } from "reactflow";
 import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
 import OpenAISettingsDialog from "@/components/workflow/OpenAISettingsDialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useMutation } from "@apollo/client";
 import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from "@/graphql/mutations";
-import { PlayIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import ExecutionHistory from "@/components/workflow/ExecutionHistory";
 import { useAuth } from "@/hooks/useAuth";
 import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
 import { Header } from "@/components/ui/Header";
-import AddNodeButton from "@/components/workflow/AddNodeButton";
 import { ScheduleWorkflowDialog } from "@/components/workflow/ScheduleWorkflowDialog";
-
-interface NodeData {
-  label?: string;
-  onConfigChange?: (nodeId: string, data: NodeData) => void;
-  url?: string;
-  selector?: string;
-  selectorType?: "css" | "xpath";
-  attribute?: string;
-  results?: unknown;
-}
 
 interface CleanNode {
   id: string;
   type: string;
   label: string;
-  position: XYPosition;
+  position: { x: number; y: number };
   data: Record<string, unknown>;
 }
 
 export default function WorkflowsPage() {
-  const [workflowName, setWorkflowName] = useState("");
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(
     null
@@ -50,26 +32,8 @@ export default function WorkflowsPage() {
   );
   const { session, loading } = useAuth();
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-
-  const handleNodeDataChange = useCallback(
-    (nodeId: string, newData: NodeData) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return {
-              ...node,
-              data: {
-                ...newData,
-                onConfigChange: handleNodeDataChange
-              }
-            };
-          }
-          return node;
-        })
-      );
-    },
-    []
-  );
+  const [currentNodes, setCurrentNodes] = useState<Node[]>([]);
+  const [currentEdges, setCurrentEdges] = useState<Edge[]>([]);
 
   const [createWorkflow, { loading: saveLoading }] = useMutation(
     CREATE_WORKFLOW,
@@ -106,7 +70,7 @@ export default function WorkflowsPage() {
       onCompleted: async (data) => {
         if (data.executeWorkflow.success) {
           // Update nodes with execution results
-          setNodes((prevNodes) =>
+          setCurrentNodes((prevNodes) =>
             prevNodes.map((node) => {
               const nodeResults = data.executeWorkflow.results?.[node.id];
               if (nodeResults && node.type === "SCRAPING") {
@@ -136,7 +100,6 @@ export default function WorkflowsPage() {
           });
         }
 
-        // Always fetch executions, regardless of success or failure
         await executionHistoryRef.current?.fetchExecutions();
       }
     }
@@ -155,8 +118,8 @@ export default function WorkflowsPage() {
     };
   };
 
-  const handleSave = async () => {
-    if (!workflowName) {
+  const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
+    if (!name) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -169,7 +132,7 @@ export default function WorkflowsPage() {
       const { data } = await createWorkflow({
         variables: {
           input: {
-            name: workflowName,
+            name,
             description: "",
             nodes: nodes.map(cleanNodeForServer),
             edges
@@ -180,6 +143,9 @@ export default function WorkflowsPage() {
       if (!data?.createWorkflow) {
         throw new Error("No data returned from mutation");
       }
+
+      setCurrentNodes(nodes);
+      setCurrentEdges(edges);
     } catch (error) {
       console.error("Error saving workflow:", error);
     }
@@ -200,32 +166,19 @@ export default function WorkflowsPage() {
     });
   };
 
-  const handleCanvasChange = (updatedNodes: Node[], updatedEdges: Edge[]) => {
-    setNodes(updatedNodes);
-    setEdges(updatedEdges);
+  const handleSchedule = (nodes: Node[], edges: Edge[]) => {
+    if (!currentWorkflowId) {
+      toast({
+        title: "Error",
+        description: "Please save the workflow first",
+        variant: "destructive"
+      });
+      return;
+    }
+    setCurrentNodes(nodes);
+    setCurrentEdges(edges);
+    setScheduleDialogOpen(true);
   };
-
-  const handleAddNode = useCallback(
-    (node: Node) => {
-      const defaultData =
-        node.type === "SCRAPING"
-          ? {
-              url: "",
-              selector: "",
-              selectorType: "css" as const,
-              attribute: ""
-            }
-          : {};
-
-      node.data = {
-        ...defaultData,
-        ...node.data,
-        onConfigChange: handleNodeDataChange
-      };
-      setNodes((nds) => [...nds, node]);
-    },
-    [handleNodeDataChange]
-  );
 
   // Show loading skeleton while checking auth
   if (loading) {
@@ -239,71 +192,26 @@ export default function WorkflowsPage() {
 
   return (
     <div className='relative h-screen overflow-hidden'>
-      {/* Full screen canvas */}
-      <div className='absolute inset-0'>
-        <Header />
+      <Header />
+      <div className='h-[calc(100vh-4rem)]'>
         <WorkflowCanvas
-          initialNodes={nodes}
-          initialEdges={edges}
-          onSave={handleCanvasChange}
-          onAddNode={handleAddNode}
+          onSave={handleSave}
+          onExecute={handleExecute}
+          onSchedule={handleSchedule}
+          isExecuting={executeLoading}
+          isSaving={saveLoading}
         />
       </div>
-      {/* Overlay controls at the top */}
-      <div className='absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-b z-10'>
-        <div className='flex justify-center items-center gap-4 p-4'>
-          <div className='flex justify-center items-center gap-2'>
-            <Input
-              id='workflow-name'
-              value={workflowName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setWorkflowName(e.target.value)
-              }
-              placeholder='Enter workflow name'
-              className='w-64'
-            />
-          </div>
-          <Button onClick={handleSave} disabled={saveLoading}>
-            {saveLoading ? "Saving..." : "Save"}
-          </Button>
-          <Button
-            onClick={handleExecute}
-            disabled={executeLoading || !currentWorkflowId}
-            variant='secondary'
-            className='gap-2'
-          >
-            <PlayIcon className='h-4 w-4' />
-            {executeLoading ? "Executing..." : "Test"}
-          </Button>
-          <Button
-            variant='outline'
-            onClick={() => {
-              if (!currentWorkflowId) {
-                toast({
-                  title: "Error",
-                  description: "Please save the workflow first",
-                  variant: "destructive"
-                });
-                return;
-              }
-              setScheduleDialogOpen(true);
-            }}
-          >
-            Schedule
-          </Button>
-          <AddNodeButton onAddNode={handleAddNode} />
-        </div>
 
-        {/* Execution history overlay on the right */}
-        {currentWorkflowId && (
-          <div className='bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
-            <ExecutionHistory
-              ref={executionHistoryRef}
-              workflowId={currentWorkflowId}
-            />
-          </div>
-        )}
-      </div>
+      {/* Execution history overlay on the right */}
+      {currentWorkflowId && (
+        <div className='absolute top-16 right-0 bottom-0 w-80 bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
+          <ExecutionHistory
+            ref={executionHistoryRef}
+            workflowId={currentWorkflowId}
+          />
+        </div>
+      )}
 
       <OpenAISettingsDialog
         open={openAISettingsOpen}
@@ -318,8 +226,8 @@ export default function WorkflowsPage() {
           open={scheduleDialogOpen}
           onOpenChange={setScheduleDialogOpen}
           workflowId={currentWorkflowId}
-          nodes={nodes}
-          edges={edges}
+          nodes={currentNodes}
+          edges={currentEdges}
         />
       )}
     </div>
