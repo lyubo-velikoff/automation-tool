@@ -9,14 +9,10 @@ import { useWorkflow } from "@/contexts/WorkflowContext";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;
-  isSaving: boolean;
-  isExecuting: boolean;
 }
 
 export function WorkflowToolbar({
   onAddNode,
-  isSaving,
-  isExecuting
 }: WorkflowToolbarProps) {
   const {
     workflowName,
@@ -25,7 +21,9 @@ export function WorkflowToolbar({
     setWorkflowName,
     handleSave,
     handleExecute,
-    handleSchedule
+    handleSchedule,
+    isSaving,
+    isExecuting,
   } = useWorkflow();
 
   return (

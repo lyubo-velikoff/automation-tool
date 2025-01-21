@@ -21,11 +21,12 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
+import { NodeData } from "./config/nodeTypes";
 
 interface Workflow {
   id: string;
   name: string;
-  nodes: Node[];
+  nodes: Node<NodeData>[];
   edges: Edge[];
   updated_at?: string;
   created_at: string;
@@ -51,22 +52,51 @@ export function WorkflowSelector() {
   }, [data?.workflows]);
 
   const handleSelect = (workflow: Workflow) => {
+    console.log("Original nodes:", workflow.nodes);
+    console.log("Original workflow:", workflow);
+
     setSelectedWorkflow(workflow);
     setWorkflowId(workflow.id);
     setWorkflowName(workflow.name);
 
     // Process nodes to ensure they have the correct structure
-    const processedNodes = workflow.nodes.map((node) => ({
-      ...node,
-      position: node.position || { x: 100, y: 100 },
-      data: {
+    const processedNodes = workflow.nodes.map((node) => {
+      // Preserve the original node data structure
+      const nodeData: NodeData = {
         ...node.data,
-        label: node.data?.label || `${node.type} Node`
-      }
-    }));
+        label: node.data?.label || `${node.type} Node`,
+        onConfigChange: (nodeId: string, newData: NodeData) => {
+          console.log("Config change for node:", nodeId, newData);
+          const updatedNodes = processedNodes.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
+          );
+          setNodes(updatedNodes);
+        }
+      };
 
+      // Create the node structure that ReactFlow expects
+      const processedNode: Node<NodeData> = {
+        id: node.id,
+        type: node.type || "GMAIL_ACTION",
+        position: node.position || { x: 100, y: 100 },
+        data: nodeData,
+        draggable: true,
+        connectable: true,
+        selectable: true,
+        width: 350,
+        height: 200
+      };
+
+      console.log("Processed node:", processedNode);
+      return processedNode;
+    });
+
+    console.log("Setting nodes:", processedNodes);
     setNodes(processedNodes);
+
+    console.log("Setting edges:", workflow.edges || []);
     setEdges(workflow.edges || []);
+
     setOpen(false);
   };
 

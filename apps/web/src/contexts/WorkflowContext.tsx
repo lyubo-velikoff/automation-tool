@@ -8,17 +8,18 @@ import {
   ReactNode
 } from "react";
 import { Node, Edge } from "reactflow";
+import { NodeData } from "@/components/workflow/config/nodeTypes";
 
 interface WorkflowContextType {
   workflowId: string | null;
   workflowName: string;
-  nodes: Node[];
+  nodes: Node<NodeData>[];
   edges: Edge[];
   isExecuting: boolean;
   isSaving: boolean;
   setWorkflowId: (id: string | null) => void;
   setWorkflowName: (name: string) => void;
-  setNodes: (nodes: Node[]) => void;
+  setNodes: (nodes: Node<NodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
   setIsExecuting: (isExecuting: boolean) => void;
   setIsSaving: (isSaving: boolean) => void;
@@ -47,10 +48,20 @@ export function WorkflowProvider({
 }: WorkflowProviderProps) {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("");
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [nodes, setNodesState] = useState<Node<NodeData>[]>([]);
+  const [edges, setEdgesState] = useState<Edge[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const setNodes = useCallback((newNodes: Node<NodeData>[]) => {
+    console.log("Setting nodes in context:", newNodes);
+    setNodesState(newNodes);
+  }, []);
+
+  const setEdges = useCallback((newEdges: Edge[]) => {
+    console.log("Setting edges in context:", newEdges);
+    setEdgesState(newEdges);
+  }, []);
 
   const handleSave = useCallback(
     async (name: string, nodes: Node[], edges: Edge[]) => {

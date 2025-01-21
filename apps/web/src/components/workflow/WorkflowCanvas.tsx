@@ -28,7 +28,7 @@ function WorkflowCanvasInner() {
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
-  const { workflowId, nodes, edges, isExecuting, isSaving } = useWorkflow();
+  const { nodes, edges } = useWorkflow();
   const { executionHistory, currentExecution } = useWorkflowExecution({});
 
   const { onNodesChange, onEdgesChange, onConnect, handleAddNode } =
@@ -65,11 +65,7 @@ function WorkflowCanvasInner() {
       </div>
 
       <div className='flex flex-col gap-4'>
-        <WorkflowToolbar
-          onAddNode={handleAddNode}
-          isSaving={isSaving}
-          isExecuting={isExecuting}
-        />
+        <WorkflowToolbar onAddNode={handleAddNode} />
         <ExecutionHistory
           history={executionHistory}
           currentExecution={currentExecution}
@@ -77,14 +73,12 @@ function WorkflowCanvasInner() {
         />
       </div>
 
-      {workflowId && (
-        <ScheduleWorkflowDialog
-          open={scheduleDialogOpen}
-          onOpenChange={setScheduleDialogOpen}
-          nodes={nodes}
-          edges={edges}
-        />
-      )}
+      <ScheduleWorkflowDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        nodes={nodes}
+        edges={edges}
+      />
       <OpenAISettingsDialog
         open={openAISettingsOpen}
         onOpenChange={setOpenAISettingsOpen}
