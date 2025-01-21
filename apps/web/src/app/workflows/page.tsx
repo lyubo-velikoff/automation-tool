@@ -177,7 +177,7 @@ export default function WorkflowsPage() {
 
       {/* Execution history overlay on the right */}
       {currentWorkflowId && (
-        <div className='absolute top-16 right-0 bottom-0 w-80 bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
+        <div className='absolute bottom-20 right-2 w-1/3 bg-background/80 backdrop-blur-sm border-l overflow-auto z-10'>
           <ExecutionHistory
             ref={executionHistoryRef}
             workflowId={currentWorkflowId}
