@@ -1,24 +1,32 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Edge, XYPosition } from "reactflow";
 import type { Node } from "reactflow";
 import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
-import ConnectionStatus from "@/components/workflow/ConnectionStatus";
 import OpenAISettingsDialog from "@/components/workflow/OpenAISettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useMutation } from "@apollo/client";
 import { CREATE_WORKFLOW, EXECUTE_WORKFLOW } from "@/graphql/mutations";
 import { PlayIcon } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import ExecutionHistory from "@/components/workflow/ExecutionHistory";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
 import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
-import { HeaderWrapper } from "@/components/HeaderWrapper";
 import { Header } from "@/components/ui/Header";
+import AddNodeButton from "@/components/workflow/AddNodeButton";
+import { ScheduleWorkflowDialog } from "@/components/workflow/ScheduleWorkflowDialog";
+
+interface NodeData {
+  label?: string;
+  onConfigChange?: (nodeId: string, data: NodeData) => void;
+  url?: string;
+  selector?: string;
+  selectorType?: "css" | "xpath";
+  attribute?: string;
+  results?: unknown;
+}
 
 interface CleanNode {
   id: string;
@@ -41,6 +49,27 @@ export default function WorkflowsPage() {
     null
   );
   const { session, loading } = useAuth();
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+
+  const handleNodeDataChange = useCallback(
+    (nodeId: string, newData: NodeData) => {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return {
+              ...node,
+              data: {
+                ...newData,
+                onConfigChange: handleNodeDataChange
+              }
+            };
+          }
+          return node;
+        })
+      );
+    },
+    []
+  );
 
   const [createWorkflow, { loading: saveLoading }] = useMutation(
     CREATE_WORKFLOW,
@@ -176,6 +205,28 @@ export default function WorkflowsPage() {
     setEdges(updatedEdges);
   };
 
+  const handleAddNode = useCallback(
+    (node: Node) => {
+      const defaultData =
+        node.type === "SCRAPING"
+          ? {
+              url: "",
+              selector: "",
+              selectorType: "css" as const,
+              attribute: ""
+            }
+          : {};
+
+      node.data = {
+        ...defaultData,
+        ...node.data,
+        onConfigChange: handleNodeDataChange
+      };
+      setNodes((nds) => [...nds, node]);
+    },
+    [handleNodeDataChange]
+  );
+
   // Show loading skeleton while checking auth
   if (loading) {
     return <WorkflowLoadingSkeleton />;
@@ -195,7 +246,7 @@ export default function WorkflowsPage() {
           initialNodes={nodes}
           initialEdges={edges}
           onSave={handleCanvasChange}
-          workflowId={currentWorkflowId || ""}
+          onAddNode={handleAddNode}
         />
       </div>
       {/* Overlay controls at the top */}
@@ -224,6 +275,23 @@ export default function WorkflowsPage() {
             <PlayIcon className='h-4 w-4' />
             {executeLoading ? "Executing..." : "Test"}
           </Button>
+          <Button
+            variant='outline'
+            onClick={() => {
+              if (!currentWorkflowId) {
+                toast({
+                  title: "Error",
+                  description: "Please save the workflow first",
+                  variant: "destructive"
+                });
+                return;
+              }
+              setScheduleDialogOpen(true);
+            }}
+          >
+            Schedule
+          </Button>
+          <AddNodeButton onAddNode={handleAddNode} />
         </div>
 
         {/* Execution history overlay on the right */}
@@ -244,6 +312,16 @@ export default function WorkflowsPage() {
           window.location.reload();
         }}
       />
+
+      {currentWorkflowId && (
+        <ScheduleWorkflowDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          workflowId={currentWorkflowId}
+          nodes={nodes}
+          edges={edges}
+        />
+      )}
     </div>
   );
 }
