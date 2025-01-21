@@ -50,28 +50,7 @@ const nodeTypes = {
   GMAIL_TRIGGER: BasicNode,
   GMAIL_ACTION: BasicNode,
   OPENAI: BasicNode,
-  SCRAPING: (props: NodeProps) => (
-    <div
-      className={cn(
-        "rounded-lg shadow-lg border",
-        "bg-background text-foreground"
-      )}
-      data-testid={`node-${props.type.toLowerCase()}`}
-    >
-      <ScrapingNode
-        {...props}
-        id={props.id}
-        data={{
-          ...props.data,
-          onConfigChange: (nodeId: string, data: NodeData) => {
-            if (props.data.onConfigChange) {
-              props.data.onConfigChange(nodeId, data);
-            }
-          }
-        }}
-      />
-    </div>
-  )
+  SCRAPING: BasicNode
 };
 
 interface NodeData {
