@@ -36,11 +36,8 @@ interface Workflow {
 export function WorkflowSelector() {
   const [open, setOpen] = useState(false);
   const { data } = useQuery(GET_WORKFLOWS);
-  const { setWorkflowId, setWorkflowName } = useWorkflow();
+  const { workflowId, setWorkflowId, setWorkflowName } = useWorkflow();
   const { handleWorkflowSelect } = useNodeManagement();
-  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(
-    null
-  );
 
   // Sort workflows by updated_at or created_at
   const sortedWorkflows = useMemo(() => {
@@ -52,18 +49,16 @@ export function WorkflowSelector() {
     });
   }, [data?.workflows]);
 
+  // Get the currently selected workflow from the sorted list
+  const selectedWorkflow = useMemo(() => {
+    return sortedWorkflows.find((w) => w.id === workflowId) || null;
+  }, [sortedWorkflows, workflowId]);
+
   const handleSelect = useCallback(
     (workflow: Workflow) => {
-      console.log("Selecting workflow:", workflow);
-
-      // Update workflow state
       setWorkflowId(workflow.id);
       setWorkflowName(workflow.name);
-
-      // Update nodes and edges through useNodeManagement
       handleWorkflowSelect(workflow.nodes, workflow.edges || []);
-
-      setSelectedWorkflow(workflow);
       setOpen(false);
     },
     [handleWorkflowSelect, setWorkflowId, setWorkflowName]
@@ -97,9 +92,7 @@ export function WorkflowSelector() {
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      selectedWorkflow?.id === workflow.id
-                        ? "opacity-100"
-                        : "opacity-0"
+                      workflow.id === workflowId ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {workflow.name}
