@@ -68,7 +68,7 @@ function WorkflowCanvas({
             snapGrid={[15, 15]}
           >
             <Background />
-            <Controls className='absolute bottom-4 left-4' />
+            <Controls className='absolute bottom-4 left-4 scale-150' />
           </ReactFlow>
         </div>
 
