@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { LogOut, Moon, Sun, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import Link from "next/link";
 
 export function UserAccountDropdown() {
   const { theme, setTheme } = useTheme();
@@ -52,9 +53,11 @@ export function UserAccountDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User className='mr-2 h-4 w-4' />
-            <span>Profile</span>
+          <DropdownMenuItem asChild>
+            <Link href='/profile' className='flex items-center'>
+              <User className='mr-2 h-4 w-4' />
+              <span>Profile</span>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={(e) => {
