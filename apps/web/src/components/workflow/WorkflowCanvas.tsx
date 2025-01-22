@@ -6,7 +6,8 @@ import ReactFlow, {
   Edge,
   Controls,
   Background,
-  ReactFlowProvider
+  ReactFlowProvider,
+  Panel
 } from "reactflow";
 import "reactflow/dist/style.css";
 import OpenAISettingsDialog from "./OpenAISettingsDialog";
@@ -19,8 +20,13 @@ import { useWorkflowExecution } from "@/hooks/useWorkflowExecution";
 import { useWorkflow } from "@/contexts/WorkflowContext";
 
 interface WorkflowCanvasProps {
-  onSave?: (name: string, nodes: Node[], edges: Edge[]) => Promise<void>;
-  onExecute?: (nodes: Node[], edges: Edge[]) => Promise<void>;
+  onSave?: (
+    workflowId: string,
+    name: string,
+    nodes: Node[],
+    edges: Edge[]
+  ) => Promise<void>;
+  onExecute?: (workflowId: string) => Promise<void>;
   onSchedule?: (nodes: Node[], edges: Edge[]) => void;
 }
 
@@ -32,14 +38,19 @@ function WorkflowCanvas({
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
-  const { nodes, edges } = useNodeManagement();
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    handleAddNode
+  } = useNodeManagement();
+
   const { workflowId } = useWorkflow();
   const { executionHistory, currentExecution } = useWorkflowExecution({
     onExecute
   });
-
-  const { onNodesChange, onEdgesChange, onConnect, handleAddNode } =
-    useNodeManagement();
 
   return (
     <ReactFlowProvider>
@@ -66,16 +77,32 @@ function WorkflowCanvas({
             className='h-full'
             snapToGrid
             snapGrid={[15, 15]}
+            nodesDraggable={true}
+            nodesConnectable={true}
+            elementsSelectable={true}
           >
             <Background />
             <Controls className='absolute bottom-4 left-4 scale-150' />
+            <Panel
+              position='top-right'
+              className='bg-background/80 p-2 rounded-lg shadow-md'
+            >
+              <div className='text-sm text-muted-foreground'>
+                Drag nodes by their header
+              </div>
+            </Panel>
           </ReactFlow>
         </div>
 
         <div className='flex flex-col gap-4'>
           <WorkflowToolbar
             onAddNode={handleAddNode}
-            onScheduleClick={() => setScheduleDialogOpen(true)}
+            onScheduleClick={() => {
+              if (onSchedule) {
+                onSchedule(nodes, edges);
+              }
+              setScheduleDialogOpen(true);
+            }}
           />
           {workflowId && (
             <ExecutionHistory

@@ -1,8 +1,10 @@
 import { BasicNode } from "../nodeTypes";
+import GmailActionNode from "../nodes/gmail/GmailActionNode";
+import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
 
 export const NODE_TYPES = {
-  GMAIL_ACTION: BasicNode,
-  GMAIL_TRIGGER: BasicNode,
+  GMAIL_ACTION: GmailActionNode,
+  GMAIL_TRIGGER: GmailTriggerNode,
   OPENAI: BasicNode,
   SCRAPING: BasicNode,
   default: BasicNode

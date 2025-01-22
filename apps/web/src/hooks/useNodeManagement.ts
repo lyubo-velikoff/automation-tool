@@ -35,6 +35,24 @@ export function useNodeManagement() {
     }
   }, [contextEdges, setEdges]);
 
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      onNodesChange(changes);
+      const updatedNodes = applyNodeChanges(changes, nodes);
+      setContextNodes(updatedNodes);
+    },
+    [nodes, onNodesChange, setContextNodes]
+  );
+
+  const handleEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      onEdgesChange(changes);
+      const updatedEdges = applyEdgeChanges(changes, edges);
+      setContextEdges(updatedEdges);
+    },
+    [edges, onEdgesChange, setContextEdges]
+  );
+
   const onConnect = useCallback(
     (params: Connection) => {
       const newEdges = addEdge(params, edges);
@@ -82,16 +100,8 @@ export function useNodeManagement() {
   return {
     nodes,
     edges,
-    onNodesChange: (changes: NodeChange[]) => {
-      const updatedNodes = applyNodeChanges(changes, nodes);
-      setNodes(updatedNodes);
-      setContextNodes(updatedNodes);
-    },
-    onEdgesChange: (changes: EdgeChange[]) => {
-      const updatedEdges = applyEdgeChanges(changes, edges);
-      setEdges(updatedEdges);
-      setContextEdges(updatedEdges);
-    },
+    onNodesChange: handleNodesChange,
+    onEdgesChange: handleEdgesChange,
     onConnect,
     handleAddNode,
     handleWorkflowSelect

@@ -1,21 +1,22 @@
-'use client';
+"use client";
 
-import { ApolloProvider } from '@apollo/client';
-import { client } from '@/lib/apollo-client';
-import { ThemeProvider } from 'next-themes';
-import { PropsWithChildren } from 'react';
+import { ApolloProvider } from "@apollo/client";
+import { client } from "@/lib/apollo-client";
+import { ThemeProvider } from "next-themes";
+import { PropsWithChildren } from "react";
+import { GmailProvider } from "@/contexts/GmailContext";
 
 export function Providers({ children }: PropsWithChildren) {
   return (
     <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
+      attribute='class'
+      defaultTheme='system'
       enableSystem
       disableTransitionOnChange
     >
       <ApolloProvider client={client}>
-        {children}
+        <GmailProvider>{children}</GmailProvider>
       </ApolloProvider>
     </ThemeProvider>
   );
-} 
+}

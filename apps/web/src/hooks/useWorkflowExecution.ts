@@ -15,7 +15,7 @@ export interface ExecutionResult {
 }
 
 export interface UseWorkflowExecutionProps {
-  onExecute?: (workflowId: string) => Promise<void>;
+  onExecute?: ((workflowId: string) => Promise<void>) | ((nodes: Node[], edges: Edge[]) => Promise<void>);
 }
 
 export function useWorkflowExecution({ onExecute }: UseWorkflowExecutionProps = {}) {
@@ -41,7 +41,12 @@ export function useWorkflowExecution({ onExecute }: UseWorkflowExecutionProps = 
     setExecutionHistory(prev => [newExecution, ...prev]);
 
     try {
-      await onExecute(workflowId);
+      // Check the number of parameters the onExecute function expects
+      if (onExecute.length === 1) {
+        await (onExecute as (workflowId: string) => Promise<void>)(workflowId);
+      } else {
+        await (onExecute as (nodes: Node[], edges: Edge[]) => Promise<void>)(nodes, edges);
+      }
       
       // Update execution status to success
       const successExecution: ExecutionResult = {
