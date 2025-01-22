@@ -29,7 +29,12 @@ interface WorkflowContextType {
     nodes: Node<NodeData>[];
     edges: Edge[];
   }) => void;
-  handleSave: (name: string, nodes: Node[], edges: Edge[]) => Promise<void>;
+  handleSave: (
+    workflowId: string,
+    name: string,
+    nodes: Node[],
+    edges: Edge[]
+  ) => Promise<void>;
   handleExecute: (workflowId: string) => Promise<void>;
   handleSchedule: (nodes: Node[], edges: Edge[]) => void;
   clearWorkflow: () => void;
@@ -41,7 +46,12 @@ const WorkflowContext = createContext<WorkflowContextType | undefined>(
 
 interface WorkflowProviderProps {
   children: ReactNode;
-  onSave?: (name: string, nodes: Node[], edges: Edge[]) => Promise<void>;
+  onSave?: (
+    workflowId: string,
+    name: string,
+    nodes: Node[],
+    edges: Edge[]
+  ) => Promise<void>;
   onExecute?: (workflowId: string) => Promise<void>;
   onSchedule?: (nodes: Node[], edges: Edge[]) => void;
 }
@@ -75,11 +85,11 @@ export function WorkflowProvider({
   );
 
   const handleSave = useCallback(
-    async (name: string, nodes: Node[], edges: Edge[]) => {
+    async (workflowId: string, name: string, nodes: Node[], edges: Edge[]) => {
       if (!onSave) return;
       setIsSaving(true);
       try {
-        await onSave(name, nodes, edges);
+        await onSave(workflowId, name, nodes, edges);
       } finally {
         setIsSaving(false);
       }

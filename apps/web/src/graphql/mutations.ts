@@ -85,18 +85,20 @@ export const UPDATE_WORKFLOW = gql`
           y
         }
         data {
-          # Gmail fields
           pollingInterval
           fromFilter
           subjectFilter
           to
           subject
           body
-          # Scraping fields
+          prompt
+          model
+          maxTokens
           url
           selector
           selectorType
           attribute
+          label
         }
       }
       edges {

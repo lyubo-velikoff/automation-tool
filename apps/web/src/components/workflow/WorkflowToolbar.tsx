@@ -14,7 +14,6 @@ import {
 import { useState } from "react";
 import { useMutation, useApolloClient } from "@apollo/client";
 import { CREATE_WORKFLOW } from "@/graphql/mutations";
-import { GET_WORKFLOWS } from "@/graphql/queries";
 import { toast } from "@/components/ui/use-toast";
 
 interface WorkflowToolbarProps {
@@ -126,7 +125,7 @@ export function WorkflowToolbar({
       {/* Update Existing Workflow */}
       {workflowId && (
         <Button
-          onClick={() => handleSave(workflowName, nodes, edges)}
+          onClick={() => handleSave(workflowId, workflowName, nodes, edges)}
           disabled={isSaving}
         >
           {isSaving ? "Updating..." : "Update"}

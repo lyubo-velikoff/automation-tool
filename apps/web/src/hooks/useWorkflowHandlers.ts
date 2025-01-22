@@ -5,37 +5,61 @@ import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW } from "@/graphql/mutations";
 import { useToast } from "@/components/ui/use-toast";
 import { Node, Edge } from "reactflow";
 
-interface CleanNode extends Omit<Node, "data"> {
-  data: Record<string, unknown>;
-}
-
-function cleanNodeForServer(node: Node): CleanNode {
-  const { data, ...rest } = node;
-  return {
-    ...rest,
-    data: {
-      ...data,
-      onConfigChange: undefined
-    }
-  };
-}
-
 export function useWorkflowHandlers() {
   const { toast } = useToast();
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
 
-  const handleSave = async (name: string, nodes: Node[], edges: Edge[]) => {
-    const cleanNodes = nodes.map(cleanNodeForServer);
+  const handleSave = async (workflowId: string, name: string, nodes: Node[], edges: Edge[]) => {
+    if (!nodes || !edges) {
+      toast({
+        title: "Error",
+        description: "No workflow data to save",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const cleanNodes = nodes.map(node => ({
+      id: node.id,
+      type: node.type,
+      label: node.data?.label || node.type,
+      position: {
+        x: node.position.x,
+        y: node.position.y
+      },
+      data: {
+        pollingInterval: node.data?.pollingInterval,
+        fromFilter: node.data?.fromFilter,
+        subjectFilter: node.data?.subjectFilter,
+        to: node.data?.to,
+        subject: node.data?.subject,
+        body: node.data?.body,
+        prompt: node.data?.prompt,
+        model: node.data?.model,
+        maxTokens: node.data?.maxTokens,
+        url: node.data?.url,
+        selector: node.data?.selector,
+        selectorType: node.data?.selectorType,
+        attribute: node.data?.attribute,
+        label: node.data?.label
+      }
+    }));
+
+    const cleanEdges = edges.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target
+    }));
 
     try {
       await updateWorkflow({
         variables: {
-          id: name,
           input: {
+            id: workflowId,
             name,
             nodes: cleanNodes,
-            edges
+            edges: cleanEdges
           }
         }
       });
