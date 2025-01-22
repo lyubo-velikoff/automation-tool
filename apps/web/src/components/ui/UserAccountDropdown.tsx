@@ -57,8 +57,11 @@ export function UserAccountDropdown() {
             <span>Profile</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={(e) => e.preventDefault()}
-            className='flex items-center justify-between cursor-default'
+            onSelect={(e) => {
+              e.preventDefault();
+              setTheme(theme === "light" ? "dark" : "light");
+            }}
+            className='flex items-center justify-between cursor-pointer'
           >
             <div className='flex items-center'>
               {theme === "light" ? (
@@ -70,9 +73,7 @@ export function UserAccountDropdown() {
             </div>
             <Switch
               checked={theme === "dark"}
-              onCheckedChange={(checked: boolean) =>
-                setTheme(checked ? "dark" : "light")
-              }
+              className='pointer-events-none'
             />
           </DropdownMenuItem>
         </DropdownMenuGroup>
