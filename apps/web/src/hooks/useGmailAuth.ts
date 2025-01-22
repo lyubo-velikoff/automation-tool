@@ -4,74 +4,97 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
 
+// Static cache for connection status
+let connectionCheckPromise: Promise<boolean> | null = null;
+let lastCheckTime = 0;
+const CACHE_DURATION = 30000; // 30 seconds
+
 export function useGmailAuth() {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
 
   const checkGmailConnection = useCallback(async () => {
-    try {
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
+    const now = Date.now();
 
-      if (!session?.provider_token) {
-        setIsGmailConnected(false);
-        return;
-      }
+    // If there's an ongoing check, wait for it
+    if (connectionCheckPromise) {
+      const result = await connectionCheckPromise;
+      setIsGmailConnected(result);
+      return;
+    }
 
-      // Verify the token by making a test API call
-      const response = await fetch(
-        "https://gmail.googleapis.com/gmail/v1/users/me/profile",
-        {
-          headers: {
-            Authorization: `Bearer ${session.provider_token}`
-          }
+    // If the last check was recent, use cached value
+    if (now - lastCheckTime < CACHE_DURATION) {
+      return;
+    }
+
+    // Create new connection check promise
+    connectionCheckPromise = (async () => {
+      try {
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+
+        if (!session?.provider_token) {
+          return false;
         }
-      );
 
-      // Handle different response statuses
-      if (response.status === 401) {
-        // Silent handling for unauthorized - just update state
-        setIsGmailConnected(false);
-        return;
-      }
+        const response = await fetch(
+          "https://gmail.googleapis.com/gmail/v1/users/me/profile",
+          {
+            headers: {
+              Authorization: `Bearer ${session.provider_token}`
+            }
+          }
+        );
 
-      if (!response.ok) {
-        setIsGmailConnected(false);
-        // Only show toast for unexpected errors if we were previously connected
-        if (isGmailConnected) {
+        if (response.status === 401) {
+          return false;
+        }
+
+        if (!response.ok) {
+          if (isGmailConnected) {
+            toast({
+              title: "Gmail Connection Issue",
+              description: "There was a problem with your Gmail connection",
+              variant: "default"
+            });
+          }
+          return false;
+        }
+
+        if (!isGmailConnected) {
           toast({
-            title: "Gmail Connection Issue",
-            description: "There was a problem with your Gmail connection",
+            title: "Connected",
+            description: "Gmail connection successful"
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error("Error checking Gmail connection:", error);
+        if (isGmailConnected && !(error instanceof TypeError)) {
+          toast({
+            title: "Gmail Connection Lost",
+            description: "Please reconnect your Gmail account",
             variant: "default"
           });
         }
-        return;
+        return false;
+      } finally {
+        lastCheckTime = Date.now();
+        connectionCheckPromise = null;
       }
+    })();
 
-      setIsGmailConnected(true);
-      // Only show success toast when connecting, not on initial check
-      if (!isGmailConnected) {
-        toast({
-          title: "Connected",
-          description: "Gmail connection successful"
-        });
-      }
-    } catch (error) {
-      console.error("Error checking Gmail connection:", error);
-      setIsGmailConnected(false);
-      // Only show error toast if we were previously connected and it's not a network error
-      if (isGmailConnected && !(error instanceof TypeError)) {
-        toast({
-          title: "Gmail Connection Lost",
-          description: "Please reconnect your Gmail account",
-          variant: "default"
-        });
-      }
-    }
+    const result = await connectionCheckPromise;
+    setIsGmailConnected(result);
   }, [isGmailConnected]);
 
   const connectGmail = useCallback(() => {
+    // Reset cache when manually connecting
+    connectionCheckPromise = null;
+    lastCheckTime = 0;
+
     // Close any existing auth windows
     if (authWindow && !authWindow.closed) {
       authWindow.close();
@@ -109,6 +132,9 @@ export function useGmailAuth() {
       if (event.origin !== window.location.origin) return;
 
       if (event.data?.type === "GMAIL_CONNECTED") {
+        // Reset cache when receiving connection message
+        connectionCheckPromise = null;
+        lastCheckTime = 0;
         checkGmailConnection();
       } else if (event.data?.type === "GMAIL_ERROR") {
         toast({
