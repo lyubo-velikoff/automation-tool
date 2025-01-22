@@ -71,8 +71,8 @@ export const EXECUTE_WORKFLOW = gql`
 `;
 
 export const UPDATE_WORKFLOW = gql`
-  mutation UpdateWorkflow($id: String!, $input: UpdateWorkflowInput!) {
-    updateWorkflow(id: $id, input: $input) {
+  mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
+    updateWorkflow(input: $input) {
       id
       name
       description
