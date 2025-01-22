@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Handle, Position } from "reactflow";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,8 +13,7 @@ import {
   CardTitle
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
-import { toast } from "@/components/ui/use-toast";
+import { useGmailAuth } from "@/hooks/useGmailAuth";
 
 interface NodeData {
   label?: string;
@@ -41,126 +40,7 @@ interface NodeSelectorProps {
 }
 
 export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
-  const [isGmailConnected, setIsGmailConnected] = useState(false);
-  const [authWindow, setAuthWindow] = useState<Window | null>(null);
-
-  useEffect(() => {
-    checkGmailConnection();
-
-    // Listen for messages from popup
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-
-      if (event.data?.type === "GMAIL_CONNECTED") {
-        checkGmailConnection();
-      } else if (event.data?.type === "GMAIL_ERROR") {
-        toast({
-          title: "Connection Failed",
-          description: event.data.error,
-          variant: "destructive"
-        });
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    // Check if auth window is still open periodically
-    const checkAuthWindow = setInterval(() => {
-      if (authWindow && authWindow.closed) {
-        setAuthWindow(null);
-      }
-    }, 1000);
-
-    return () => {
-      window.removeEventListener("message", handleMessage);
-      clearInterval(checkAuthWindow);
-      // Close auth window if component unmounts
-      if (authWindow && !authWindow.closed) {
-        authWindow.close();
-      }
-    };
-  }, [authWindow]);
-
-  const checkGmailConnection = async () => {
-    try {
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-
-      if (!session?.provider_token) {
-        setIsGmailConnected(false);
-        return;
-      }
-
-      // Verify the token by making a test API call
-      const response = await fetch(
-        "https://gmail.googleapis.com/gmail/v1/users/me/profile",
-        {
-          headers: {
-            Authorization: `Bearer ${session.provider_token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        console.error("Gmail connection needs refresh:", await response.text());
-        setIsGmailConnected(false);
-        toast({
-          title: "Gmail Connection Required",
-          description: "Please connect your Gmail account to use this feature",
-          variant: "default"
-        });
-        return;
-      }
-
-      setIsGmailConnected(true);
-      toast({
-        title: "Connected",
-        description: "Gmail connection successful"
-      });
-    } catch (error) {
-      console.error("Error checking Gmail connection:", error);
-      setIsGmailConnected(false);
-      // Don't show error toast on initial load
-      if (isGmailConnected) {
-        toast({
-          title: "Gmail Connection Lost",
-          description: "Please reconnect your Gmail account",
-          variant: "default"
-        });
-      }
-    }
-  };
-
-  const handleGmailConnect = () => {
-    // Close any existing auth windows
-    if (authWindow && !authWindow.closed) {
-      authWindow.close();
-    }
-
-    // Calculate popup position
-    const width = 600;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    // Open popup
-    const popup = window.open(
-      "/auth/gmail-popup",
-      "gmail-auth",
-      `width=${width},height=${height},left=${left},top=${top},popup=true`
-    );
-
-    if (popup) {
-      setAuthWindow(popup);
-    } else {
-      toast({
-        title: "Popup Blocked",
-        description: "Please allow popups for this site to connect Gmail.",
-        variant: "destructive"
-      });
-    }
-  };
+  const { isGmailConnected, connectGmail } = useGmailAuth();
 
   const handleDataChange = useCallback(
     (key: string, value: string | number) => {
@@ -188,7 +68,7 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             <p className='text-sm text-muted-foreground'>
               Connect your Gmail account to send emails
             </p>
-            <Button onClick={handleGmailConnect} className='w-full'>
+            <Button onClick={connectGmail} className='w-full'>
               Connect Gmail
             </Button>
           </div>
@@ -255,7 +135,7 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
             <p className='text-sm text-muted-foreground'>
               Connect your Gmail account to monitor emails
             </p>
-            <Button onClick={handleGmailConnect} className='w-full'>
+            <Button onClick={connectGmail} className='w-full'>
               Connect Gmail
             </Button>
           </div>
