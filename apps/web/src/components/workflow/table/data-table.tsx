@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/data-display/table";
 import { Button } from "@/components/ui/inputs/button";
 import { Input } from "@/components/ui/inputs/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/inputs/select";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 import {
   AlertDialog,
@@ -53,6 +60,7 @@ export function DataTable<TData, TValue>({
   );
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
   const { handleDelete } = useWorkflowHandlers();
 
   const table = useReactTable({
@@ -68,7 +76,11 @@ export function DataTable<TData, TValue>({
     state: {
       sorting,
       columnFilters,
-      rowSelection
+      rowSelection,
+      pagination: {
+        pageSize: rowsPerPage,
+        pageIndex: 0
+      }
     }
   });
 
@@ -85,7 +97,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className='flex items-center justify-between py-4'>
+      <div className='flex items-center py-4 gap-2'>
         <Input
           placeholder='Filter workflows...'
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -94,6 +106,37 @@ export function DataTable<TData, TValue>({
           }
           className='max-w-sm'
         />
+        <Select
+          value={
+            (table.getColumn("is_active")?.getFilterValue() as string) ?? "all"
+          }
+          onValueChange={(value) =>
+            table.getColumn("is_active")?.setFilterValue(value)
+          }
+        >
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue placeholder='Filter by status' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All statuses</SelectItem>
+            <SelectItem value='active'>Active</SelectItem>
+            <SelectItem value='inactive'>Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={rowsPerPage.toString()}
+          onValueChange={(value) => setRowsPerPage(Number(value))}
+        >
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue placeholder='Select rows per page' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='5'>5 per page</SelectItem>
+            <SelectItem value='10'>10 per page</SelectItem>
+            <SelectItem value='20'>20 per page</SelectItem>
+            <SelectItem value='50'>50 per page</SelectItem>
+          </SelectContent>
+        </Select>
         {selectedRows.length > 0 && (
           <AlertDialog
             open={deleteDialogOpen}
@@ -183,23 +226,28 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className='flex items-center justify-end space-x-2 py-4'>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      <div className='flex items-center justify-between space-x-2 py-4'>
+        <div className='text-sm text-muted-foreground'>
+          {table.getFilteredRowModel().rows.length} workflow(s) total
+        </div>
+        <div className='space-x-2'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

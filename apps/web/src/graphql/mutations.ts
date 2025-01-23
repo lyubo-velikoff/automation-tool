@@ -133,11 +133,8 @@ export const STOP_TIMED_WORKFLOW = gql`
 `;
 
 export const DELETE_WORKFLOW = gql`
-  mutation DeleteWorkflow($workflowId: String!) {
-    deleteWorkflow(workflowId: $workflowId) {
-      success
-      message
-    }
+  mutation DeleteWorkflow($id: String!) {
+    deleteWorkflow(id: $id)
   }
 `;
 

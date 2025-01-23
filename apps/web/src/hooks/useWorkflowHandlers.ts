@@ -5,13 +5,6 @@ import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW, DELETE_WORKFLOW, DUPLICATE_WORKFLOW 
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
-import { gql } from '@apollo/client';
-
-export const DELETE_WORKFLOW = gql`
-  mutation DeleteWorkflow($id: String!) {
-    deleteWorkflow(id: $id)
-  }
-`;
 
 export function useWorkflowHandlers() {
   const { toast } = useToast();
@@ -122,9 +115,16 @@ export function useWorkflowHandlers() {
       await deleteWorkflow({
         variables: { id }
       });
-      toast.success('Workflow deleted successfully');
+      toast({
+        title: "Success",
+        description: "Workflow deleted successfully"
+      });
     } catch (error) {
-      toast.error('Failed to delete workflow');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete workflow",
+        variant: "destructive"
+      });
       console.error('Delete workflow error:', error);
     }
   };

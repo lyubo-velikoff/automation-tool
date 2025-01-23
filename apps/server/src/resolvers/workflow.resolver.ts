@@ -92,8 +92,7 @@ export class WorkflowResolver {
     const { data, error } = await supabase
       .from("workflows")
       .select("*")
-      .eq("user_id", context.user.id)
-      .eq("is_active", true);
+      .eq("user_id", context.user.id);
 
     if (error) throw error;
 

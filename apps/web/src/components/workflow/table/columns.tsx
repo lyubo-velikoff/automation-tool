@@ -150,7 +150,9 @@ export const columns: ColumnDef<Workflow>[] = [
       );
     },
     filterFn: (row, id, value) => {
-      return value === "all" ? true : row.getValue(id) === (value === "active");
+      if (value === "all") return true;
+      const isActive = row.getValue(id) as boolean;
+      return value === "active" ? isActive : !isActive;
     }
   },
   {
