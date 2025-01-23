@@ -50,6 +50,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <aside className='fixed left-0 top-14 z-30 h-[calc(100vh-3.5rem)] w-64 border-r bg-background'>
           <nav className='space-y-1 p-4'>
             {navigation.map((item) => {
+              const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
                 <Link key={item.name} href={item.href}>
@@ -57,10 +58,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
                       "w-full justify-start gap-2",
-                      isActive && "bg-secondary"
+                      isActive && "bg-muted"
                     )}
                   >
-                    <item.icon className='h-4 w-4' />
+                    <Icon className='h-4 w-4' />
                     {item.name}
                   </Button>
                 </Link>
@@ -70,8 +71,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </aside>
 
         {/* Main Content */}
-        <main className='flex-1 pl-64'>
-          <div className='container py-6 md:py-8'>{children}</div>
+        <main className='flex-1 ml-64'>
+          <div className='container p-6'>{children}</div>
         </main>
       </div>
     </div>
