@@ -11,21 +11,40 @@ import { useGmail } from "@/contexts/GmailContext";
 interface GmailTriggerNodeProps {
   id?: string;
   data: NodeData;
+  selected?: boolean;
 }
 
-export default function GmailTriggerNode({ id, data }: GmailTriggerNodeProps) {
+export default function GmailTriggerNode({
+  id,
+  data,
+  selected
+}: GmailTriggerNodeProps) {
+  console.log("GmailTriggerNode render:", { id, data });
   const { isGmailConnected, connectGmail } = useGmail();
 
   const handleConfigChange = (
     key: keyof Omit<NodeData, "onConfigChange">,
-    value: string | number
+    value: string
   ) => {
-    if (data.onConfigChange) {
-      data.onConfigChange(id || "", {
-        ...data,
-        [key]: value
-      });
+    console.log("handleConfigChange called:", { key, value });
+    console.log("Current data:", data);
+
+    const onConfigChange = data.onConfigChange;
+    if (!onConfigChange) {
+      console.log("No onConfigChange function found");
+      return;
     }
+
+    // Create new data without onConfigChange
+    const { onConfigChange: _, ...restData } = data;
+    const newData = {
+      ...restData,
+      [key]: value
+    };
+
+    console.log("New data before update:", newData);
+    onConfigChange(id || "", newData);
+    console.log("Update completed");
   };
 
   const GmailIcon = () => (
@@ -46,71 +65,73 @@ export default function GmailTriggerNode({ id, data }: GmailTriggerNodeProps) {
 
   if (!isGmailConnected) {
     return (
-      <Card className='w-[300px]'>
-        <CardHeader className='nodrag cursor-default'>
-          <CardTitle className='flex items-center gap-2 drag cursor-move'>
-            <GmailIcon />
-            Gmail Trigger
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='flex flex-col gap-4 nodrag'>
-          <p className='text-sm text-muted-foreground'>
-            Connect your Gmail account to monitor emails
-          </p>
-          <Button onClick={connectGmail} className='w-full'>
-            Connect Gmail
-          </Button>
-        </CardContent>
-        <Handle type='source' position={Position.Right} />
-      </Card>
+      <div className={`${selected ? "ring-2 ring-primary" : ""}`}>
+        <Card className='w-[300px]'>
+          <CardHeader className='drag cursor-move'>
+            <CardTitle className='flex items-center gap-2'>
+              <GmailIcon />
+              Email Trigger
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4 nodrag'>
+            <p className='text-sm text-muted-foreground'>
+              Connect your Gmail account to monitor emails
+            </p>
+            <Button onClick={connectGmail} className='w-full'>
+              Connect Gmail
+            </Button>
+          </CardContent>
+          <Handle type='source' position={Position.Right} />
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card className='w-[300px]'>
-      <CardHeader className='nodrag cursor-default'>
-        <CardTitle className='flex items-center gap-2 drag cursor-move'>
-          <GmailIcon />
-          Gmail Trigger
-        </CardTitle>
-      </CardHeader>
-      <CardContent className='flex flex-col gap-4 nodrag'>
-        <div>
-          <Label htmlFor='pollingInterval'>Check every (minutes)</Label>
-          <Input
-            id='pollingInterval'
-            type='number'
-            value={data.pollingInterval || 5}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              handleConfigChange("pollingInterval", parseInt(e.target.value))
-            }
-            min={1}
-          />
-        </div>
-        <div>
-          <Label htmlFor='fromFilter'>From (optional)</Label>
-          <Input
-            id='fromFilter'
-            value={data.fromFilter || ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              handleConfigChange("fromFilter", e.target.value)
-            }
-            placeholder='sender@example.com'
-          />
-        </div>
-        <div>
-          <Label htmlFor='subjectFilter'>Subject contains (optional)</Label>
-          <Input
-            id='subjectFilter'
-            value={data.subjectFilter || ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              handleConfigChange("subjectFilter", e.target.value)
-            }
-            placeholder='Important'
-          />
-        </div>
-      </CardContent>
-      <Handle type='source' position={Position.Right} />
-    </Card>
+    <div className={`${selected ? "ring-2 ring-primary" : ""}`}>
+      <Card className='w-[300px]'>
+        <CardHeader className='drag cursor-move'>
+          <CardTitle className='flex items-center gap-2'>
+            <GmailIcon />
+            Email Trigger
+          </CardTitle>
+        </CardHeader>
+        <CardContent className='flex flex-col gap-4 nodrag'>
+          <div>
+            <Label htmlFor='fromFilter'>From</Label>
+            <Input
+              id='fromFilter'
+              value={data.fromFilter || ""}
+              onChange={(e) => handleConfigChange("fromFilter", e.target.value)}
+              placeholder='Filter by sender'
+            />
+          </div>
+          <div>
+            <Label htmlFor='subjectFilter'>Subject contains</Label>
+            <Input
+              id='subjectFilter'
+              value={data.subjectFilter || ""}
+              onChange={(e) =>
+                handleConfigChange("subjectFilter", e.target.value)
+              }
+              placeholder='Filter by subject'
+            />
+          </div>
+          <div>
+            <Label htmlFor='pollingInterval'>Check every (minutes)</Label>
+            <Input
+              id='pollingInterval'
+              type='number'
+              value={data.pollingInterval || "5"}
+              onChange={(e) =>
+                handleConfigChange("pollingInterval", e.target.value)
+              }
+              placeholder='Minutes'
+            />
+          </div>
+        </CardContent>
+        <Handle type='source' position={Position.Right} />
+      </Card>
+    </div>
   );
 }

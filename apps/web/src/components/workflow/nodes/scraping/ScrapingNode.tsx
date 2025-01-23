@@ -4,21 +4,27 @@ import { Handle, Position } from "reactflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 
-interface GmailActionNodeProps {
+interface ScrapingNodeProps {
   id?: string;
   data: NodeData;
   selected?: boolean;
 }
 
-export default function GmailActionNode({
+export default function ScrapingNode({
   id,
   data,
   selected
-}: GmailActionNodeProps) {
-  console.log("GmailActionNode render:", { id, data });
+}: ScrapingNodeProps) {
+  console.log("ScrapingNode render:", { id, data });
 
   const handleConfigChange = (
     key: keyof Omit<NodeData, "onConfigChange">,
@@ -34,7 +40,7 @@ export default function GmailActionNode({
     }
 
     // Create new data without onConfigChange
-    const { onConfigChange: ignored, ...restData } = data;
+    const { onConfigChange: _, ...restData } = data;
     const newData = {
       ...restData,
       [key]: value
@@ -61,47 +67,67 @@ export default function GmailActionNode({
               strokeLinecap='round'
               strokeLinejoin='round'
             >
-              <path d='M22 4H2v16h20V4zM2 8l10 6 10-6' />
+              <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8' />
+              <path d='M21 3v5h-5' />
             </svg>
-            Send Email
+            Web Scraper
           </CardTitle>
         </CardHeader>
         <CardContent className='flex flex-col gap-4 nodrag'>
           <div>
-            <Label htmlFor='to'>To</Label>
+            <Label htmlFor='url'>URL</Label>
             <Input
-              id='to'
-              value={data.to || ""}
-              onChange={(e) => handleConfigChange("to", e.target.value)}
-              placeholder='recipient@example.com'
+              id='url'
+              value={data.url || ""}
+              onChange={(e) => handleConfigChange("url", e.target.value)}
+              placeholder='https://example.com'
             />
           </div>
           <div>
-            <Label htmlFor='subject'>Subject</Label>
+            <Label htmlFor='selectorType'>Selector Type</Label>
+            <Select
+              value={data.selectorType || "css"}
+              onValueChange={(value) =>
+                handleConfigChange("selectorType", value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder='Select type' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='css'>CSS</SelectItem>
+                <SelectItem value='xpath'>XPath</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor='selector'>Selector</Label>
             <Input
-              id='subject'
-              value={data.subject || ""}
-              onChange={(e) => handleConfigChange("subject", e.target.value)}
-              placeholder='Email subject'
+              id='selector'
+              value={data.selector || ""}
+              onChange={(e) => handleConfigChange("selector", e.target.value)}
+              placeholder={
+                data.selectorType === "xpath"
+                  ? "//div[@class='content']"
+                  : ".content"
+              }
             />
           </div>
           <div>
-            <Label htmlFor='body'>Body</Label>
-            <Textarea
-              id='body'
-              value={data.body || ""}
-              onChange={(e) => handleConfigChange("body", e.target.value)}
-              placeholder='Email body'
-              rows={4}
+            <Label htmlFor='attribute'>Attribute (optional)</Label>
+            <Input
+              id='attribute'
+              value={data.attribute || ""}
+              onChange={(e) => handleConfigChange("attribute", e.target.value)}
+              placeholder='href'
             />
             <p className='text-sm text-muted-foreground mt-1'>
-              Supports variables: {"{{"}
-              <span>variable_name</span>
-              {"}}"}
+              Leave empty to get element text
             </p>
           </div>
         </CardContent>
         <Handle type='target' position={Position.Left} />
+        <Handle type='source' position={Position.Right} />
       </Card>
     </div>
   );
