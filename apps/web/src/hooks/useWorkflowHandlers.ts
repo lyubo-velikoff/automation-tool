@@ -162,11 +162,37 @@ export function useWorkflowHandlers() {
     });
   };
 
+  const handleRestore = async (id: string) => {
+    try {
+      await updateWorkflow({
+        variables: {
+          input: {
+            id,
+            is_active: true
+          }
+        },
+        refetchQueries: ['GetWorkflows']
+      });
+      toast({
+        title: "Success",
+        description: "Workflow restored successfully"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to restore workflow",
+        variant: "destructive"
+      });
+      console.error('Restore workflow error:', error);
+    }
+  };
+
   return {
     handleSave,
     handleExecute,
     handleDelete,
     handleDuplicate,
-    handleSchedule
+    handleSchedule,
+    handleRestore
   };
 } 

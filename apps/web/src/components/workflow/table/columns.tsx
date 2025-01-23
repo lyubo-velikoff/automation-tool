@@ -31,9 +31,37 @@ export interface Workflow {
 
 const ActionCell = ({ workflow }: { workflow: Workflow }) => {
   const router = useRouter();
-  const { handleExecute, handleDuplicate, handleDelete } =
+  const { handleExecute, handleDuplicate, handleDelete, handleRestore } =
     useWorkflowHandlers();
   const [open, setOpen] = React.useState(false);
+
+  if (!workflow.is_active) {
+    return (
+      <div className='flex justify-end space-x-2'>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={() => handleRestore(workflow.id)}
+          className='h-8 w-8 p-0'
+          title='Restore workflow'
+        >
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            className='h-4 w-4'
+          >
+            <path d='M3 7v6h6' />
+            <path d='M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13' />
+          </svg>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className='flex justify-end space-x-2'>
