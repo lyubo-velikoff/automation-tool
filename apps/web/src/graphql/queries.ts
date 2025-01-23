@@ -61,13 +61,29 @@ export const GET_WORKFLOW = gql`
           x
           y
         }
-        data
+        data {
+          pollingInterval
+          fromFilter
+          subjectFilter
+          to
+          subject
+          body
+          prompt
+          model
+          maxTokens
+          url
+          selector
+          selectorType
+          attribute
+          label
+        }
       }
       edges {
         id
         source
         target
       }
+      user_id
       is_active
       created_at
       updated_at

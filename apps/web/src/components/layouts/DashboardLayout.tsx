@@ -6,7 +6,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/inputs/button";
 import { UserAccountDropdown } from "@/components/ui/navigation/UserAccountDropdown";
-import { Icons } from "@/components/ui/data-display/icons";
 import { LayoutDashboard, Settings, Workflow } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -15,8 +14,8 @@ interface DashboardLayoutProps {
 
 const navigation = [
   {
-    name: "Board",
-    href: "/board",
+    name: "Workflows",
+    href: "/workflows",
     icon: LayoutDashboard
   },
   {
