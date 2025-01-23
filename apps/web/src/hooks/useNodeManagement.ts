@@ -23,7 +23,7 @@ export function useNodeManagement() {
   const { nodes: contextNodes, edges: contextEdges, setNodes: setContextNodes, setEdges: setContextEdges } = useWorkflow();
   const [nodes, setNodes, onNodesChange] = useNodesState(contextNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(contextEdges || []);
-  const nodesRef = useRef(nodes);
+  const nodesRef = useRef<Node<NodeData>[]>(nodes);
   const batchTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Keep nodesRef in sync
@@ -41,7 +41,7 @@ export function useNodeManagement() {
   }, []);
 
   // Batch update function
-  const batchUpdate = useCallback((updatedNodes: Node[]) => {
+  const batchUpdate = useCallback((updatedNodes: Node<NodeData>[]) => {
     if (batchTimeoutRef.current) {
       clearTimeout(batchTimeoutRef.current);
     }
@@ -96,27 +96,27 @@ export function useNodeManagement() {
     [edges, setEdges, setContextEdges]
   );
 
-  const createConfigChangeHandler = useCallback((nodeId: string) => {
-    return (newData: NodeData) => {
+  const createConfigChangeHandler = useCallback((initialNodeId: string) => {
+    return (nodeId: string, newData: NodeData) => {
       console.log('Node onConfigChange called:', { nodeId, newData, currentNodes: nodesRef.current });
       const updatedNodes = nodesRef.current.map((n) => {
-        if (n.id === nodeId) {
+        if (n.id === initialNodeId) {
           console.log('Updating node:', n.id);
-          const handler = createConfigChangeHandler(nodeId);
           return { 
             ...n, 
             data: { 
               ...newData,
-              onConfigChange: handler
+              onConfigChange: n.data.onConfigChange 
             } 
           };
         }
         return n;
       });
       console.log('Updated nodes:', updatedNodes);
-      batchUpdate(updatedNodes);
+      setNodes(updatedNodes);
+      setContextNodes(updatedNodes);
     };
-  }, [batchUpdate]);
+  }, [setNodes, setContextNodes]);
 
   const handleAddNode = useCallback(
     (type: string) => {
