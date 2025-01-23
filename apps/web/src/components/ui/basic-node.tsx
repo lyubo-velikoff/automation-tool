@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { NodeProps } from "reactflow";
 import { cn } from "@/lib/utils";
-import NodeSelector from "./NodeSelector";
+import NodeSelector from "../workflow/NodeSelector";
 
 // Memoized node component
 export const BasicNode = memo((props: NodeProps) => {
@@ -21,11 +21,3 @@ export const BasicNode = memo((props: NodeProps) => {
   );
 });
 BasicNode.displayName = "BasicNode";
-
-// Static nodeTypes object
-export const nodeTypes = {
-  GMAIL_TRIGGER: BasicNode,
-  GMAIL_ACTION: BasicNode,
-  OPENAI: BasicNode,
-  SCRAPING: BasicNode
-} as const;

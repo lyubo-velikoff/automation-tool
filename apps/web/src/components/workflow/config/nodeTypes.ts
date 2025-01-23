@@ -1,16 +1,6 @@
-import { BasicNode } from "../nodeTypes";
+import { BasicNode } from "../../ui/basic-node";
 import GmailActionNode from "../nodes/gmail/GmailActionNode";
 import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
-
-export const NODE_TYPES = {
-  GMAIL_ACTION: GmailActionNode,
-  GMAIL_TRIGGER: GmailTriggerNode,
-  OPENAI: BasicNode,
-  SCRAPING: BasicNode,
-  default: BasicNode
-} as const;
-
-export type NodeType = keyof typeof NODE_TYPES;
 
 export interface NodeData {
   // Gmail fields
@@ -36,3 +26,15 @@ export interface NodeData {
   onConfigChange?: (nodeId: string, data: NodeData) => void;
   label?: string;
 } 
+
+
+// Memoized node component
+export const NODE_TYPES = {
+  GMAIL_ACTION: GmailActionNode,
+  GMAIL_TRIGGER: GmailTriggerNode,
+  OPENAI: BasicNode,
+  SCRAPING: BasicNode,
+  default: BasicNode
+} as const;
+
+export type NodeType = keyof typeof NODE_TYPES;

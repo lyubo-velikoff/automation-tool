@@ -2,19 +2,27 @@
 
 import { memo, useCallback } from "react";
 import { Handle, Position } from "reactflow";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { cn } from "@/lib/utils";
 
 interface GmailActionNodeProps {
   id?: string;
   data: NodeData;
   selected?: boolean;
+  type?: string;
 }
 
-function GmailActionNode({ id, data, selected }: GmailActionNodeProps) {
+function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
   console.log("GmailActionNode render:", { id, data });
 
   const handleConfigChange = useCallback(
@@ -40,6 +48,27 @@ function GmailActionNode({ id, data, selected }: GmailActionNodeProps) {
     [data, id]
   );
 
+  const handleToChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleConfigChange("to", e.target.value);
+    },
+    [handleConfigChange]
+  );
+
+  const handleSubjectChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleConfigChange("subject", e.target.value);
+    },
+    [handleConfigChange]
+  );
+
+  const handleBodyChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      handleConfigChange("body", e.target.value);
+    },
+    [handleConfigChange]
+  );
+
   const GmailIcon = memo(() => (
     <svg
       xmlns='http://www.w3.org/2000/svg'
@@ -57,35 +86,26 @@ function GmailActionNode({ id, data, selected }: GmailActionNodeProps) {
   ));
   GmailIcon.displayName = "GmailIcon";
 
-  const handleToChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("to", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleSubjectChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("subject", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleBodyChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("body", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
   return (
-    <div className={`${selected ? "ring-2 ring-primary" : ""}`}>
+    <div
+      className={cn(
+        "bg-background text-foreground",
+        `${selected ? "ring-2 ring-primary" : ""}`
+      )}
+      data-testid={`node-${type?.toLowerCase()}`}
+    >
+      <div className='custom-drag-handle p-2 border-b bg-muted/50 cursor-move'>
+        {data?.label || `${type} Node`}
+      </div>
       <Card className='w-[300px]'>
         <CardHeader className='drag cursor-move'>
           <CardTitle className='flex items-center gap-2'>
             <GmailIcon />
             Send Email
           </CardTitle>
+          <CardDescription>
+            Send an email using your Gmail account
+          </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col gap-4 nodrag'>
           <div>

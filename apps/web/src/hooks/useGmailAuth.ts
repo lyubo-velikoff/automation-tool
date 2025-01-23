@@ -12,7 +12,7 @@ const CACHE_DURATION = 30000; // 30 seconds
 export function useGmailAuth() {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
-
+  console.log('isGmailConnected', isGmailConnected)
   const checkGmailConnection = useCallback(async () => {
     const now = Date.now();
 

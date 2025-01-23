@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useGmailAuth } from "@/hooks/useGmailAuth";
+import GmailActionNode from "./nodes/gmail/GmailActionNode";
 
 interface NodeData {
   label?: string;
@@ -57,70 +58,7 @@ export default function NodeSelector({ id, data, type }: NodeSelectorProps) {
   );
 
   const renderGmailAction = () => (
-    <Card className='w-[350px]'>
-      <CardHeader>
-        <CardTitle className='text-base'>Send Email</CardTitle>
-        <CardDescription>Configure email sending settings</CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        {!isGmailConnected ? (
-          <div className='space-y-2'>
-            <p className='text-sm text-muted-foreground'>
-              Connect your Gmail account to send emails
-            </p>
-            <Button onClick={connectGmail} className='w-full'>
-              Connect Gmail
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className='space-y-2'>
-              <Label>Node Label</Label>
-              <Input
-                value={data.label || ""}
-                onChange={(e) => handleDataChange("label", e.target.value)}
-                placeholder='Enter node label'
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label>To</Label>
-              <Input
-                value={data.to || ""}
-                onChange={(e) => handleDataChange("to", e.target.value)}
-                placeholder='Or type email manually'
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label>Subject</Label>
-              <Input
-                value={data.subject || ""}
-                onChange={(e) => handleDataChange("subject", e.target.value)}
-                placeholder='Or type subject manually'
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label>Body</Label>
-              <Textarea
-                value={data.body || ""}
-                onChange={(e) => handleDataChange("body", e.target.value)}
-                placeholder='Email content'
-                rows={4}
-              />
-            </div>
-          </>
-        )}
-      </CardContent>
-      <Handle
-        type='target'
-        position={Position.Left}
-        data-testid='target-handle'
-      />
-      <Handle
-        type='source'
-        position={Position.Right}
-        data-testid='source-handle'
-      />
-    </Card>
+    data && <GmailActionNode  id={id} data={data} />
   );
 
   const renderGmailTrigger = () => (
