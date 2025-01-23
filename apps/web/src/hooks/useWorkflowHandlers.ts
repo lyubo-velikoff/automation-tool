@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation } from "@apollo/client";
-import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW } from "@/graphql/mutations";
+import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW, DELETE_WORKFLOW, DUPLICATE_WORKFLOW } from "@/graphql/mutations";
+import { GET_WORKFLOWS } from "@/graphql/queries";
 import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
 
@@ -9,6 +10,8 @@ export function useWorkflowHandlers() {
   const { toast } = useToast();
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
+  const [deleteWorkflow] = useMutation(DELETE_WORKFLOW);
+  const [duplicateWorkflow] = useMutation(DUPLICATE_WORKFLOW);
 
   const handleSave = async (workflowId: string, name: string, nodes: Node[], edges: Edge[]) => {
     if (!nodes || !edges) {
@@ -105,6 +108,60 @@ export function useWorkflowHandlers() {
     }
   };
 
+  const handleDelete = async (workflowId: string) => {
+    if (!confirm("Are you sure you want to delete this workflow?")) return;
+    
+    try {
+      const { data } = await deleteWorkflow({
+        variables: { workflowId },
+        refetchQueries: [{ query: GET_WORKFLOWS }]
+      });
+
+      if (!data.deleteWorkflow.success) {
+        throw new Error(data.deleteWorkflow.message);
+      }
+
+      toast({
+        title: "Success",
+        description: "Workflow deleted successfully"
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete workflow";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const handleDuplicate = async (workflowId: string) => {
+    try {
+      const { data } = await duplicateWorkflow({
+        variables: { workflowId },
+        refetchQueries: [{ query: GET_WORKFLOWS }]
+      });
+
+      if (!data.duplicateWorkflow) {
+        throw new Error("Failed to duplicate workflow");
+      }
+
+      toast({
+        title: "Success",
+        description: "Workflow duplicated successfully"
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to duplicate workflow";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   const handleSchedule = async () => {
     toast({
       title: "Coming Soon",
@@ -115,6 +172,8 @@ export function useWorkflowHandlers() {
   return {
     handleSave,
     handleExecute,
+    handleDelete,
+    handleDuplicate,
     handleSchedule
   };
 } 
