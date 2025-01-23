@@ -16,46 +16,41 @@ import {
 import { useWorkflow } from "@/contexts/WorkflowContext";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 
-// Batch updates within 100ms
-const BATCH_DELAY = 100;
-
 export function useNodeManagement() {
   const { nodes: contextNodes, edges: contextEdges, setNodes: setContextNodes, setEdges: setContextEdges } = useWorkflow();
   const [nodes, setNodes, onNodesChange] = useNodesState(contextNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(contextEdges || []);
-  const nodesRef = useRef<Node<NodeData>[]>(nodes);
-  const batchTimeoutRef = useRef<NodeJS.Timeout>();
+  const nodesRef = useRef<Node<NodeData>[]>(contextNodes || []);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep nodesRef in sync
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
 
-  // Cleanup batch timeout
+  // Cleanup timeout
   useEffect(() => {
     return () => {
-      if (batchTimeoutRef.current) {
-        clearTimeout(batchTimeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
   }, []);
 
-  // Batch update function
-  const batchUpdate = useCallback((updatedNodes: Node<NodeData>[]) => {
-    if (batchTimeoutRef.current) {
-      clearTimeout(batchTimeoutRef.current);
-    }
-
-    batchTimeoutRef.current = setTimeout(() => {
-      setNodes(updatedNodes);
-      setContextNodes(updatedNodes);
-    }, BATCH_DELAY);
-  }, [setNodes, setContextNodes]);
-
   // Sync with context when nodes change
   useEffect(() => {
     if (contextNodes?.length) {
-      setNodes(contextNodes);
+      const nodesWithHandlers = contextNodes.map(node => {
+        const handler = createConfigChangeHandler(node.id);
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onConfigChange: handler
+          }
+        };
+      });
+      setNodes(nodesWithHandlers);
     }
   }, [contextNodes, setNodes]);
 
@@ -138,12 +133,24 @@ export function useNodeManagement() {
 
   const handleWorkflowSelect = useCallback(
     (selectedNodes: Node<NodeData>[], selectedEdges: Edge[]) => {
-      setNodes(selectedNodes);
+      // Create new handlers for each node
+      const nodesWithHandlers = selectedNodes.map(node => {
+        const handler = createConfigChangeHandler(node.id);
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onConfigChange: handler
+          }
+        };
+      });
+      
+      setNodes(nodesWithHandlers);
       setEdges(selectedEdges);
-      setContextNodes(selectedNodes);
+      setContextNodes(nodesWithHandlers);
       setContextEdges(selectedEdges);
     },
-    [setNodes, setEdges, setContextNodes, setContextEdges]
+    [setNodes, setEdges, setContextNodes, setContextEdges, createConfigChangeHandler]
   );
 
   return {
