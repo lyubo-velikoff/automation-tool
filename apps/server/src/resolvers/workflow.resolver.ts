@@ -590,4 +590,43 @@ export class WorkflowResolver {
       return false;
     }
   }
+
+  @Mutation(() => Workflow)
+  @Authorized()
+  async duplicateWorkflow(
+    @Arg("workflowId") workflowId: string,
+    @Ctx() context: any
+  ): Promise<Workflow> {
+    // Get the original workflow
+    const { data: originalWorkflow, error: workflowError } = await supabase
+      .from("workflows")
+      .select("*")
+      .eq("id", workflowId)
+      .eq("user_id", context.user.id)
+      .single();
+
+    if (workflowError) throw workflowError;
+    if (!originalWorkflow) throw new Error("Workflow not found");
+
+    // Create a copy with a new name
+    const newWorkflow = {
+      ...originalWorkflow,
+      id: undefined, // Let Supabase generate a new ID
+      name: `${originalWorkflow.name} (Copy)`,
+      created_at: undefined, // Let Supabase set these
+      updated_at: undefined
+    };
+
+    // Insert the new workflow
+    const { data: duplicatedWorkflow, error: insertError } = await supabase
+      .from("workflows")
+      .insert([newWorkflow])
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    if (!duplicatedWorkflow) throw new Error("Failed to duplicate workflow");
+
+    return duplicatedWorkflow;
+  }
 }

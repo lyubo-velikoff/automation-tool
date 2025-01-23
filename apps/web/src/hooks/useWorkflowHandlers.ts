@@ -5,12 +5,21 @@ import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW, DELETE_WORKFLOW, DUPLICATE_WORKFLOW 
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
+import { gql } from '@apollo/client';
+
+export const DELETE_WORKFLOW = gql`
+  mutation DeleteWorkflow($id: String!) {
+    deleteWorkflow(id: $id)
+  }
+`;
 
 export function useWorkflowHandlers() {
   const { toast } = useToast();
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
-  const [deleteWorkflow] = useMutation(DELETE_WORKFLOW);
+  const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
+    refetchQueries: ['GetWorkflows']
+  });
   const [duplicateWorkflow] = useMutation(DUPLICATE_WORKFLOW);
 
   const handleSave = async (workflowId: string, name: string, nodes: Node[], edges: Edge[]) => {
@@ -108,31 +117,15 @@ export function useWorkflowHandlers() {
     }
   };
 
-  const handleDelete = async (workflowId: string) => {
-    if (!confirm("Are you sure you want to delete this workflow?")) return;
-    
+  const handleDelete = async (id: string) => {
     try {
-      const { data } = await deleteWorkflow({
-        variables: { workflowId },
-        refetchQueries: [{ query: GET_WORKFLOWS }]
+      await deleteWorkflow({
+        variables: { id }
       });
-
-      if (!data.deleteWorkflow.success) {
-        throw new Error(data.deleteWorkflow.message);
-      }
-
-      toast({
-        title: "Success",
-        description: "Workflow deleted successfully"
-      });
+      toast.success('Workflow deleted successfully');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete workflow";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      throw error;
+      toast.error('Failed to delete workflow');
+      console.error('Delete workflow error:', error);
     }
   };
 

@@ -7,6 +7,19 @@ import { ArrowUpDown, Copy, Pencil, Play, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
+import { Checkbox } from "@/components/ui/inputs/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/layout/alert-dialog";
+import React from "react";
 
 export interface Workflow {
   id: string;
@@ -20,6 +33,7 @@ const ActionCell = ({ workflow }: { workflow: Workflow }) => {
   const router = useRouter();
   const { handleExecute, handleDuplicate, handleDelete } =
     useWorkflowHandlers();
+  const [open, setOpen] = React.useState(false);
 
   return (
     <div className='flex justify-end space-x-2'>
@@ -50,20 +64,64 @@ const ActionCell = ({ workflow }: { workflow: Workflow }) => {
       >
         <Copy className='h-4 w-4' />
       </Button>
-      <Button
-        variant='ghost'
-        size='sm'
-        onClick={() => handleDelete(workflow.id)}
-        className='h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground'
-        title='Delete workflow'
-      >
-        <Trash2 className='h-4 w-4' />
-      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            variant='ghost'
+            size='sm'
+            className='h-8 w-8 p-0 hover:bg-destructive hover:text-destructive-foreground'
+            title='Delete workflow'
+          >
+            <Trash2 className='h-4 w-4' />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Workflow</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{workflow.name}&rdquo;?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleDelete(workflow.id);
+                setOpen(false);
+              }}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export const columns: ColumnDef<Workflow>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={table.getIsAllPageRowsSelected()}
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label='Select all'
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label='Select row'
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false
+  },
   {
     accessorKey: "name",
     header: ({ column }) => {

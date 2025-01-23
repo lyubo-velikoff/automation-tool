@@ -40,6 +40,7 @@ export const GET_WORKFLOWS = gql`
         source
         target
       }
+      user_id
       is_active
       created_at
       updated_at
