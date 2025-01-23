@@ -68,13 +68,12 @@ export function useNodeManagement() {
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      console.log('handleNodesChange:', { changes, currentNodes: nodesRef.current });
       onNodesChange(changes);
       const updatedNodes = applyNodeChanges(changes, nodesRef.current);
-      console.log('Nodes after changes:', updatedNodes);
-      batchUpdate(updatedNodes);
+      setNodes(updatedNodes);
+      setContextNodes(updatedNodes);
     },
-    [onNodesChange, batchUpdate]
+    [onNodesChange, setNodes, setContextNodes]
   );
 
   const handleEdgesChange = useCallback(
@@ -98,10 +97,8 @@ export function useNodeManagement() {
 
   const createConfigChangeHandler = useCallback((initialNodeId: string) => {
     return (nodeId: string, newData: NodeData) => {
-      console.log('Node onConfigChange called:', { nodeId, newData, currentNodes: nodesRef.current });
       const updatedNodes = nodesRef.current.map((n) => {
         if (n.id === initialNodeId) {
-          console.log('Updating node:', n.id);
           return { 
             ...n, 
             data: { 
@@ -112,7 +109,6 @@ export function useNodeManagement() {
         }
         return n;
       });
-      console.log('Updated nodes:', updatedNodes);
       setNodes(updatedNodes);
       setContextNodes(updatedNodes);
     };
@@ -120,7 +116,6 @@ export function useNodeManagement() {
 
   const handleAddNode = useCallback(
     (type: string) => {
-      console.log('handleAddNode called:', { type });
       const nodeId = `${type}-${Date.now()}`;
       const handler = createConfigChangeHandler(nodeId);
       
@@ -134,7 +129,6 @@ export function useNodeManagement() {
         }
       } as Node<NodeData>;
 
-      console.log('New node created:', newNode);
       const newNodes = [...nodesRef.current, newNode];
       setNodes(newNodes);
       setContextNodes(newNodes);

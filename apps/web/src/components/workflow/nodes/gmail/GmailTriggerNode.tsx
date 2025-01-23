@@ -2,7 +2,13 @@
 
 import { memo, useCallback } from "react";
 import { Handle, Position } from "reactflow";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
@@ -18,28 +24,19 @@ interface GmailTriggerNodeProps {
 }
 
 function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
-  console.log("GmailTriggerNode render:", { id, data });
   const { isGmailConnected, connectGmail } = useGmail();
 
   const handleConfigChange = useCallback(
     (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
-      console.log("handleConfigChange called:", { key, value });
-      console.log("Current data:", data);
-
       const { onConfigChange } = data;
-      if (!onConfigChange) {
-        console.log("No onConfigChange function found");
-        return;
-      }
+      if (!onConfigChange) return;
 
       const newData = {
         ...data,
         [key]: value
       };
 
-      console.log("New data before update:", newData);
       onConfigChange(id || "", newData);
-      console.log("Update completed");
     },
     [data, id]
   );
@@ -60,6 +57,13 @@ function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
     </svg>
   ));
   GmailIcon.displayName = "GmailIcon";
+
+  const handleLabelChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleConfigChange("label", e.target.value);
+    },
+    [handleConfigChange]
+  );
 
   const handleFromChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,23 +88,37 @@ function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
 
   if (!isGmailConnected) {
     return (
-      <Card className='w-[300px]'>
-        <CardHeader className='drag cursor-move'>
-          <CardTitle className='flex items-center gap-2'>
-            <GmailIcon />
-            Email Trigger
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='flex flex-col gap-4 nodrag'>
-          <p className='text-sm text-muted-foreground'>
-            Connect your Gmail account to monitor emails
-          </p>
-          <Button onClick={connectGmail} className='w-full'>
-            Connect Gmail
-          </Button>
-        </CardContent>
-        <Handle type='source' position={Position.Right} />
-      </Card>
+      <div
+        className={cn(
+          "bg-background text-foreground",
+          `${selected ? "ring-2 ring-primary" : ""}`
+        )}
+        data-testid={`node-${type?.toLowerCase()}`}
+      >
+        <div className='custom-drag-handle p-2 border-b bg-muted/50 cursor-move'>
+          {data?.label || `${type} Node`}
+        </div>
+        <Card className='w-[300px]'>
+          <CardHeader className='drag cursor-move'>
+            <CardTitle className='flex items-center gap-2'>
+              <GmailIcon />
+              Email Trigger
+            </CardTitle>
+            <CardDescription>
+              Monitor your Gmail inbox for new emails
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4 nodrag'>
+            <p className='text-sm text-muted-foreground'>
+              Connect your Gmail account to monitor emails
+            </p>
+            <Button onClick={connectGmail} className='w-full'>
+              Connect Gmail
+            </Button>
+          </CardContent>
+          <Handle type='source' position={Position.Right} />
+        </Card>
+      </div>
     );
   }
 
@@ -121,8 +139,19 @@ function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
             <GmailIcon />
             Email Trigger
           </CardTitle>
+          <CardDescription>
+            Monitor your Gmail inbox for new emails
+          </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col gap-4 nodrag'>
+          <div className='space-y-2'>
+            <Label>Node Label</Label>
+            <Input
+              value={data.label || ""}
+              onChange={handleLabelChange}
+              placeholder='Enter node label'
+            />
+          </div>
           <div>
             <Label htmlFor='fromFilter'>From</Label>
             <Input

@@ -23,29 +23,26 @@ interface GmailActionNodeProps {
 }
 
 function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
-  console.log("GmailActionNode render:", { id, data });
-
   const handleConfigChange = useCallback(
     (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
-      console.log("handleConfigChange called:", { key, value });
-      console.log("Current data:", data);
-
       const { onConfigChange } = data;
-      if (!onConfigChange) {
-        console.log("No onConfigChange function found");
-        return;
-      }
+      if (!onConfigChange) return;
 
       const newData = {
         ...data,
         [key]: value
       };
 
-      console.log("New data before update:", newData);
       onConfigChange(id || "", newData);
-      console.log("Update completed");
     },
     [data, id]
+  );
+
+  const handleLabelChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleConfigChange("label", e.target.value);
+    },
+    [handleConfigChange]
   );
 
   const handleToChange = useCallback(
@@ -108,6 +105,14 @@ function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col gap-4 nodrag'>
+          <div className='space-y-2'>
+            <Label>Node Label</Label>
+            <Input
+              value={data.label || ""}
+              onChange={handleLabelChange}
+              placeholder='Enter node label'
+            />
+          </div>
           <div>
             <Label htmlFor='to'>To</Label>
             <Input
