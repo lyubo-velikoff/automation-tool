@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { Textarea } from "@/components/ui/inputs/textarea";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { Button } from "@/components/ui/inputs/button";
+import { useGmail } from "@/contexts/auth/GmailContext";
 import { cn } from "@/lib/utils";
 
 interface GmailActionNodeProps {
@@ -23,6 +25,8 @@ interface GmailActionNodeProps {
 }
 
 function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
+  const { isGmailConnected, connectGmail } = useGmail();
+
   const handleConfigChange = useCallback(
     (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
       const { onConfigChange } = data;
@@ -82,6 +86,42 @@ function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
     </svg>
   ));
   GmailIcon.displayName = "GmailIcon";
+
+  if (!isGmailConnected) {
+    return (
+      <div
+        className={cn(
+          "bg-background text-foreground",
+          `${selected ? "ring-2 ring-primary" : ""}`
+        )}
+        data-testid={`node-${type?.toLowerCase()}`}
+      >
+        <div className='custom-drag-handle p-2 border-b bg-muted/50 cursor-move'>
+          {data?.label || `${type} Node`}
+        </div>
+        <Card className='w-[300px]'>
+          <CardHeader className='drag cursor-move'>
+            <CardTitle className='flex items-center gap-2'>
+              <GmailIcon />
+              Send Email
+            </CardTitle>
+            <CardDescription>
+              Send an email using your Gmail account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4 nodrag'>
+            <p className='text-sm text-muted-foreground'>
+              Connect your Gmail account to send emails
+            </p>
+            <Button onClick={connectGmail} className='w-full'>
+              Connect Gmail
+            </Button>
+          </CardContent>
+          <Handle type='target' position={Position.Left} />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div
