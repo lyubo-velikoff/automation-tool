@@ -1,39 +1,15 @@
 "use client";
 
 import { useQuery } from "@apollo/client";
-import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/data-display/table";
 import { Button } from "@/components/ui/inputs/button";
-import { Plus, Pencil, Play } from "lucide-react";
+import { Plus } from "lucide-react";
 import { GET_WORKFLOWS } from "@/graphql/queries";
-import { format } from "date-fns";
-import { Badge } from "@/components/ui/data-display/badge";
-import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
-
-interface Workflow {
-  id: string;
-  name: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { DataTable } from "@/components/workflow/table/data-table";
+import { columns } from "@/components/workflow/table/columns";
 
 export default function BoardPage() {
-  const router = useRouter();
   const { loading, error, data } = useQuery(GET_WORKFLOWS);
-  const { handleExecute } = useWorkflowHandlers();
-
-  const handleEditWorkflow = (id: string) => {
-    router.push(`/workflow/${id}`);
-  };
 
   const handleCreateWorkflow = () => {
     // TODO: Implement workflow creation
@@ -67,7 +43,7 @@ export default function BoardPage() {
     );
   }
 
-  const workflows = (data?.workflows || []) as Workflow[];
+  const workflows = data?.workflows || [];
 
   return (
     <DashboardLayout>
@@ -84,67 +60,7 @@ export default function BoardPage() {
         </Button>
       </div>
 
-      <div className='rounded-md border'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Last Updated</TableHead>
-              <TableHead className='text-right'>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {workflows.map((workflow) => (
-              <TableRow key={workflow.id}>
-                <TableCell className='font-medium'>{workflow.name}</TableCell>
-                <TableCell>
-                  <Badge variant={workflow.is_active ? "default" : "secondary"}>
-                    {workflow.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {format(new Date(workflow.created_at), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell>
-                  {format(new Date(workflow.updated_at), "MMM d, yyyy")}
-                </TableCell>
-                <TableCell className='text-right space-x-2'>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => handleEditWorkflow(workflow.id)}
-                  >
-                    <Pencil className='h-4 w-4' />
-                  </Button>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => handleExecute(workflow.id)}
-                  >
-                    <Play className='h-4 w-4' />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {workflows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className='text-center py-8'>
-                  <p className='text-muted-foreground'>No workflows found</p>
-                  <Button
-                    variant='link'
-                    onClick={handleCreateWorkflow}
-                    className='mt-2'
-                  >
-                    Create your first workflow
-                  </Button>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable columns={columns} data={workflows} />
     </DashboardLayout>
   );
 }
