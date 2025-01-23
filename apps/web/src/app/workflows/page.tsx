@@ -1,10 +1,10 @@
 "use client";
 
-import WorkflowCanvas from "@/components/workflow/WorkflowCanvas";
+import WorkflowCanvas from "@/components/workflow/canvas/WorkflowCanvas";
 import { useAuth } from "@/hooks/useAuth";
-import { WorkflowLoadingSkeleton } from "@/components/workflow/loading-skeleton";
-import { WorkflowProvider } from "@/contexts/WorkflowContext";
-import { Header } from "@/components/ui/Header";
+import { WorkflowLoadingSkeleton } from "@/components/ui/feedback/loading-skeleton";
+import { WorkflowProvider } from "@/contexts/workflow/WorkflowContext";
+import { Header } from "@/components/ui/navigation/Header";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 
 function WorkflowsPageContent() {

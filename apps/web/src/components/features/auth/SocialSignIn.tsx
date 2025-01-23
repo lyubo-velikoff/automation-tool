@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Icons } from "@/components/ui/icons";
+import { Button } from "@/components/ui/inputs/button";
+import { Icons } from "@/components/ui/data-display/icons";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 

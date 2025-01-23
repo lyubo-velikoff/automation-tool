@@ -1,4 +1,4 @@
-import { BasicNode } from "../../ui/basic-node";
+import { BasicNode } from "@/components/ui/data-display/basic-node";
 import GmailActionNode from "../nodes/gmail/GmailActionNode";
 import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
 

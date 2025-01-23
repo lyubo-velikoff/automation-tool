@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@apollo/client";
-import {
-  START_TIMED_WORKFLOW,
-  STOP_TIMED_WORKFLOW
-} from "../../graphql/mutations";
-import { Button } from "../ui/button";
+import { START_TIMED_WORKFLOW, STOP_TIMED_WORKFLOW } from "@/graphql/mutations";
+import { Button } from "@/components/ui/inputs/button";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { toast } from "../ui/use-toast";
-import { useWorkflow } from "@/contexts/WorkflowContext";
+} from "@/components/ui/layout/dialog";
+import { Input } from "@/components/ui/inputs/input";
+import { Label } from "@/components/ui/inputs/label";
+import { toast } from "@/hooks/use-toast";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 
 interface ScheduleWorkflowDialogProps {
   open: boolean;

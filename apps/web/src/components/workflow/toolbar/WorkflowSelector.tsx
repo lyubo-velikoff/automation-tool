@@ -1,7 +1,7 @@
 "use client";
 
-import { useWorkflow } from "@/contexts/WorkflowContext";
-import { Button } from "@/components/ui/button";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
+import { Button } from "@/components/ui/inputs/button";
 import {
   Command,
   CommandEmpty,
@@ -9,20 +9,20 @@ import {
   CommandInput,
   CommandItem,
   CommandList
-} from "@/components/ui/command";
+} from "@/components/ui/inputs/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger
-} from "@/components/ui/popover";
+} from "@/components/ui/feedback/popover";
 import { cn } from "@/lib/utils";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
-import { NodeData } from "./config/nodeTypes";
-import { useNodeManagement } from "@/hooks/useNodeManagement";
+import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { useNodeManagement } from "@/hooks/workflow/useNodeManagement";
 
 interface Workflow {
   id: string;

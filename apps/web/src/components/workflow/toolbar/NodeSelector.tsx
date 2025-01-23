@@ -2,19 +2,19 @@
 
 import { useCallback } from "react";
 import { Handle, Position } from "reactflow";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/inputs/input";
+import { Textarea } from "@/components/ui/inputs/textarea";
+import { Button } from "@/components/ui/inputs/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { useGmailAuth } from "@/hooks/useGmailAuth";
-import GmailActionNode from "./nodes/gmail/GmailActionNode";
+} from "@/components/ui/layout/card";
+import { Label } from "@/components/ui/inputs/label";
+import { useGmailAuth } from "@/hooks/auth/useGmailAuth";
+import GmailActionNode from "@/components/workflow/nodes/gmail/GmailActionNode";
 
 interface NodeData {
   label?: string;

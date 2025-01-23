@@ -8,8 +8,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/layout/card";
+import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { cn } from "@/lib/utils";
 import { ExecutionResult } from "@/hooks/useWorkflowExecution";
 

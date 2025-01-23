@@ -1,10 +1,10 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/data-display/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/card";
 import { format } from "date-fns";
-import { Header } from "@/components/ui/Header";
+import { Header } from "@/components/ui/navigation/Header";
 
 export default function ProfilePage() {
   const { session } = useAuth();

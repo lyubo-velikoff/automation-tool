@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "./button";
-import { Icons } from "./icons";
+import { Button } from "@/components/ui/inputs/button";
+import { Icons } from "@/components/ui/data-display/icons";
 import Link from "next/link";
 import { UserAccountDropdown } from "./UserAccountDropdown";
 

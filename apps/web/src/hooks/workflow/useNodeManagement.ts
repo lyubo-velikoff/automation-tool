@@ -13,7 +13,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges
 } from "reactflow";
-import { useWorkflow } from "@/contexts/WorkflowContext";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 
 export function useNodeManagement() {

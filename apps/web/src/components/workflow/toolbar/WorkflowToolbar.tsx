@@ -1,20 +1,20 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/inputs/button";
+import { Input } from "@/components/ui/inputs/input";
 import { PlayIcon } from "lucide-react";
 import { WorkflowSelector } from "./WorkflowSelector";
 import AddNodeButton from "./AddNodeButton";
-import { useWorkflow } from "@/contexts/WorkflowContext";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger
-} from "@/components/ui/popover";
+} from "@/components/ui/feedback/popover";
 import { useState } from "react";
 import { useMutation, useApolloClient } from "@apollo/client";
 import { CREATE_WORKFLOW } from "@/graphql/mutations";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;

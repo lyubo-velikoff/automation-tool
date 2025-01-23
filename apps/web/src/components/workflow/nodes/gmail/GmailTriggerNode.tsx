@@ -8,12 +8,12 @@ import {
   CardHeader,
   CardTitle,
   CardDescription
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/layout/card";
+import { Input } from "@/components/ui/inputs/input";
+import { Label } from "@/components/ui/inputs/label";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
-import { Button } from "@/components/ui/button";
-import { useGmail } from "@/contexts/GmailContext";
+import { Button } from "@/components/ui/inputs/button";
+import { useGmail } from "@/contexts/auth/GmailContext";
 import { cn } from "@/lib/utils";
 
 interface GmailTriggerNodeProps {

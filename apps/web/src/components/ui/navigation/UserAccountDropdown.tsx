@@ -2,7 +2,11 @@
 
 import { useTheme } from "next-themes";
 import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from "@/components/ui/data-display/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +15,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/navigation/dropdown-menu";
+import { Button } from "@/components/ui/inputs/button";
 import { LogOut, Moon, Sun, User } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@/components/ui/inputs/switch";
 import Link from "next/link";
 
 export function UserAccountDropdown() {

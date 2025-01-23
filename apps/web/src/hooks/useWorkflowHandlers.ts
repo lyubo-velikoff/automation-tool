@@ -2,7 +2,7 @@
 
 import { useMutation } from "@apollo/client";
 import { EXECUTE_WORKFLOW, UPDATE_WORKFLOW } from "@/graphql/mutations";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
 
 export function useWorkflowHandlers() {

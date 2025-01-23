@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
-import { useWorkflow } from '@/contexts/WorkflowContext';
+import { useWorkflow } from '@/contexts/workflow/WorkflowContext';
 
 export interface ExecutionResult {
   id: string;

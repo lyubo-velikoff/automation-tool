@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Icons } from "@/components/ui/icons";
+import { Button } from "@/components/ui/inputs/button";
+import { Input } from "@/components/ui/inputs/input";
+import { Icons } from "@/components/ui/data-display/icons";
 import { useSignInForm } from "@/hooks/auth/useSignInForm";
 import { useAuth } from "@/hooks/useAuth";
 

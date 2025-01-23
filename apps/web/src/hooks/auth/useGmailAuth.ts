@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 // Static cache for connection status
 let connectionCheckPromise: Promise<boolean> | null = null;
@@ -12,7 +12,7 @@ const CACHE_DURATION = 30000; // 30 seconds
 export function useGmailAuth() {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
-
+console.log('isGmailConnected', isGmailConnected)
   const checkGmailConnection = useCallback(async () => {
     const now = Date.now();
 

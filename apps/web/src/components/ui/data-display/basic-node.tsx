@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { NodeProps } from "reactflow";
 import { cn } from "@/lib/utils";
-import NodeSelector from "../workflow/NodeSelector";
+import NodeSelector from "@/components/workflow/toolbar/NodeSelector";
 
 // Memoized node component
 export const BasicNode = memo((props: NodeProps) => {

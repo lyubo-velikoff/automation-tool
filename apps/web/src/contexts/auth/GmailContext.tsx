@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { useGmailAuth } from "@/hooks/useGmailAuth";
+import { useGmailAuth } from "@/hooks/auth/useGmailAuth";
 
 interface GmailContextType {
   isGmailConnected: boolean;

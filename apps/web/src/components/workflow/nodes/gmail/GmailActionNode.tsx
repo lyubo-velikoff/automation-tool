@@ -8,10 +8,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui/layout/card";
+import { Input } from "@/components/ui/inputs/input";
+import { Label } from "@/components/ui/inputs/label";
+import { Textarea } from "@/components/ui/inputs/textarea";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { cn } from "@/lib/utils";
 

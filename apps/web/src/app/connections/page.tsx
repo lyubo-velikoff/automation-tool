@@ -1,18 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Header } from "@/components/ui/Header";
-import { useGmailAuth } from "@/hooks/useGmailAuth";
-import { Button } from "@/components/ui/button";
+import { Header } from "@/components/ui/navigation/Header";
+import { useGmailAuth } from "@/hooks/auth/useGmailAuth";
+import { Button } from "@/components/ui/inputs/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle
-} from "@/components/ui/card";
+} from "@/components/ui/layout/card";
 import { Mail, Sparkles } from "lucide-react";
-import OpenAISettingsDialog from "@/components/workflow/OpenAISettingsDialog";
+import OpenAISettingsDialog from "@/components/ui/feedback/OpenAISettingsDialog";
 
 export default function ConnectionsPage() {
   const { isGmailConnected, connectGmail } = useGmailAuth();

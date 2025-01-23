@@ -10,14 +10,14 @@ import ReactFlow, {
   Panel
 } from "reactflow";
 import "reactflow/dist/style.css";
-import OpenAISettingsDialog from "./OpenAISettingsDialog";
-import { ScheduleWorkflowDialog } from "./ScheduleWorkflowDialog";
-import { useNodeManagement } from "@/hooks/useNodeManagement";
-import { NODE_TYPES } from "./config/nodeTypes";
-import { WorkflowToolbar } from "./WorkflowToolbar";
-import { ExecutionHistory } from "./ExecutionHistory";
+import OpenAISettingsDialog from "@/components/ui/feedback/OpenAISettingsDialog";
+import { ScheduleWorkflowDialog } from "../toolbar/ScheduleWorkflowDialog";
+import { useNodeManagement } from "@/hooks/workflow/useNodeManagement";
+import { NODE_TYPES } from "../config/nodeTypes";
+import { WorkflowToolbar } from "../toolbar/WorkflowToolbar";
+import { ExecutionHistory } from "../toolbar/ExecutionHistory";
 import { useWorkflowExecution } from "@/hooks/useWorkflowExecution";
-import { useWorkflow } from "@/contexts/WorkflowContext";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 
 interface WorkflowCanvasProps {
   onSave?: (
