@@ -130,4 +130,27 @@ export const STOP_TIMED_WORKFLOW = gql`
       message
     }
   }
+`;
+
+export const DELETE_WORKFLOW = gql`
+  mutation DeleteWorkflow($workflowId: String!) {
+    deleteWorkflow(workflowId: $workflowId) {
+      success
+      message
+    }
+  }
+`;
+
+export const DUPLICATE_WORKFLOW = gql`
+  mutation DuplicateWorkflow($workflowId: String!) {
+    duplicateWorkflow(workflowId: $workflowId) {
+      id
+      name
+      nodes
+      edges
+      is_active
+      created_at
+      updated_at
+    }
+  }
 `; 

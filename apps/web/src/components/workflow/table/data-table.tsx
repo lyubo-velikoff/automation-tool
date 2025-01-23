@@ -77,6 +77,23 @@ export function DataTable<TData, TValue>({
           className='max-w-sm'
         />
         <Select
+          value={
+            (table.getColumn("is_active")?.getFilterValue() as string) ?? "all"
+          }
+          onValueChange={(value) =>
+            table.getColumn("is_active")?.setFilterValue(value)
+          }
+        >
+          <SelectTrigger className='w-[180px]'>
+            <SelectValue placeholder='Filter by status' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All statuses</SelectItem>
+            <SelectItem value='active'>Active</SelectItem>
+            <SelectItem value='inactive'>Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
           value={rowsPerPage.toString()}
           onValueChange={(value) => setRowsPerPage(Number(value))}
         >
@@ -141,23 +158,28 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className='flex items-center justify-end space-x-2 py-4'>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      <div className='flex items-center justify-between space-x-2 py-4'>
+        <div className='text-sm text-muted-foreground'>
+          {table.getFilteredRowModel().rows.length} workflow(s) total
+        </div>
+        <div className='space-x-2'>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );
