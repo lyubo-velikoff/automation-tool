@@ -38,7 +38,9 @@ interface SaveAsTemplateInput {
 export function useWorkflowHandlers() {
   const { toast } = useToast();
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
-  const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
+  const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW, {
+    refetchQueries: ['GetWorkflowExecutions']
+  });
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
     refetchQueries: ['GetWorkflows']
   });
