@@ -98,7 +98,9 @@ export function useWorkflowHandlers() {
     const cleanEdges = edges.map(edge => ({
       id: edge.id,
       source: edge.source,
-      target: edge.target
+      target: edge.target,
+      sourceHandle: edge.sourceHandle || null,
+      targetHandle: edge.targetHandle || null
     }));
 
     try {
