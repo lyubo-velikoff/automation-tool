@@ -62,14 +62,14 @@ export class Node {
   @Field()
   type!: string;
 
-  @Field()
-  label!: string;
+  @Field({ nullable: true })
+  label?: string;
 
   @Field(() => Position)
   position!: Position;
 
-  @Field(() => NodeData)
-  data!: NodeData;
+  @Field(() => NodeData, { nullable: true })
+  data?: NodeData;
 }
 
 @ObjectType()
