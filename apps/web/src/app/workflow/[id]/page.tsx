@@ -4,12 +4,12 @@ import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "@apollo/client";
 import { GET_WORKFLOW } from "@/graphql/queries";
-import { DashboardLayout } from "@/components/layouts/DashboardLayout";
 import WorkflowCanvas from "@/components/workflow/canvas/WorkflowCanvas";
 import { WorkflowProvider } from "@/contexts/workflow/WorkflowContext";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 import { WorkflowLoadingSkeleton } from "@/components/ui/feedback/loading-skeleton";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
+import { Header } from "@/components/ui/navigation/Header";
 
 function WorkflowContent() {
   const params = useParams();
@@ -69,14 +69,17 @@ export default function WorkflowPage() {
   const { handleSave, handleExecute, handleSchedule } = useWorkflowHandlers();
 
   return (
-    <DashboardLayout>
-      <WorkflowProvider
-        onSave={handleSave}
-        onExecute={handleExecute}
-        onSchedule={handleSchedule}
-      >
-        <WorkflowContent />
-      </WorkflowProvider>
-    </DashboardLayout>
+    <WorkflowProvider
+      onSave={handleSave}
+      onExecute={handleExecute}
+      onSchedule={handleSchedule}
+    >
+      <div className='flex flex-col h-screen'>
+        <Header />
+        <div className='flex-grow'>
+          <WorkflowContent />
+        </div>
+      </div>
+    </WorkflowProvider>
   );
 }

@@ -23,6 +23,7 @@ import { GET_WORKFLOWS } from "@/graphql/queries";
 import { Node, Edge } from "reactflow";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { useNodeManagement } from "@/hooks/workflow/useNodeManagement";
+import { format } from "date-fns";
 
 interface Workflow {
   id: string;
@@ -71,33 +72,47 @@ export function WorkflowSelector() {
           variant='outline'
           role='combobox'
           aria-expanded={open}
-          className='w-[200px] justify-between'
+          className='w-[300px] justify-between'
         >
           {selectedWorkflow ? selectedWorkflow.name : "Select workflow..."}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-[200px] p-0'>
+      <PopoverContent className='w-[300px] p-0'>
         <Command>
           <CommandInput placeholder='Search workflows...' />
           <CommandList>
             <CommandEmpty>No workflows found.</CommandEmpty>
             <CommandGroup>
-              {sortedWorkflows.map((workflow: Workflow) => (
-                <CommandItem
-                  key={workflow.id}
-                  value={workflow.id}
-                  onSelect={() => handleSelect(workflow)}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      workflow.id === workflowId ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {workflow.name}
-                </CommandItem>
-              ))}
+              {sortedWorkflows.map((workflow: Workflow) => {
+                const date = new Date(
+                  workflow.updated_at || workflow.created_at
+                );
+                const formattedDate = format(date, "MMM d, yyyy HH:mm");
+                return (
+                  <CommandItem
+                    key={workflow.id}
+                    value={`${workflow.name} ${formattedDate}`}
+                    onSelect={() => handleSelect(workflow)}
+                    className='flex justify-between'
+                  >
+                    <div className='flex items-center'>
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          workflow.id === workflowId
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      <span>{workflow.name}</span>
+                    </div>
+                    <span className='text-sm text-muted-foreground'>
+                      {formattedDate}
+                    </span>
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>
