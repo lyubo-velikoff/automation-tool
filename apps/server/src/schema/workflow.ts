@@ -299,6 +299,9 @@ export class UpdateWorkflowInput {
 
   @Field(() => [WorkflowEdgeInput], { nullable: true })
   edges?: WorkflowEdgeInput[];
+
+  @Field(() => Boolean, { nullable: true })
+  is_active?: boolean;
 }
 
 @InputType()

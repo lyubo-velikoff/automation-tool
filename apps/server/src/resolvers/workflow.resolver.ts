@@ -182,6 +182,7 @@ export class WorkflowResolver {
     if (input.description) updateData.description = input.description;
     if (input.nodes) updateData.nodes = input.nodes;
     if (input.edges) updateData.edges = input.edges;
+    if (typeof input.is_active === 'boolean') updateData.is_active = input.is_active;
 
     const { data, error } = await supabase
       .from("workflows")
