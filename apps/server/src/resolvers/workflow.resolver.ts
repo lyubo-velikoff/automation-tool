@@ -597,36 +597,53 @@ export class WorkflowResolver {
     @Arg("workflowId") workflowId: string,
     @Ctx() context: any
   ): Promise<Workflow> {
-    // Get the original workflow
-    const { data: originalWorkflow, error: workflowError } = await supabase
-      .from("workflows")
-      .select("*")
-      .eq("id", workflowId)
-      .eq("user_id", context.user.id)
-      .single();
+    try {
+      // Get the original workflow
+      const { data: originalWorkflow, error: workflowError } = await supabase
+        .from("workflows")
+        .select("*")
+        .eq("id", workflowId)
+        .eq("user_id", context.user.id)
+        .single();
 
-    if (workflowError) throw workflowError;
-    if (!originalWorkflow) throw new Error("Workflow not found");
+      if (workflowError) throw workflowError;
+      if (!originalWorkflow) throw new Error("Workflow not found");
 
-    // Create a copy with a new name
-    const newWorkflow = {
-      ...originalWorkflow,
-      id: undefined, // Let Supabase generate a new ID
-      name: `${originalWorkflow.name} (Copy)`,
-      created_at: undefined, // Let Supabase set these
-      updated_at: undefined
-    };
+      // Create a copy with a new name, preserving necessary data
+      const newWorkflow = {
+        name: `${originalWorkflow.name} (Copy)`,
+        description: originalWorkflow.description,
+        nodes: originalWorkflow.nodes.map((node: WorkflowNode) => ({
+          ...node,
+          id: `${node.id}-copy-${Date.now()}` // Ensure unique node IDs
+        })),
+        edges: originalWorkflow.edges.map((edge: WorkflowEdge) => ({
+          ...edge,
+          id: `${edge.id}-copy-${Date.now()}`, // Ensure unique edge IDs
+          source: `${edge.source}-copy-${Date.now()}`, // Update source to match new node IDs
+          target: `${edge.target}-copy-${Date.now()}` // Update target to match new node IDs
+        })),
+        user_id: context.user.id,
+        is_active: true
+      };
 
-    // Insert the new workflow
-    const { data: duplicatedWorkflow, error: insertError } = await supabase
-      .from("workflows")
-      .insert([newWorkflow])
-      .select()
-      .single();
+      // Insert the new workflow
+      const { data: duplicatedWorkflow, error: insertError } = await supabase
+        .from("workflows")
+        .insert([newWorkflow])
+        .select()
+        .single();
 
-    if (insertError) throw insertError;
-    if (!duplicatedWorkflow) throw new Error("Failed to duplicate workflow");
+      if (insertError) {
+        console.error('Error duplicating workflow:', insertError);
+        throw new Error(`Failed to duplicate workflow: ${insertError.message}`);
+      }
+      if (!duplicatedWorkflow) throw new Error("Failed to duplicate workflow");
 
-    return duplicatedWorkflow;
+      return new Workflow(duplicatedWorkflow);
+    } catch (error) {
+      console.error('Error in duplicateWorkflow:', error);
+      throw error;
+    }
   }
 }
