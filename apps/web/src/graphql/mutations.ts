@@ -76,8 +76,8 @@ export const EXECUTE_WORKFLOW = gql`
 `;
 
 export const UPDATE_WORKFLOW = gql`
-  mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
-    updateWorkflow(input: $input) {
+  mutation UpdateWorkflow($id: ID!, $input: UpdateWorkflowInput!) {
+    updateWorkflow(id: $id, input: $input) {
       id
       name
       description
@@ -176,18 +176,24 @@ export const DUPLICATE_WORKFLOW = gql`
           selector
           selectorType
           attribute
-          label
         }
       }
       edges {
         id
         source
         target
+        sourceHandle
+        targetHandle
       }
       user_id
       is_active
       created_at
       updated_at
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `; 
@@ -211,8 +217,8 @@ export const DELETE_WORKFLOW_TAG = gql`
 `;
 
 export const SAVE_AS_TEMPLATE = gql`
-  mutation SaveWorkflowAsTemplate($input: SaveAsTemplateInput!) {
-    saveWorkflowAsTemplate(input: $input) {
+  mutation SaveAsTemplate($input: SaveAsTemplateInput!) {
+    saveAsTemplate(input: $input) {
       id
       name
       description

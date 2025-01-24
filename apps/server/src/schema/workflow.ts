@@ -99,8 +99,8 @@ export class NodeData {
   @Field(() => String, { nullable: true })
   subjectFilter?: string;
 
-  @Field(() => String, { nullable: true })
-  pollingInterval?: string;
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
 
   // OpenAI fields
   @Field(() => String, { nullable: true })
@@ -109,8 +109,8 @@ export class NodeData {
   @Field(() => String, { nullable: true })
   model?: string;
 
-  @Field(() => String, { nullable: true })
-  maxTokens?: string;
+  @Field(() => Number, { nullable: true })
+  maxTokens?: number;
 
   // Scraping fields
   @Field(() => String, { nullable: true })
@@ -147,8 +147,8 @@ export class NodeDataInput {
   @Field(() => String, { nullable: true })
   subjectFilter?: string;
 
-  @Field(() => String, { nullable: true })
-  pollingInterval?: string;
+  @Field(() => Number, { nullable: true })
+  pollingInterval?: number;
 
   // OpenAI fields
   @Field(() => String, { nullable: true })
@@ -157,8 +157,8 @@ export class NodeDataInput {
   @Field(() => String, { nullable: true })
   model?: string;
 
-  @Field(() => String, { nullable: true })
-  maxTokens?: string;
+  @Field(() => Number, { nullable: true })
+  maxTokens?: number;
 
   // Scraping fields
   @Field(() => String, { nullable: true })

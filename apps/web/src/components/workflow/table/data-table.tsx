@@ -37,11 +37,9 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/overlays/popover";
-import { CalendarIcon, Filter } from "lucide-react";
+import { CalendarIcon, Tag } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/data-display/badge";
-import { Label } from "@/components/ui/inputs/label";
 import {
   Select,
   SelectContent,
@@ -62,7 +60,11 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/layout/alert-dialog";
 import { Trash2 } from "lucide-react";
-import { Workflow } from "./columns";
+import { Workflow, WorkflowTag } from "./columns";
+import { useQuery } from "@apollo/client";
+import { GET_WORKFLOW_TAGS } from "@/graphql/queries";
+import { DateRange } from "react-day-picker";
+import { ManageTagsDialog } from "./ManageTagsDialog";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -77,17 +79,12 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: undefined,
-    to: undefined
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const { handleDelete } = useWorkflowHandlers();
+  const { data: tagsData, refetch: refetchTags } = useQuery(GET_WORKFLOW_TAGS);
 
   const table = useReactTable({
     data,
@@ -106,22 +103,6 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection
     }
-  });
-
-  // Apply date range filter
-  const filteredData = data.filter((item: any) => {
-    if (!dateRange.from && !dateRange.to) return true;
-    const itemDate = new Date(item.created_at);
-    if (dateRange.from && dateRange.to) {
-      return itemDate >= dateRange.from && itemDate <= dateRange.to;
-    }
-    if (dateRange.from) {
-      return itemDate >= dateRange.from;
-    }
-    if (dateRange.to) {
-      return itemDate <= dateRange.to;
-    }
-    return true;
   });
 
   const selectedRows = table.getFilteredSelectedRowModel().rows;
@@ -153,11 +134,11 @@ export function DataTable<TData, TValue>({
               variant='outline'
               className={cn(
                 "justify-start text-left font-normal",
-                !dateRange.from && !dateRange.to && "text-muted-foreground"
+                !dateRange?.from && !dateRange?.to && "text-muted-foreground"
               )}
             >
               <CalendarIcon className='mr-2 h-4 w-4' />
-              {dateRange.from ? (
+              {dateRange?.from ? (
                 dateRange.to ? (
                   <>
                     {format(dateRange.from, "LLL dd, y")} -{" "}
@@ -175,11 +156,8 @@ export function DataTable<TData, TValue>({
             <Calendar
               initialFocus
               mode='range'
-              selected={{
-                from: dateRange.from,
-                to: dateRange.to
-              }}
-              onSelect={(range: any) => setDateRange(range)}
+              selected={dateRange}
+              onSelect={setDateRange}
               numberOfMonths={2}
             />
           </PopoverContent>
@@ -201,6 +179,55 @@ export function DataTable<TData, TValue>({
             <SelectItem value='inactive'>Inactive</SelectItem>
           </SelectContent>
         </Select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant='outline'
+              className={cn(
+                "justify-start text-left font-normal",
+                selectedTags.length === 0 && "text-muted-foreground"
+              )}
+            >
+              <Tag className='mr-2 h-4 w-4' />
+              {selectedTags.length > 0
+                ? `${selectedTags.length} tag${
+                    selectedTags.length === 1 ? "" : "s"
+                  } selected`
+                : "Filter by tags"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='start' className='w-[200px]'>
+            {tagsData?.workflowTags?.map((tag: WorkflowTag) => (
+              <DropdownMenuCheckboxItem
+                key={tag.id}
+                checked={selectedTags.includes(tag.id)}
+                onCheckedChange={(checked) => {
+                  const newTags = checked
+                    ? [...selectedTags, tag.id]
+                    : selectedTags.filter((id) => id !== tag.id);
+                  setSelectedTags(newTags);
+                  table.getColumn("tags")?.setFilterValue(newTags);
+                }}
+              >
+                <div className='flex items-center'>
+                  <div
+                    className='w-2 h-2 rounded-full mr-2'
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  {tag.name}
+                </div>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <ManageTagsDialog
+          onTagsModified={() => {
+            refetchTags();
+            table.getColumn("tags")?.setFilterValue(selectedTags);
+          }}
+        />
 
         <DataTableViewOptions table={table} />
       </div>

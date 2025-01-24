@@ -15,24 +15,19 @@ export const GET_WORKFLOWS = gql`
           y
         }
         data {
-          # Gmail fields
           pollingInterval
           fromFilter
           subjectFilter
           to
           subject
           body
-          # OpenAI fields
           prompt
           model
           maxTokens
-          # Scraping fields
           url
           selector
           selectorType
           attribute
-          # Common fields
-          label
         }
       }
       edges {

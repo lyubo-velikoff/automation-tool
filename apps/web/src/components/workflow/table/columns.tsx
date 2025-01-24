@@ -24,6 +24,12 @@ import { DuplicateWorkflowDialog } from "@/components/workflow/table/DuplicateWo
 import { Node, Edge } from "reactflow";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 
+export interface WorkflowTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -34,6 +40,7 @@ export interface Workflow {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  tags: WorkflowTag[];
 }
 
 const ActionCell = ({ workflow }: { workflow: Workflow }) => {
@@ -217,6 +224,37 @@ export const columns: ColumnDef<Workflow>[] = [
     cell: ({ row }) => {
       const date = row.getValue("updated_at") as string;
       return format(new Date(date), "MMM d, yyyy");
+    }
+  },
+  {
+    accessorKey: "tags",
+    header: "Tags",
+    cell: ({ row }) => {
+      const tags = row.getValue("tags") as WorkflowTag[];
+      return (
+        <div className='flex flex-wrap gap-1'>
+          {tags?.map((tag) => (
+            <Badge
+              key={tag.id}
+              variant='outline'
+              style={{
+                backgroundColor: tag.color + "20",
+                borderColor: tag.color,
+                color: tag.color
+              }}
+            >
+              {tag.name}
+            </Badge>
+          ))}
+        </div>
+      );
+    },
+    filterFn: (row, id, value) => {
+      if (!value || value.length === 0) return true;
+      const tags = row.getValue(id) as WorkflowTag[];
+      return value.some((tagId: string) =>
+        tags?.some((tag) => tag.id === tagId)
+      );
     }
   },
   {

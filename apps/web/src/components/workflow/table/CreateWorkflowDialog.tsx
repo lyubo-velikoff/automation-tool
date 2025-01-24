@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { CREATE_WORKFLOW } from "@/graphql/mutations";
+import { GET_WORKFLOW_TAGS } from "@/graphql/queries";
 import { Button } from "@/components/ui/inputs/button";
 import { Input } from "@/components/ui/inputs/input";
+import { Label } from "@/components/ui/inputs/label";
+import { Textarea } from "@/components/ui/inputs/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/form/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -15,61 +19,56 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/layout/dialog";
-import { Label } from "@/components/ui/inputs/label";
-import { toast } from "@/hooks/use-toast";
-import { Plus, Mail, Globe } from "lucide-react";
-import { Textarea } from "@/components/ui/inputs/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/form/radio-group";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/layout/card";
+import { Mail, Plus, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WorkflowTag } from "./columns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger
+} from "@/components/ui/overlays/dropdown-menu";
+import { toast } from "sonner";
 
 // Predefined templates
 const WORKFLOW_TEMPLATES = [
   {
     id: "blank",
     name: "Blank Workflow",
-    description: "Start with a clean slate",
-    icon: Plus,
+    description: "Start from scratch",
+    icon: "Plus",
     nodes: [],
     edges: []
   },
   {
-    id: "email-automation",
+    id: "email",
     name: "Email Automation",
-    description: "Monitor emails and trigger actions based on content",
-    icon: Mail,
+    description: "Automate email processing",
+    icon: "Mail",
     nodes: [
       {
-        id: "gmail-trigger",
-        type: "GMAIL_TRIGGER",
-        label: "Gmail Monitor",
+        id: "1",
+        type: "gmail-trigger",
         position: { x: 100, y: 100 },
         data: {
-          pollingInterval: 5,
+          pollingInterval: 300,
           fromFilter: "",
           subjectFilter: ""
         }
       },
       {
-        id: "openai-process",
-        type: "openaiCompletion",
-        label: "Process with AI",
+        id: "2",
+        type: "openai",
         position: { x: 400, y: 100 },
         data: {
+          prompt: "Analyze the email content and generate a response",
           model: "gpt-3.5-turbo",
-          maxTokens: 100
+          maxTokens: 500
         }
       },
       {
-        id: "gmail-action",
-        type: "GMAIL_ACTION",
-        label: "Send Email",
+        id: "3",
+        type: "gmail-action",
         position: { x: 700, y: 100 },
         data: {
           to: "",
@@ -81,13 +80,13 @@ const WORKFLOW_TEMPLATES = [
     edges: [
       {
         id: "e1-2",
-        source: "gmail-trigger",
-        target: "openai-process"
+        source: "1",
+        target: "2"
       },
       {
         id: "e2-3",
-        source: "openai-process",
-        target: "gmail-action"
+        source: "2",
+        target: "3"
       }
     ]
   },
@@ -95,7 +94,7 @@ const WORKFLOW_TEMPLATES = [
     id: "web-scraping",
     name: "Web Scraping",
     description: "Scrape web content and process with AI",
-    icon: Globe,
+    icon: Plus,
     nodes: [
       {
         id: "scraping",
@@ -131,165 +130,170 @@ const WORKFLOW_TEMPLATES = [
 ];
 
 export function CreateWorkflowDialog() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState("blank");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const [createWorkflow] = useMutation(CREATE_WORKFLOW, {
-    refetchQueries: ["GetWorkflows"]
-  });
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("blank");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const router = useRouter();
+  const [createWorkflow] = useMutation(CREATE_WORKFLOW);
+  const { data: tagsData } = useQuery(GET_WORKFLOW_TAGS);
 
   const handleCreate = async () => {
-    if (!name.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a workflow name",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (!name) return;
 
     try {
-      setIsLoading(true);
       const template = WORKFLOW_TEMPLATES.find(
         (t) => t.id === selectedTemplate
       );
-
       const { data } = await createWorkflow({
         variables: {
           input: {
-            name: name.trim(),
-            description: description.trim(),
+            name,
+            description,
             nodes: template?.nodes || [],
-            edges: template?.edges || []
+            edges: template?.edges || [],
+            tag_ids: selectedTags
           }
         }
       });
 
-      if (!data?.createWorkflow) {
-        throw new Error("Failed to create workflow");
-      }
-
-      toast({
-        title: "Success",
-        description: "Workflow created successfully"
-      });
-
-      // Navigate to the new workflow
-      router.push(`/workflow/${data.createWorkflow.id}`);
+      toast.success("Workflow created successfully");
       setOpen(false);
+      router.push(`/workflows/${data.createWorkflow.id}`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to create workflow",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      toast.error("Failed to create workflow");
+      console.error(error);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size='sm'>
-          <Plus className='h-4 w-4 mr-2' />
+        <Button>
+          <Plus className='mr-2 h-4 w-4' />
           New Workflow
         </Button>
       </DialogTrigger>
-      <DialogContent className='sm:max-w-[700px]'>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Workflow</DialogTitle>
           <DialogDescription>
-            Create a new workflow and start adding automation steps.
+            Create a new workflow from scratch or use a template.
           </DialogDescription>
         </DialogHeader>
-        <div className='grid gap-6 py-4'>
-          <div className='grid gap-2'>
+
+        <div className='space-y-4 py-4'>
+          <div className='space-y-2'>
             <Label htmlFor='name'>Name</Label>
             <Input
               id='name'
+              placeholder='My Workflow'
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder='Enter workflow name'
             />
           </div>
-          <div className='grid gap-2'>
-            <Label htmlFor='description'>Description (Optional)</Label>
+
+          <div className='space-y-2'>
+            <Label htmlFor='description'>Description</Label>
             <Textarea
               id='description'
+              placeholder='Describe what this workflow does...'
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder='Enter workflow description'
-              rows={3}
             />
           </div>
-          <div className='grid gap-2'>
-            <Label>Choose a Template</Label>
+
+          <div className='space-y-2'>
+            <Label>Template</Label>
             <RadioGroup
               value={selectedTemplate}
               onValueChange={setSelectedTemplate}
-              className='grid grid-cols-3 gap-4'
             >
-              {WORKFLOW_TEMPLATES.map((template) => {
-                const Icon = template.icon;
-                return (
+              <div className='grid grid-cols-2 gap-4'>
+                {WORKFLOW_TEMPLATES.map((template) => (
                   <div key={template.id} className='relative'>
                     <RadioGroupItem
                       value={template.id}
                       id={template.id}
                       className='peer sr-only'
                     />
-                    <label
+                    <Label
                       htmlFor={template.id}
-                      className='block cursor-pointer'
+                      className='flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary'
                     >
-                      <Card
-                        className={cn(
-                          "relative border-2 transition-all hover:border-primary",
-                          selectedTemplate === template.id
-                            ? "border-primary bg-primary/5"
-                            : "border-muted peer-focus-visible:border-primary"
+                      <div className='mb-2'>
+                        {template.icon === "Mail" ? (
+                          <Mail className='h-6 w-6' />
+                        ) : (
+                          <Plus className='h-6 w-6' />
                         )}
-                      >
-                        <CardHeader>
-                          <Icon className='h-8 w-8 mb-2' />
-                          <CardTitle className='text-base'>
-                            {template.name}
-                          </CardTitle>
-                          <CardDescription className='text-xs'>
-                            {template.description}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className='text-xs text-muted-foreground'>
-                          {template.nodes.length > 0 ? (
-                            <>
-                              {template.nodes.length} nodes
-                              <br />
-                              {template.edges.length} connections
-                            </>
-                          ) : (
-                            "Empty workflow"
-                          )}
-                        </CardContent>
-                      </Card>
-                    </label>
+                      </div>
+                      <div className='text-center'>
+                        <div className='font-medium'>{template.name}</div>
+                        <div className='text-sm text-muted-foreground'>
+                          {template.description}
+                        </div>
+                      </div>
+                    </Label>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </RadioGroup>
           </div>
+
+          <div className='space-y-2'>
+            <Label>Tags</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='outline'
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    selectedTags.length === 0 && "text-muted-foreground"
+                  )}
+                >
+                  <Tag className='mr-2 h-4 w-4' />
+                  {selectedTags.length > 0
+                    ? `${selectedTags.length} tag${
+                        selectedTags.length === 1 ? "" : "s"
+                      } selected`
+                    : "Select tags"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='start' className='w-[200px]'>
+                {tagsData?.workflowTags?.map((tag: WorkflowTag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag.id}
+                    checked={selectedTags.includes(tag.id)}
+                    onCheckedChange={(checked: boolean) => {
+                      setSelectedTags(
+                        checked
+                          ? [...selectedTags, tag.id]
+                          : selectedTags.filter((id) => id !== tag.id)
+                      );
+                    }}
+                  >
+                    <div className='flex items-center'>
+                      <div
+                        className='w-2 h-2 rounded-full mr-2'
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
         <DialogFooter>
           <Button variant='outline' onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create"}
+          <Button onClick={handleCreate} disabled={!name}>
+            Create
           </Button>
         </DialogFooter>
       </DialogContent>

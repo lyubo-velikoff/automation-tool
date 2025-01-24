@@ -515,6 +515,15 @@ export class WorkflowResolver {
     @Ctx() context: any
   ): Promise<ExecutionResult> {
     try {
+      // Get the Gmail token from context.req.headers
+      const gmailToken = context.req?.headers['x-gmail-token'];
+      
+      // Add token to context for node execution
+      const executionContext = {
+        ...context,
+        token: gmailToken
+      };
+
       // Get the workflow
       const { data: workflow, error: workflowError } = await supabase
         .from("workflows")
@@ -548,7 +557,7 @@ export class WorkflowResolver {
 
         // Execute starting from each start node
         for (const startNode of startNodes) {
-          await this.executeNode(startNode, null, context, nodeResults);
+          await this.executeNode(startNode, null, executionContext, nodeResults);
 
           // Execute connected nodes
           const processConnectedNodes = async (nodeId: string, inputs: any) => {
@@ -556,7 +565,7 @@ export class WorkflowResolver {
             for (const nextNodeId of nextNodes) {
               const nextNode = nodes.find(n => n.id === nextNodeId);
               if (nextNode) {
-                await this.executeNode(nextNode, inputs, context, nodeResults);
+                await this.executeNode(nextNode, inputs, executionContext, nodeResults);
                 await processConnectedNodes(nextNode.id, nodeResults[nodeResults.length - 1].results);
               }
             }
