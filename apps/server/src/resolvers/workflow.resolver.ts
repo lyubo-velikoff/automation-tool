@@ -150,7 +150,7 @@ export class WorkflowResolver {
   @Query(() => Workflow)
   @Authorized()
   async workflow(
-    @Arg("id") id: string,
+    @Arg("id", () => ID) id: string,
     @Ctx() context: any
   ): Promise<Workflow> {
     const { data, error } = await supabase
