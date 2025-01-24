@@ -156,11 +156,26 @@ async function bootstrap() {
 
   const apolloServer = new ApolloServer({
     schema,
-    context: ({ req, res }: { req: Request; res: Response }) => ({ 
-      req, 
-      res,
-      token: req.headers['x-gmail-token'] || null 
-    })
+    context: async ({ req, res }: { req: Request; res: Response }) => {
+      const context: any = { req, res };
+
+      try {
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith("Bearer ")) {
+          const token = authHeader.split(" ")[1];
+          const { data: { user }, error } = await supabase.auth.getUser(token);
+          
+          if (!error && user) {
+            context.user = user;
+            context.supabase = supabase;
+          }
+        }
+      } catch (error) {
+        console.error('Error setting up context:', error);
+      }
+
+      return context;
+    }
   });
 
   await apolloServer.start();

@@ -27,6 +27,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/layout/card";
+import { cn } from "@/lib/utils";
 
 // Predefined templates
 const WORKFLOW_TEMPLATES = [
@@ -237,40 +238,47 @@ export function CreateWorkflowDialog() {
               {WORKFLOW_TEMPLATES.map((template) => {
                 const Icon = template.icon;
                 return (
-                  <Card
-                    key={template.id}
-                    className={`relative cursor-pointer border-2 ${
-                      selectedTemplate === template.id
-                        ? "border-primary"
-                        : "border-muted"
-                    }`}
-                  >
+                  <div key={template.id} className='relative'>
                     <RadioGroupItem
                       value={template.id}
                       id={template.id}
-                      className='sr-only'
+                      className='peer sr-only'
                     />
-                    <CardHeader>
-                      <Icon className='h-8 w-8 mb-2' />
-                      <CardTitle className='text-base'>
-                        {template.name}
-                      </CardTitle>
-                      <CardDescription className='text-xs'>
-                        {template.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className='text-xs text-muted-foreground'>
-                      {template.nodes.length > 0 ? (
-                        <>
-                          {template.nodes.length} nodes
-                          <br />
-                          {template.edges.length} connections
-                        </>
-                      ) : (
-                        "Empty workflow"
-                      )}
-                    </CardContent>
-                  </Card>
+                    <label
+                      htmlFor={template.id}
+                      className='block cursor-pointer'
+                    >
+                      <Card
+                        className={cn(
+                          "relative border-2 transition-all hover:border-primary",
+                          selectedTemplate === template.id
+                            ? "border-primary bg-primary/5"
+                            : "border-muted peer-focus-visible:border-primary"
+                        )}
+                      >
+                        <CardHeader>
+                          <Icon className='h-8 w-8 mb-2' />
+                          <CardTitle className='text-base'>
+                            {template.name}
+                          </CardTitle>
+                          <CardDescription className='text-xs'>
+                            {template.description}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className='text-xs text-muted-foreground'>
+                          {template.nodes.length > 0 ? (
+                            <>
+                              {template.nodes.length} nodes
+                              <br />
+                              {template.edges.length} connections
+                            </>
+                          ) : (
+                            "Empty workflow"
+                          )}
+                        </CardContent>
+                      </Card>
+                    </label>
+                  </div>
                 );
               })}
             </RadioGroup>

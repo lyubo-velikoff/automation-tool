@@ -1,4 +1,5 @@
 import { Field, ID, ObjectType, InputType, Float } from 'type-graphql';
+import { Node, Edge } from "./flow";
 
 @ObjectType()
 @InputType("PositionInput")
@@ -229,6 +230,51 @@ export class WorkflowEdgeInput {
 }
 
 @ObjectType()
+export class WorkflowTag {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field()
+  color!: string;
+
+  @Field()
+  created_at!: Date;
+
+  @Field()
+  updated_at!: Date;
+}
+
+@ObjectType()
+export class WorkflowTemplate {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field()
+  description!: string;
+
+  @Field(() => [Node])
+  nodes!: Node[];
+
+  @Field(() => [Edge])
+  edges!: Edge[];
+
+  @Field()
+  created_at!: Date;
+
+  @Field()
+  updated_at!: Date;
+
+  @Field()
+  user_id!: string;
+}
+
+@ObjectType()
 export class Workflow {
   @Field(() => ID)
   id!: string;
@@ -239,11 +285,17 @@ export class Workflow {
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNode])
-  nodes!: WorkflowNode[];
+  @Field(() => [Node])
+  nodes!: Node[];
 
-  @Field(() => [WorkflowEdge])
-  edges!: WorkflowEdge[];
+  @Field(() => [Edge])
+  edges!: Edge[];
+
+  @Field()
+  is_active!: boolean;
+
+  @Field(() => [WorkflowTag], { nullable: true })
+  tags?: WorkflowTag[];
 
   @Field()
   created_at!: Date;
@@ -253,19 +305,6 @@ export class Workflow {
 
   @Field()
   user_id!: string;
-
-  @Field()
-  is_active!: boolean;
-
-  constructor(data?: Partial<Workflow>) {
-    if (data) {
-      Object.assign(this, {
-        ...data,
-        created_at: data.created_at ? new Date(data.created_at) : undefined,
-        updated_at: data.updated_at ? new Date(data.updated_at) : undefined
-      });
-    }
-  }
 }
 
 @InputType()
@@ -281,6 +320,9 @@ export class CreateWorkflowInput {
 
   @Field(() => [WorkflowEdgeInput])
   edges!: WorkflowEdgeInput[];
+
+  @Field(() => [String], { nullable: true })
+  tag_ids?: string[];
 }
 
 @InputType()
@@ -302,6 +344,30 @@ export class UpdateWorkflowInput {
 
   @Field(() => Boolean, { nullable: true })
   is_active?: boolean;
+
+  @Field(() => [String], { nullable: true })
+  tag_ids?: string[];
+}
+
+@InputType()
+export class CreateWorkflowTagInput {
+  @Field()
+  name!: string;
+
+  @Field()
+  color!: string;
+}
+
+@InputType()
+export class SaveAsTemplateInput {
+  @Field(() => ID)
+  workflow_id!: string;
+
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  description?: string;
 }
 
 @InputType()

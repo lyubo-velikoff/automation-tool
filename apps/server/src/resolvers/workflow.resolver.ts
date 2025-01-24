@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int } from "type-graphql";
+import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int, ID } from "type-graphql";
 import { createClient } from "@supabase/supabase-js";
 import {
   Workflow,
@@ -7,7 +7,11 @@ import {
   WorkflowNode,
   WorkflowEdge,
   WorkflowNodeInput,
-  WorkflowEdgeInput
+  WorkflowEdgeInput,
+  WorkflowTag,
+  CreateWorkflowTagInput,
+  WorkflowTemplate,
+  SaveAsTemplateInput
 } from "../schema/workflow";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
@@ -16,6 +20,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../integrations/gmail/config';
 import { ScrapingService } from '../integrations/scraping/service';
 import { getTemporalClient } from '../temporal/client';
+import { Context } from "../types";
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -88,21 +93,58 @@ class ExecutionResult {
 export class WorkflowResolver {
   @Query(() => [Workflow])
   @Authorized()
-  async workflows(@Ctx() context: any): Promise<Workflow[]> {
-    const { data, error } = await supabase
+  async workflows(@Ctx() ctx: Context): Promise<Workflow[]> {
+    if (!ctx.supabase) {
+      throw new Error("Supabase client not initialized");
+    }
+
+    // First, get all workflows
+    const { data: workflows, error } = await ctx.supabase
       .from("workflows")
       .select("*")
-      .eq("user_id", context.user.id);
+      .eq("user_id", ctx.user.id);
 
     if (error) throw error;
+    if (!workflows) return [];
 
-    return data.map((w: any) => ({
-      ...w,
-      nodes: w.nodes.map((node: any) => ({
-        ...node,
-        label: node.label || `${node.type} Node`,
-      })),
+    // Then, get all workflow-tag relationships for these workflows
+    const workflowIds = workflows.map(w => w.id);
+    const { data: tagRelations, error: tagRelError } = await ctx.supabase
+      .from("workflow_tags_workflows")
+      .select("workflow_id, tag_id, workflow_tags (*)")
+      .in("workflow_id", workflowIds);
+
+    if (tagRelError) throw tagRelError;
+
+    // Map tags to their respective workflows
+    return workflows.map(workflow => ({
+      ...workflow,
+      tags: tagRelations
+        ?.filter(rel => rel.workflow_id === workflow.id)
+        .map(rel => rel.workflow_tags) || []
     }));
+  }
+
+  @Query(() => [WorkflowTemplate])
+  async workflowTemplates(@Ctx() ctx: Context): Promise<WorkflowTemplate[]> {
+    const { data: templates, error } = await ctx.supabase
+      .from("workflow_templates")
+      .select("*")
+      .eq("user_id", ctx.user.id);
+
+    if (error) throw error;
+    return templates;
+  }
+
+  @Query(() => [WorkflowTag])
+  async workflowTags(@Ctx() ctx: Context): Promise<WorkflowTag[]> {
+    const { data: tags, error } = await ctx.supabase
+      .from("workflow_tags")
+      .select("*")
+      .eq("user_id", ctx.user.id);
+
+    if (error) throw error;
+    return tags;
   }
 
   @Query(() => Workflow)
@@ -134,80 +176,100 @@ export class WorkflowResolver {
   @Authorized()
   async createWorkflow(
     @Arg("input") input: CreateWorkflowInput,
-    @Ctx() context: any
+    @Ctx() ctx: Context
   ): Promise<Workflow> {
-    try {
-      console.log('Creating workflow with input:', JSON.stringify(input, null, 2));
-      
-      const { data, error } = await supabase
-        .from("workflows")
-        .insert([
-          {
-            name: input.name,
-            description: input.description,
-            nodes: input.nodes,
-            edges: input.edges,
-            user_id: context.user.id,
-            is_active: true
-          }
-        ])
-        .select()
-        .single();
+    const { data: workflow, error } = await ctx.supabase
+      .from("workflows")
+      .insert({
+        name: input.name,
+        description: input.description,
+        nodes: input.nodes,
+        edges: input.edges,
+        user_id: ctx.user.id,
+        is_active: true
+      })
+      .select()
+      .single();
 
-      if (error) {
-        console.error('Error creating workflow:', error);
-        throw error;
-      }
-      
-      if (!data) {
-        console.error('No data returned after insert');
-        throw new Error("No data returned after insert");
-      }
+    if (error) throw error;
 
-      return new Workflow(data);
-    } catch (error) {
-      console.error('Unexpected error in createWorkflow:', error);
-      throw error;
+    if (input.tag_ids?.length) {
+      const { error: tagError } = await ctx.supabase
+        .from("workflow_tags_workflows")
+        .insert(
+          input.tag_ids.map((tag_id) => ({
+            workflow_id: workflow.id,
+            tag_id
+          }))
+        );
+
+      if (tagError) throw tagError;
     }
+
+    return workflow;
   }
 
   @Mutation(() => Workflow)
   @Authorized()
   async updateWorkflow(
     @Arg("input") input: UpdateWorkflowInput,
-    @Ctx() context: any
+    @Ctx() ctx: Context
   ): Promise<Workflow> {
     const updateData: any = {};
-    if (input.name) updateData.name = input.name;
-    if (input.description) updateData.description = input.description;
-    if (input.nodes) updateData.nodes = input.nodes;
-    if (input.edges) updateData.edges = input.edges;
-    if (typeof input.is_active === 'boolean') updateData.is_active = input.is_active;
+    if (typeof input.name === "string") updateData.name = input.name;
+    if (typeof input.description === "string")
+      updateData.description = input.description;
+    if (Array.isArray(input.nodes)) updateData.nodes = input.nodes;
+    if (Array.isArray(input.edges)) updateData.edges = input.edges;
+    if (typeof input.is_active === "boolean")
+      updateData.is_active = input.is_active;
 
-    const { data, error } = await supabase
+    const { data: workflow, error } = await ctx.supabase
       .from("workflows")
       .update(updateData)
       .eq("id", input.id)
-      .eq("user_id", context.user.id)
+      .eq("user_id", ctx.user.id)
       .select()
       .single();
 
     if (error) throw error;
-    if (!data) throw new Error("Workflow not found");
-    return new Workflow(data);
+
+    if (input.tag_ids) {
+      // Remove existing tags
+      await ctx.supabase
+        .from("workflow_tags_workflows")
+        .delete()
+        .eq("workflow_id", input.id);
+
+      // Add new tags
+      if (input.tag_ids.length > 0) {
+        const { error: tagError } = await ctx.supabase
+          .from("workflow_tags_workflows")
+          .insert(
+            input.tag_ids.map((tag_id) => ({
+              workflow_id: input.id,
+              tag_id
+            }))
+          );
+
+        if (tagError) throw tagError;
+      }
+    }
+
+    return workflow;
   }
 
   @Mutation(() => Boolean)
   @Authorized()
   async deleteWorkflow(
-    @Arg("id") id: string,
-    @Ctx() context: any
+    @Arg("id", () => ID) id: string,
+    @Ctx() ctx: Context
   ): Promise<boolean> {
-    const { error } = await supabase
+    const { error } = await ctx.supabase
       .from("workflows")
-      .update({ is_active: false })
+      .delete()
       .eq("id", id)
-      .eq("user_id", context.user.id);
+      .eq("user_id", ctx.user.id);
 
     if (error) throw error;
     return true;
@@ -254,7 +316,7 @@ export class WorkflowResolver {
         throw new Error("No data returned after insert");
       }
 
-      return new Workflow(data);
+      return { ...data } as Workflow;
     } catch (error) {
       throw error;
     }
@@ -640,10 +702,91 @@ export class WorkflowResolver {
       }
       if (!duplicatedWorkflow) throw new Error("Failed to duplicate workflow");
 
-      return new Workflow(duplicatedWorkflow);
+      return { ...duplicatedWorkflow } as Workflow;
     } catch (error) {
       console.error('Error in duplicateWorkflow:', error);
       throw error;
     }
+  }
+
+  @Mutation(() => WorkflowTag)
+  async createWorkflowTag(
+    @Arg("input") input: CreateWorkflowTagInput,
+    @Ctx() ctx: Context
+  ): Promise<WorkflowTag> {
+    const { data: tag, error } = await ctx.supabase
+      .from("workflow_tags")
+      .insert({
+        name: input.name,
+        color: input.color,
+        user_id: ctx.user.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return tag;
+  }
+
+  @Mutation(() => Boolean)
+  async deleteWorkflowTag(
+    @Arg("id", () => ID) id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    const { error } = await ctx.supabase
+      .from("workflow_tags")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", ctx.user.id);
+
+    if (error) throw error;
+    return true;
+  }
+
+  @Mutation(() => WorkflowTemplate)
+  async saveWorkflowAsTemplate(
+    @Arg("input") input: SaveAsTemplateInput,
+    @Ctx() ctx: Context
+  ): Promise<WorkflowTemplate> {
+    // Get the workflow
+    const { data: workflow, error: workflowError } = await ctx.supabase
+      .from("workflows")
+      .select("*")
+      .eq("id", input.workflow_id)
+      .eq("user_id", ctx.user.id)
+      .single();
+
+    if (workflowError) throw workflowError;
+
+    // Save as template
+    const { data: template, error } = await ctx.supabase
+      .from("workflow_templates")
+      .insert({
+        name: input.name || workflow.name,
+        description: input.description || workflow.description,
+        nodes: workflow.nodes,
+        edges: workflow.edges,
+        user_id: ctx.user.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return template;
+  }
+
+  @Mutation(() => Boolean)
+  async deleteWorkflowTemplate(
+    @Arg("id", () => ID) id: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    const { error } = await ctx.supabase
+      .from("workflow_templates")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", ctx.user.id);
+
+    if (error) throw error;
+    return true;
   }
 }

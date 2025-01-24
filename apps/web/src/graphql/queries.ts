@@ -39,17 +39,24 @@ export const GET_WORKFLOWS = gql`
         id
         source
         target
+        sourceHandle
+        targetHandle
       }
       user_id
       is_active
       created_at
       updated_at
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `;
 
 export const GET_WORKFLOW = gql`
-  query GetWorkflow($id: String!) {
+  query GetWorkflow($id: ID!) {
     workflow(id: $id) {
       id
       name
@@ -76,16 +83,77 @@ export const GET_WORKFLOW = gql`
           selector
           selectorType
           attribute
-          label
         }
       }
       edges {
         id
         source
         target
+        sourceHandle
+        targetHandle
       }
       user_id
       is_active
+      created_at
+      updated_at
+      tags {
+        id
+        name
+        color
+      }
+    }
+  }
+`;
+
+export const GET_WORKFLOW_TEMPLATES = gql`
+  query GetWorkflowTemplates {
+    workflowTemplates {
+      id
+      name
+      description
+      nodes {
+        id
+        type
+        label
+        position {
+          x
+          y
+        }
+        data {
+          pollingInterval
+          fromFilter
+          subjectFilter
+          to
+          subject
+          body
+          prompt
+          model
+          maxTokens
+          url
+          selector
+          selectorType
+          attribute
+        }
+      }
+      edges {
+        id
+        source
+        target
+        sourceHandle
+        targetHandle
+      }
+      created_at
+      updated_at
+    }
+  }
+`;
+
+export const GET_WORKFLOW_TAGS = gql`
+  query GetWorkflowTags {
+    workflowTags {
+      id
+      name
+      color
       created_at
       updated_at
     }

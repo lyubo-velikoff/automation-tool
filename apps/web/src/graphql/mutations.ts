@@ -33,12 +33,17 @@ export const CREATE_WORKFLOW = gql`
         id
         source
         target
+        sourceHandle
+        targetHandle
       }
-      user_id
       is_active
       created_at
       updated_at
-      __typename
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `; 
@@ -98,18 +103,23 @@ export const UPDATE_WORKFLOW = gql`
           selector
           selectorType
           attribute
-          label
         }
       }
       edges {
         id
         source
         target
+        sourceHandle
+        targetHandle
       }
-      user_id
       is_active
       created_at
       updated_at
+      tags {
+        id
+        name
+        color
+      }
     }
   }
 `; 
@@ -133,7 +143,7 @@ export const STOP_TIMED_WORKFLOW = gql`
 `;
 
 export const DELETE_WORKFLOW = gql`
-  mutation DeleteWorkflow($id: String!) {
+  mutation DeleteWorkflow($id: ID!) {
     deleteWorkflow(id: $id)
   }
 `;
@@ -179,5 +189,72 @@ export const DUPLICATE_WORKFLOW = gql`
       created_at
       updated_at
     }
+  }
+`; 
+
+export const CREATE_WORKFLOW_TAG = gql`
+  mutation CreateWorkflowTag($input: CreateWorkflowTagInput!) {
+    createWorkflowTag(input: $input) {
+      id
+      name
+      color
+      created_at
+      updated_at
+    }
+  }
+`;
+
+export const DELETE_WORKFLOW_TAG = gql`
+  mutation DeleteWorkflowTag($id: ID!) {
+    deleteWorkflowTag(id: $id)
+  }
+`;
+
+export const SAVE_AS_TEMPLATE = gql`
+  mutation SaveWorkflowAsTemplate($input: SaveAsTemplateInput!) {
+    saveWorkflowAsTemplate(input: $input) {
+      id
+      name
+      description
+      nodes {
+        id
+        type
+        label
+        position {
+          x
+          y
+        }
+        data {
+          pollingInterval
+          fromFilter
+          subjectFilter
+          to
+          subject
+          body
+          prompt
+          model
+          maxTokens
+          url
+          selector
+          selectorType
+          attribute
+        }
+      }
+      edges {
+        id
+        source
+        target
+        sourceHandle
+        targetHandle
+      }
+      created_at
+      updated_at
+    }
+  }
+`;
+
+export const DELETE_WORKFLOW_TEMPLATE = gql`
+  mutation DeleteWorkflowTemplate($id: ID!) {
+    deleteWorkflowTemplate(id: $id)
   }
 `; 
