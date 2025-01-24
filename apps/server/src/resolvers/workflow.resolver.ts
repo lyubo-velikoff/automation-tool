@@ -11,7 +11,8 @@ import {
   WorkflowTag,
   CreateWorkflowTagInput,
   WorkflowTemplate,
-  SaveAsTemplateInput
+  SaveAsTemplateInput,
+  WorkflowExecution
 } from "../schema/workflow";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
@@ -63,7 +64,7 @@ interface ScrapingResult {
 }
 
 @ObjectType()
-class NodeResult {
+export class NodeResult {
   @Field()
   nodeId!: string;
 
@@ -797,5 +798,22 @@ export class WorkflowResolver {
 
     if (error) throw error;
     return true;
+  }
+
+  @Query(() => [WorkflowExecution])
+  @Authorized()
+  async workflowExecutions(
+    @Arg("workflowId", () => ID) workflowId: string,
+    @Ctx() ctx: Context
+  ): Promise<WorkflowExecution[]> {
+    const { data: executions, error } = await ctx.supabase
+      .from("workflow_executions")
+      .select("*")
+      .eq("workflow_id", workflowId)
+      .eq("user_id", ctx.user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return executions || [];
   }
 }

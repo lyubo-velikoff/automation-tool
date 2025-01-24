@@ -153,4 +153,21 @@ export const GET_WORKFLOW_TAGS = gql`
       updated_at
     }
   }
+`;
+
+export const GET_WORKFLOW_EXECUTIONS = gql`
+  query GetWorkflowExecutions($workflowId: ID!) {
+    workflowExecutions(workflowId: $workflowId) {
+      id
+      workflow_id
+      execution_id
+      status
+      results {
+        nodeId
+        status
+        results
+      }
+      created_at
+    }
+  }
 `; 

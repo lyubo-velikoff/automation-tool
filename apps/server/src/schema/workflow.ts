@@ -1,5 +1,6 @@
-import { Field, ID, ObjectType, InputType, Float } from 'type-graphql';
+import { Field, ID, ObjectType, InputType, Float, Int } from 'type-graphql';
 import { Node, Edge } from "./flow";
+import { NodeResult } from "../resolvers/workflow.resolver";
 
 @ObjectType()
 @InputType("PositionInput")
@@ -401,4 +402,28 @@ export class WorkflowNodeInput {
 
   @Field(() => Boolean, { nullable: true })
   dragging?: boolean;
+}
+
+@ObjectType()
+export class WorkflowExecution {
+  @Field(() => ID)
+  id!: string;
+
+  @Field(() => ID)
+  workflow_id!: string;
+
+  @Field(() => ID)
+  user_id!: string;
+
+  @Field()
+  execution_id!: string;
+
+  @Field()
+  status!: string;
+
+  @Field(() => [NodeResult], { nullable: true })
+  results?: NodeResult[];
+
+  @Field()
+  created_at!: Date;
 } 
