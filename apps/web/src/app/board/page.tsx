@@ -2,19 +2,13 @@
 
 import { useQuery } from "@apollo/client";
 import { DashboardLayout } from "@/components/layouts/DashboardLayout";
-import { Button } from "@/components/ui/inputs/button";
-import { Plus } from "lucide-react";
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { DataTable } from "@/components/workflow/table/data-table";
 import { columns } from "@/components/workflow/table/columns";
+import { CreateWorkflowDialog } from "@/components/workflow/table/CreateWorkflowDialog";
 
 export default function BoardPage() {
   const { loading, error, data } = useQuery(GET_WORKFLOWS);
-
-  const handleCreateWorkflow = () => {
-    // TODO: Implement workflow creation
-    console.log("Create workflow");
-  };
 
   if (loading) {
     return (
@@ -55,10 +49,7 @@ export default function BoardPage() {
               Create and manage your automated workflows
             </p>
           </div>
-          <Button onClick={handleCreateWorkflow} size='sm'>
-            <Plus className='h-4 w-4 mr-2' />
-            New Workflow
-          </Button>
+          <CreateWorkflowDialog />
         </div>
 
         <DataTable columns={columns} data={workflows} />
