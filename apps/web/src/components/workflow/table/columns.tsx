@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/data-display/badge";
 import { Button } from "@/components/ui/inputs/button";
-import { ArrowUpDown, Copy, Pencil, Play, Trash2 } from "lucide-react";
+import { ArrowUpDown, Pencil, Play, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
@@ -20,10 +20,17 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/layout/alert-dialog";
 import React from "react";
+import { DuplicateWorkflowDialog } from "@/components/workflow/table/DuplicateWorkflowDialog";
+import { Node, Edge } from "reactflow";
+import { NodeData } from "@/components/workflow/config/nodeTypes";
 
 export interface Workflow {
   id: string;
   name: string;
+  description?: string;
+  nodes: Node<NodeData>[];
+  edges: Edge[];
+  user_id: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -31,8 +38,7 @@ export interface Workflow {
 
 const ActionCell = ({ workflow }: { workflow: Workflow }) => {
   const router = useRouter();
-  const { handleExecute, handleDuplicate, handleDelete, handleRestore } =
-    useWorkflowHandlers();
+  const { handleExecute, handleDelete, handleRestore } = useWorkflowHandlers();
   const [open, setOpen] = React.useState(false);
 
   if (!workflow.is_active) {
@@ -83,15 +89,7 @@ const ActionCell = ({ workflow }: { workflow: Workflow }) => {
       >
         <Play className='h-4 w-4' />
       </Button>
-      <Button
-        variant='ghost'
-        size='sm'
-        onClick={() => handleDuplicate(workflow.id)}
-        className='h-8 w-8 p-0'
-        title='Duplicate workflow'
-      >
-        <Copy className='h-4 w-4' />
-      </Button>
+      <DuplicateWorkflowDialog workflow={workflow} />
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
           <Button
