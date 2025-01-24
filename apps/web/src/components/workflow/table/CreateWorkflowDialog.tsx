@@ -160,7 +160,7 @@ export function CreateWorkflowDialog() {
 
       toast.success("Workflow created successfully");
       setOpen(false);
-      router.push(`/workflows/${data.createWorkflow.id}`);
+      router.push(`/workflow/${data.createWorkflow.id}`);
     } catch (error) {
       toast.error("Failed to create workflow");
       console.error(error);
