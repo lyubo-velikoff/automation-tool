@@ -625,18 +625,62 @@ export class WorkflowResolver {
     }
   }
 
+  @Query(() => Boolean)
+  @Authorized()
+  async isWorkflowScheduled(
+    @Arg("workflowId", () => ID) workflowId: string,
+    @Ctx() ctx: Context
+  ): Promise<boolean> {
+    try {
+      const client = await getTemporalClient();
+      const handle = client.workflow.getHandle(`timed-${workflowId}`);
+      
+      try {
+        const description = await handle.describe();
+        return description?.status?.name === 'RUNNING';
+      } catch (error: any) {
+        if (error.name === 'WorkflowNotFoundError') {
+          return false;
+        }
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error checking workflow schedule:', error);
+      return false;
+    }
+  }
+
   @Mutation(() => Boolean)
+  @Authorized()
   async startTimedWorkflow(
     @Arg('workflowId') workflowId: string,
     @Arg('nodes', () => [WorkflowNodeInput]) nodes: WorkflowNodeInput[],
     @Arg('edges', () => [WorkflowEdgeInput]) edges: WorkflowEdgeInput[],
-    @Arg('intervalMinutes', () => Int) intervalMinutes: number
+    @Arg('intervalMinutes', () => Int) intervalMinutes: number,
+    @Ctx() ctx: Context
   ): Promise<boolean> {
     try {
       const client = await getTemporalClient();
       
+      // Check if workflow is already running
+      const handle = client.workflow.getHandle(`timed-${workflowId}`);
+      try {
+        const description = await handle.describe();
+        if (description?.status?.name === 'RUNNING') {
+          throw new Error('Workflow is already scheduled');
+        }
+      } catch (error: any) {
+        // If workflow not found, we can proceed with starting it
+        if (error.name !== 'WorkflowNotFoundError') {
+          throw error;
+        }
+      }
+      
+      // Get the Gmail token from headers
+      const gmailToken = ctx.headers?.['x-gmail-token'];
+      
       await client.workflow.start('timedWorkflow', {
-        args: [{ workflowId, nodes, edges, intervalMinutes }],
+        args: [{ workflowId, nodes, edges, intervalMinutes, userId: ctx.user.id, gmailToken }],
         taskQueue: 'automation-tool',
         workflowId: `timed-${workflowId}`,
       });
@@ -644,6 +688,9 @@ export class WorkflowResolver {
       return true;
     } catch (error) {
       console.error('Error starting timed workflow:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       return false;
     }
   }
@@ -655,9 +702,22 @@ export class WorkflowResolver {
     try {
       const client = await getTemporalClient();
       const handle = client.workflow.getHandle(`timed-${workflowId}`);
+      
+      // Check if workflow exists before attempting to terminate
+      const description = await handle.describe();
+      if (!description) {
+        console.log('Workflow not found, considering it already stopped');
+        return true;
+      }
+      
       await handle.terminate();
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // If workflow not found, consider it already stopped
+      if (error.name === 'WorkflowNotFoundError') {
+        console.log('Workflow not found, considering it already stopped');
+        return true;
+      }
       console.error('Error stopping timed workflow:', error);
       return false;
     }

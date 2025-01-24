@@ -1,50 +1,64 @@
-import * as wf from '@temporalio/workflow';
+import { proxyActivities } from '@temporalio/workflow';
 import type { WorkflowNode, WorkflowEdge } from '../../types/workflow';
+import * as activities from '../activities/nodeActivities';
 
-export interface TimedWorkflowInput {
+const { executeNode } = proxyActivities<typeof activities>({
+  startToCloseTimeout: '1 minute',
+});
+
+interface TimedWorkflowInput {
   workflowId: string;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   intervalMinutes: number;
+  userId: string;
+  gmailToken?: string;
 }
 
-const { executeNode } = wf.proxyActivities({
-  startToCloseTimeout: '1 minute',
-});
-
 export async function timedWorkflow(input: TimedWorkflowInput): Promise<void> {
-  const { workflowId, nodes, edges, intervalMinutes } = input;
+  const { nodes, edges, intervalMinutes, userId, gmailToken } = input;
 
-  // Create a timer that fires every intervalMinutes
   while (true) {
-    // Execute nodes in topological order
-    const executedNodes = new Set<string>();
-    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    console.log('Executing timed workflow iteration');
 
-    // Helper function to get node dependencies
-    const getDependencies = (nodeId: string): string[] => {
-      return edges
-        .filter(edge => edge.target === nodeId)
-        .map(edge => edge.source);
-    };
+    // Create a map of node connections
+    const nodeConnections = new Map<string, string[]>();
+    edges.forEach(edge => {
+      if (!nodeConnections.has(edge.source)) {
+        nodeConnections.set(edge.source, []);
+      }
+      nodeConnections.get(edge.source)!.push(edge.target);
+    });
 
-    // Execute nodes in order
-    for (const node of nodes) {
-      const dependencies = getDependencies(node.id);
-      const canExecute = dependencies.every(depId => executedNodes.has(depId));
+    // Find start nodes (nodes with no incoming edges)
+    const startNodes = nodes.filter(node => 
+      !edges.some(edge => edge.target === node.id)
+    );
 
-      if (canExecute) {
-        try {
-          await executeNode(node);
-          executedNodes.add(node.id);
-        } catch (error) {
-          // Log error but continue with other nodes
-          console.error(`Error executing node ${node.id}:`, error);
-        }
+    // Execute starting from each start node
+    for (const startNode of startNodes) {
+      try {
+        await executeNode(startNode, userId, gmailToken);
+
+        // Execute connected nodes
+        const processConnectedNodes = async (nodeId: string) => {
+          const nextNodes = nodeConnections.get(nodeId) || [];
+          for (const nextNodeId of nextNodes) {
+            const nextNode = nodes.find(n => n.id === nextNodeId);
+            if (nextNode) {
+              await executeNode(nextNode, userId, gmailToken);
+              await processConnectedNodes(nextNode.id);
+            }
+          }
+        };
+
+        await processConnectedNodes(startNode.id);
+      } catch (error) {
+        console.error(`Error executing node ${startNode.id}:`, error);
       }
     }
 
-    // Wait for the next interval
-    await wf.sleep(intervalMinutes * 60 * 1000);
+    // Wait for the specified interval before next execution
+    await new Promise(resolve => setTimeout(resolve, intervalMinutes * 60 * 1000));
   }
 } 

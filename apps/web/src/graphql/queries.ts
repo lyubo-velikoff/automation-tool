@@ -170,4 +170,10 @@ export const GET_WORKFLOW_EXECUTIONS = gql`
       created_at
     }
   }
+`;
+
+export const IS_WORKFLOW_SCHEDULED = gql`
+  query IsWorkflowScheduled($workflowId: ID!) {
+    isWorkflowScheduled(workflowId: $workflowId)
+  }
 `; 
