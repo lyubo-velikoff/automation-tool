@@ -1,16 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import {
   ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
   flexRender,
   getCoreRowModel,
-  useReactTable,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  SortingState,
-  getFilteredRowModel,
-  ColumnFiltersState,
-  RowSelectionState
+  useReactTable
 } from "@tanstack/react-table";
 import {
   Table,
@@ -19,9 +20,28 @@ import {
   TableHead,
   TableHeader,
   TableRow
-} from "@/components/ui/data-display/table";
+} from "@/components/ui/layout/table";
 import { Button } from "@/components/ui/inputs/button";
 import { Input } from "@/components/ui/inputs/input";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger
+} from "@/components/ui/overlays/dropdown-menu";
+import { DataTablePagination } from "./data-table-pagination";
+import { DataTableViewOptions } from "./data-table-view-options";
+import { Calendar } from "@/components/ui/inputs/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/overlays/popover";
+import { CalendarIcon, Filter } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/data-display/badge";
+import { Label } from "@/components/ui/inputs/label";
 import {
   Select,
   SelectContent,
@@ -43,7 +63,6 @@ import {
 } from "@/components/ui/layout/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { Workflow } from "./columns";
-import * as React from "react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -54,13 +73,20 @@ export function DataTable<TData, TValue>({
   columns,
   data
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined
+  });
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const { handleDelete } = useWorkflowHandlers();
 
   const table = useReactTable({
@@ -68,20 +94,34 @@ export function DataTable<TData, TValue>({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
-      rowSelection,
-      pagination: {
-        pageSize: rowsPerPage,
-        pageIndex: 0
-      }
+      columnVisibility,
+      rowSelection
     }
+  });
+
+  // Apply date range filter
+  const filteredData = data.filter((item: any) => {
+    if (!dateRange.from && !dateRange.to) return true;
+    const itemDate = new Date(item.created_at);
+    if (dateRange.from && dateRange.to) {
+      return itemDate >= dateRange.from && itemDate <= dateRange.to;
+    }
+    if (dateRange.from) {
+      return itemDate >= dateRange.from;
+    }
+    if (dateRange.to) {
+      return itemDate <= dateRange.to;
+    }
+    return true;
   });
 
   const selectedRows = table.getFilteredSelectedRowModel().rows;
@@ -97,85 +137,74 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className='flex items-center py-4 gap-2'>
+      <div className='flex items-center gap-4 py-4'>
         <Input
-          placeholder='Filter workflows...'
+          placeholder='Filter by name or description...'
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
             table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className='max-w-sm'
         />
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant='outline'
+              className={cn(
+                "justify-start text-left font-normal",
+                !dateRange.from && !dateRange.to && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className='mr-2 h-4 w-4' />
+              {dateRange.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "LLL dd, y")} -{" "}
+                    {format(dateRange.to, "LLL dd, y")}
+                  </>
+                ) : (
+                  format(dateRange.from, "LLL dd, y")
+                )
+              ) : (
+                "Filter by date"
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className='w-auto p-0' align='start'>
+            <Calendar
+              initialFocus
+              mode='range'
+              selected={{
+                from: dateRange.from,
+                to: dateRange.to
+              }}
+              onSelect={(range: any) => setDateRange(range)}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+
         <Select
-          value={
-            (table.getColumn("is_active")?.getFilterValue() as string) ?? "all"
-          }
-          onValueChange={(value) =>
-            table.getColumn("is_active")?.setFilterValue(value)
-          }
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value);
+            table.getColumn("is_active")?.setFilterValue(value);
+          }}
         >
           <SelectTrigger className='w-[180px]'>
             <SelectValue placeholder='Filter by status' />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='all'>All statuses</SelectItem>
+            <SelectItem value='all'>All Statuses</SelectItem>
             <SelectItem value='active'>Active</SelectItem>
             <SelectItem value='inactive'>Inactive</SelectItem>
           </SelectContent>
         </Select>
-        <Select
-          value={rowsPerPage.toString()}
-          onValueChange={(value) => setRowsPerPage(Number(value))}
-        >
-          <SelectTrigger className='w-[180px]'>
-            <SelectValue placeholder='Select rows per page' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='5'>5 per page</SelectItem>
-            <SelectItem value='10'>10 per page</SelectItem>
-            <SelectItem value='20'>20 per page</SelectItem>
-            <SelectItem value='50'>50 per page</SelectItem>
-          </SelectContent>
-        </Select>
-        {selectedRows.length > 0 && (
-          <AlertDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-          >
-            <AlertDialogTrigger asChild>
-              <Button
-                variant='destructive'
-                size='sm'
-                className='ml-auto'
-                title='Delete selected workflows'
-              >
-                <Trash2 className='h-4 w-4 mr-2' />
-                Delete Selected ({selectedRows.length})
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Workflows</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete {selectedRows.length} selected
-                  workflows?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleBulkDelete}
-                  className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+
+        <DataTableViewOptions table={table} />
       </div>
+
       <div className='rounded-md border'>
         <Table>
           <TableHeader>
@@ -226,29 +255,44 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className='flex items-center justify-between space-x-2 py-4'>
-        <div className='text-sm text-muted-foreground'>
-          {table.getFilteredRowModel().rows.length} workflow(s) total
-        </div>
-        <div className='space-x-2'>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+
+      <DataTablePagination table={table} />
+
+      {selectedRows.length > 0 && (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant='destructive'
+              size='sm'
+              className='ml-auto'
+              title='Delete selected workflows'
+            >
+              <Trash2 className='h-4 w-4 mr-2' />
+              Delete Selected ({selectedRows.length})
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Workflows</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete {selectedRows.length} selected
+                workflows?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleBulkDelete}
+                className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
