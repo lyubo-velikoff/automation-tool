@@ -203,12 +203,7 @@ export function useWorkflowHandlers() {
     }
   };
 
-  const handleSchedule = async () => {
-    toast({
-      title: "Coming Soon",
-      description: "Scheduling functionality will be implemented soon"
-    });
-  };
+  const handleSchedule = async () => {};
 
   const handleRestore = async (id: string) => {
     try {
