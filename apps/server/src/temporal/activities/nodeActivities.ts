@@ -29,14 +29,7 @@ async function handleGmailTrigger(node: WorkflowNode, gmailToken?: string): Prom
     throw new Error('Gmail token not found. Please reconnect your Gmail account.');
   }
 
-  const oauth2Client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-  oauth2Client.setCredentials({ access_token: gmailToken });
-  
-  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const gmail = createGmailClient(gmailToken);
   console.log('Checking for new emails...');
 }
 
