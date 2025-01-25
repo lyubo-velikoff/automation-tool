@@ -6,8 +6,7 @@ import ReactFlow, {
   Edge,
   Controls,
   Background,
-  ReactFlowProvider,
-  Panel
+  ReactFlowProvider
 } from "reactflow";
 import "reactflow/dist/style.css";
 import OpenAISettingsDialog from "@/components/ui/feedback/OpenAISettingsDialog";
@@ -80,17 +79,10 @@ function WorkflowCanvas({
             nodesDraggable={true}
             nodesConnectable={true}
             elementsSelectable={true}
+            proOptions={{ hideAttribution: true }}
           >
             <Background />
             <Controls className='absolute bottom-4 left-4 scale-150' />
-            <Panel
-              position='top-right'
-              className='bg-background/80 p-2 rounded-lg shadow-md'
-            >
-              <div className='text-sm text-muted-foreground'>
-                Drag nodes by their header
-              </div>
-            </Panel>
           </ReactFlow>
         </div>
 
