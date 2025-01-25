@@ -135,6 +135,7 @@ export function CreateWorkflowDialog() {
   const [description, setDescription] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("blank");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [createWorkflow] = useMutation(CREATE_WORKFLOW);
   const { data: tagsData } = useQuery(GET_WORKFLOW_TAGS);
@@ -143,6 +144,7 @@ export function CreateWorkflowDialog() {
     if (!name) return;
 
     try {
+      setIsLoading(true);
       const template = WORKFLOW_TEMPLATES.find(
         (t) => t.id === selectedTemplate
       );
@@ -163,11 +165,12 @@ export function CreateWorkflowDialog() {
           title: "Success",
           description: "Workflow created successfully"
         });
-        router.push(`/workflows/${data.createWorkflow.id}`);
+        await router.push(`/workflows/${data.createWorkflow.id}`);
       }
     } catch (error) {
       toast.error("Failed to create workflow");
       console.error(error);
+      setIsLoading(false);
     }
   };
 
@@ -293,11 +296,37 @@ export function CreateWorkflowDialog() {
         </div>
 
         <DialogFooter>
-          <Button variant='outline' onClick={() => setOpen(false)}>
+          <Button variant='outline' onClick={() => setOpen(false)} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={!name}>
-            Create
+          <Button onClick={handleCreate} disabled={!name || isLoading}>
+            {isLoading ? (
+              <>
+                <svg
+                  className="mr-2 h-4 w-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Creating...
+              </>
+            ) : (
+              'Create'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
