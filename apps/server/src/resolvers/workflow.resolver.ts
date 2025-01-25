@@ -254,6 +254,16 @@ export class WorkflowResolver {
     @Arg("id", () => ID) id: string,
     @Ctx() ctx: Context
   ): Promise<boolean> {
+    // First delete all associated executions
+    const { error: executionsError } = await ctx.supabase
+      .from("workflow_executions")
+      .delete()
+      .eq("workflow_id", id)
+      .eq("user_id", ctx.user.id);
+
+    if (executionsError) throw executionsError;
+
+    // Then delete the workflow
     const { error } = await ctx.supabase
       .from("workflows")
       .delete()
