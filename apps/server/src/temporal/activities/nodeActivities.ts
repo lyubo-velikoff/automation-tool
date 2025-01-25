@@ -2,6 +2,9 @@ import type { WorkflowNode } from '../../types/workflow';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../../integrations/gmail/config';
+import { ScrapingService } from '../../integrations/scraping/service';
+
+const scrapingService = new ScrapingService();
 
 export async function executeNode(node: WorkflowNode, userId: string, gmailToken?: string): Promise<void> {
   console.log(`Executing node ${node.id} of type ${node.type}`);
@@ -78,6 +81,24 @@ async function handleOpenAICompletion(node: WorkflowNode): Promise<void> {
 }
 
 async function handleWebScraping(node: WorkflowNode): Promise<void> {
-  // TODO: Implement web scraping logic
-  console.log('Scraping web data...');
+  if (!node.data?.url || !node.data?.selector) {
+    throw new Error('Missing required scraping data (url or selector)');
+  }
+
+  const { url, selector, selectorType = 'css', attribute = 'text' } = node.data;
+
+  try {
+    console.log(`Scraping ${url} with selector: ${selector}`);
+    const results = await scrapingService.scrapeUrl(
+      url,
+      selector,
+      selectorType as 'css' | 'xpath',
+      attribute
+    );
+    console.log('Scraping results:', results);
+    node.data.results = results;
+  } catch (error) {
+    console.error('Error during web scraping:', error);
+    throw error;
+  }
 } 

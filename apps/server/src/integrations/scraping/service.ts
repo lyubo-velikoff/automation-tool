@@ -23,47 +23,41 @@ export class ScrapingService {
     await this.limiter.removeTokens(1);
 
     try {
-      const response = await fetch(url);
+      console.log(`Fetching URL: ${url} with selector: ${selector}`);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`Failed to fetch URL: ${response.statusText}`);
       }
 
       const html = await response.text();
       const $ = cheerio.load(html);
+      
+      // Debug logging
+      console.log(`Looking for elements with selector: ${selector}`);
+      const elements = $(selector);
+      console.log(`Found ${elements.length} elements matching selector`);
+      
       const results: string[] = [];
-
-      if (selectorType === 'css') {
-        const elements = $(selector);
-        if (elements.length > 0) {
-          elements.each((_, element) => {
-            const $element = $(element);
-            if (attribute === 'text' || !attribute) {
-              const text = $element.text().trim();
-              if (text) results.push(text);
-            } else if (attribute === 'html') {
-              const html = $element.html();
-              if (html) results.push(html.trim());
-            } else {
-              const attrValue = $element.attr(attribute);
-              if (attrValue !== undefined) {
-                results.push(attrValue);
-              }
-            }
-          });
+      
+      elements.each((index, element) => {
+        const $element = $(element);
+        const text = $element.text().trim();
+        console.log(`Element ${index} text:`, text);
+        if (text) {
+          results.push(text);
+          console.log('Added to results:', text);
         }
-      } else if (selectorType === 'xpath') {
-        // XPath support can be added here if needed
-        throw new Error('XPath support not implemented yet');
-      }
+      });
 
-      return results.map(result => {
-        // If the result is HTML-like, extract only text
-        if (result.includes('<') && result.includes('>')) {
-          const $temp = cheerio.load(result);
-          return $temp.text().trim();
-        }
-        return result.trim();
-      }).filter(Boolean);
+      console.log('Final results:', results);
+      return results;
 
     } catch (error) {
       console.error('Scraping error:', error);
