@@ -5,6 +5,8 @@ import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { cn } from "@/lib/utils"
+import { useState } from "react"
+import { toast } from "@/hooks/use-toast"
 
 import {
   Avatar,
@@ -21,12 +23,12 @@ import {
 } from "@/components/ui/overlays/dropdown-menu"
 import {
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/layout/sidebar"
 import { Button } from "@/components/ui/inputs/button"
 import { Switch } from "@/components/ui/inputs/switch"
+import Link from "next/link"
 
 export function NavUser({
   user,
@@ -37,14 +39,35 @@ export function NavUser({
     avatar: string
   }
 }) {
-  const { isMobile, isCollapsed } = useSidebar()
+  const { isCollapsed } = useSidebar()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const supabase = createClientComponentClient()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.refresh()
+    try {
+      setIsLoggingOut(true)
+      toast({
+        title: "Logging out...",
+        description: "Please wait while we sign you out.",
+      })
+      await supabase.auth.signOut()
+      router.push("/")
+      router.refresh()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
+  const handleThemeToggle = () => {
+    setTheme(theme === "light" ? "dark" : "light")
   }
 
   return (
@@ -71,11 +94,13 @@ export function NavUser({
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <UserIcon className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+            <DropdownMenuItem asChild>
+              <Link href="/profile" className="flex items-center cursor-pointer">
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+            <DropdownMenuItem onClick={handleThemeToggle} className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center">
                 {theme === "dark" ? (
                   <Moon className="mr-2 h-4 w-4" />
@@ -86,13 +111,18 @@ export function NavUser({
               </div>
               <Switch
                 checked={theme === "dark"}
-                onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                onCheckedChange={handleThemeToggle}
+                className="pointer-events-none"
               />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem 
+              onClick={handleLogout} 
+              disabled={isLoggingOut}
+              className="cursor-pointer"
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
