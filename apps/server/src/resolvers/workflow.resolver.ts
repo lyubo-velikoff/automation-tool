@@ -329,7 +329,7 @@ export class WorkflowResolver {
       .select('*')
       .eq('user_id', userId)
       .single();
-
+    
     if (error) throw error;
     if (!settings) throw new Error('User settings not found');
 
@@ -388,12 +388,13 @@ export class WorkflowResolver {
     return { emails };
   }
 
-  private async executeGmailAction(node: any, context: any, inputs: any) {
-    if (!context.token) {
+  private async executeGmailAction(node: any, context: Context, inputs: any) {
+    const gmailToken = context.req?.headers['x-gmail-token'];
+    if (!gmailToken || typeof gmailToken !== 'string') {
       throw new Error('Gmail access token not found. Please reconnect your Gmail account.');
     }
 
-    const gmail = createGmailClient(context.token);
+    const gmail = createGmailClient(gmailToken);
 
     // Get email content from previous node or node data
     const emailContent = inputs?.emailContent || node.data.body;
@@ -411,7 +412,11 @@ export class WorkflowResolver {
       emailContent
     ].join('\n');
 
-    const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
 
     // Send email
     await gmail.users.messages.send({
