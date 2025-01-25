@@ -9,8 +9,7 @@ import { WorkflowProvider } from "@/contexts/workflow/WorkflowContext";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 import { WorkflowLoadingSkeleton } from "@/components/ui/feedback/loading-skeleton";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
-import { SidebarProvider } from "@/components/ui/layout/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarLayout } from "@/components/layouts/SidebarLayout";
 
 function WorkflowContent() {
   const params = useParams();
@@ -75,14 +74,9 @@ export default function WorkflowPage() {
       onExecute={handleExecute}
       onSchedule={handleSchedule}
     >
-      <SidebarProvider>
-        <div className="flex min-h-screen">
-          <AppSidebar />
-          <main className="flex-1">
-            <WorkflowContent />
-          </main>
-        </div>
-      </SidebarProvider>
+      <SidebarLayout>
+        <WorkflowContent />
+      </SidebarLayout>
     </WorkflowProvider>
   );
 }
