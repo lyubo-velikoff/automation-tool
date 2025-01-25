@@ -85,25 +85,40 @@ export function ScheduleWorkflowDialog({
       return;
     }
 
-    // Clean nodes by removing __typename and restructuring
-    const formattedNodes = nodes.map((node) => {
-      const { data, position, ...rest } = node;
-      const cleanedData = { ...data };
-      delete cleanedData.__typename;
+    // Format nodes to match WorkflowNodeInput type exactly
+    const formattedNodes = nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      label: node.data.label || "Untitled Node",
+      position: {
+        x: node.position.x,
+        y: node.position.y
+      },
+      data: {
+        pollingInterval: node.data.pollingInterval,
+        fromFilter: node.data.fromFilter,
+        subjectFilter: node.data.subjectFilter,
+        to: node.data.to,
+        subject: node.data.subject,
+        body: node.data.body,
+        prompt: node.data.prompt,
+        model: node.data.model,
+        maxTokens: node.data.maxTokens,
+        url: node.data.url,
+        selector: node.data.selector,
+        selectorType: node.data.selectorType,
+        attribute: node.data.attribute
+      }
+    }));
 
-      return {
-        ...rest,
-        label: data.label || "Untitled Node",
-        position: {
-          x: position.x,
-          y: position.y
-        },
-        data: cleanedData
-      };
-    });
-
-    // Clean edges by removing __typename
-    const formattedEdges = edges.map(({ __typename, ...edge }) => edge);
+    // Format edges to match WorkflowEdgeInput type exactly
+    const formattedEdges = edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle
+    }));
 
     await startWorkflow({
       variables: {

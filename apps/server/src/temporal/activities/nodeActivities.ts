@@ -1,6 +1,7 @@
 import type { WorkflowNode } from '../../types/workflow';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
+import { createGmailClient } from '../../integrations/gmail/config';
 
 export async function executeNode(node: WorkflowNode, userId: string, gmailToken?: string): Promise<void> {
   console.log(`Executing node ${node.id} of type ${node.type}`);
@@ -48,15 +49,8 @@ async function handleGmailAction(node: WorkflowNode, gmailToken?: string): Promi
     throw new Error('Missing required email data (to, subject, or body)');
   }
 
-  const oauth2Client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
-  oauth2Client.setCredentials({ access_token: gmailToken });
-  
-  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  
+  const gmail = createGmailClient(gmailToken);
+
   // Create email message
   const message = [
     'Content-Type: text/plain; charset="UTF-8"',
@@ -68,7 +62,8 @@ async function handleGmailAction(node: WorkflowNode, gmailToken?: string): Promi
     node.data.body
   ].join('\n');
 
-  const encodedMessage = Buffer.from(message).toString('base64')
+  const encodedMessage = Buffer.from(message)
+    .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
