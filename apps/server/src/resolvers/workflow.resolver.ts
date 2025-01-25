@@ -1,5 +1,4 @@
 import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int, ID } from "type-graphql";
-import { createClient } from "@supabase/supabase-js";
 import {
   Workflow,
   CreateWorkflowInput,
@@ -22,18 +21,7 @@ import { createGmailClient } from '../integrations/gmail/config';
 import { ScrapingService } from '../integrations/scraping/service';
 import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
-
-// Validate required environment variables
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  throw new Error(
-    "Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set"
-  );
-}
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+import { supabase } from '../lib/supabase';
 
 interface NodeExecutionResult {
   nodeId: string;

@@ -6,9 +6,9 @@ import { buildSchema } from "type-graphql";
 import cors from "cors";
 import session from "express-session";
 import { HealthResolver } from "./resolvers/health.resolver";
-import { createClient } from "@supabase/supabase-js";
 import { WorkflowResolver } from "./resolvers/workflow.resolver";
 import { runWorker } from './temporal/worker';
+import { supabase } from './lib/supabase';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -16,11 +16,6 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
     "Missing required environment variables: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set"
   );
 }
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
 
 async function bootstrap() {
   const app = express();
