@@ -1,6 +1,7 @@
 import { BasicNode } from "@/components/ui/data-display/basic-node";
 import GmailActionNode from "../nodes/gmail/GmailActionNode";
 import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
+import WebScrapingNode from "../nodes/scraping/WebScrapingNode";
 
 export interface NodeData {
   // Gmail fields
@@ -33,7 +34,7 @@ export const NODE_TYPES = {
   GMAIL_ACTION: GmailActionNode,
   GMAIL_TRIGGER: GmailTriggerNode,
   OPENAI: BasicNode,
-  SCRAPING: BasicNode,
+  SCRAPING: WebScrapingNode,
   default: BasicNode
 } as const;
 
