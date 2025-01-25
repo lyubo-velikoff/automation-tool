@@ -391,8 +391,29 @@ export class WorkflowResolver {
   }
 
   private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
+    // First try to match by node label
     return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
-      const [nodeId, field] = path.trim().split('.');
+      const [nodeLabel, field] = path.trim().split('.');
+      
+      // Find node ID by label in the context
+      const nodeEntry = Object.entries(context.nodeResults).find(([_, value]) => 
+        value && typeof value === 'object' && value.label === nodeLabel
+      );
+
+      if (nodeEntry) {
+        const [nodeId, nodeData] = nodeEntry;
+        if (field === 'results') {
+          const results = nodeData.results;
+          if (Array.isArray(results)) {
+            return results.join('\n');
+          }
+          return String(results);
+        }
+        return String(nodeData[field] || '');
+      }
+
+      // Fallback to node ID if label not found
+      const nodeId = nodeLabel;
       if (context.nodeResults[nodeId]) {
         if (field === 'results') {
           const results = context.nodeResults[nodeId];
@@ -403,7 +424,13 @@ export class WorkflowResolver {
         }
         return String(context.nodeResults[nodeId][field] || '');
       }
-      console.log('No results found for node:', nodeId, 'Available nodes:', Object.keys(context.nodeResults));
+
+      console.log('No results found for node:', nodeLabel, 'Available nodes:', 
+        Object.entries(context.nodeResults).map(([id, data]) => ({
+          id,
+          label: data?.label || id
+        }))
+      );
       return match; // Keep original if not found
     });
   }
@@ -483,7 +510,10 @@ export class WorkflowResolver {
       // Store results in context for next nodes
       context.nodeResults = {
         ...context.nodeResults,
-        [node.id]: result.results || result // Store raw results for interpolation
+        [node.id]: {
+          label: node.data?.label || node.type,
+          results: result.results || result
+        }
       };
 
       return nodeResult;

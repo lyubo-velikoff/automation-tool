@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { Handle, Position } from "reactflow";
 import {
   Card,
@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { Textarea } from "@/components/ui/inputs/textarea";
-import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { Button } from "@/components/ui/inputs/button";
 import { useGmail } from "@/contexts/auth/GmailContext";
 import { cn } from "@/lib/utils";
@@ -21,151 +20,155 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/overlays/popover";
+import { Mail } from "lucide-react";
+import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
+
+interface GmailNodeData {
+  to?: string;
+  subject?: string;
+  body?: string;
+  label?: string;
+}
 
 interface GmailActionNodeProps {
-  id?: string;
-  data: NodeData;
-  selected?: boolean;
-  type?: string;
+  id: string;
+  data: GmailNodeData & {
+    onConfigChange: (nodeId: string, data: GmailNodeData) => void;
+  };
 }
 
-const GmailIcon = memo(() => (
-  <svg
-    xmlns='http://www.w3.org/2000/svg'
-    width='32'
-    height='32'
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth='2'
-    strokeLinecap='round'
-    strokeLinejoin='round'
-    className='text-red-500'
-  >
-    <path d='M22 4H2v16h20V4zM2 8l10 6 10-6' />
-  </svg>
-));
+const GmailIcon = memo(() => <Mail className='h-4 w-4' />);
 GmailIcon.displayName = "GmailIcon";
 
-interface NodeContentProps {
-  data: NodeData;
-  onLabelChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onToChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSubjectChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onBodyChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+interface VariablePickerProps {
+  nodeId: string;
+  data: GmailActionNodeProps["data"];
 }
 
-const NodeContent = memo(
-  ({
-    data,
-    onLabelChange,
-    onToChange,
-    onSubjectChange,
-    onBodyChange
-  }: NodeContentProps) => (
-    <CardContent className='flex flex-col gap-4 nodrag'>
-      <div className='space-y-2'>
-        <Label>Node Label</Label>
-        <Input
-          value={data.label || ""}
-          onChange={onLabelChange}
-          placeholder='Enter node label'
-        />
+function VariablePicker({ nodeId, data }: VariablePickerProps) {
+  const { nodes } = useWorkflow();
+
+  // Find nodes that can provide data (connected to this node)
+  const sourceNodes = nodes.filter(
+    (node) => node.type === "SCRAPING" || node.type === "OPENAI"
+  );
+
+  const handleInsertVariable = (variable: string) => {
+    const newBody = data.body || "";
+    const updatedBody = newBody + variable;
+
+    data.onConfigChange(nodeId, {
+      ...data,
+      body: updatedBody
+    });
+  };
+
+  return (
+    <div className='p-2 space-y-2'>
+      <h4 className='font-medium'>Insert Variable</h4>
+      <div className='space-y-1'>
+        {sourceNodes.map((node) => (
+          <Button
+            key={node.id}
+            variant='ghost'
+            className='w-full justify-start text-sm'
+            onClick={() =>
+              handleInsertVariable(
+                `{{${node.data?.label || node.type}.results}}`
+              )
+            }
+          >
+            {node.data?.label || node.type}
+          </Button>
+        ))}
+        {sourceNodes.length === 0 && (
+          <p className='text-sm text-muted-foreground p-2'>
+            No data source nodes connected. Add a Scraping or OpenAI node and
+            connect it to this Gmail node.
+          </p>
+        )}
       </div>
-      <div>
-        <Label htmlFor='to'>To</Label>
-        <Input
-          id='to'
-          value={data.to || ""}
-          onChange={onToChange}
-          placeholder='Recipient email'
-        />
+    </div>
+  );
+}
+VariablePicker.displayName = "VariablePicker";
+
+function NodeContent({ id, data }: GmailActionNodeProps) {
+  return (
+    <div className='p-3'>
+      <div className='space-y-3'>
+        <div>
+          <Label>Label</Label>
+          <Input
+            value={data.label || ""}
+            onChange={(e) =>
+              data.onConfigChange(id, { ...data, label: e.target.value })
+            }
+            placeholder='Node Label'
+          />
+        </div>
+        <div>
+          <Label>To</Label>
+          <Input
+            value={data.to || ""}
+            onChange={(e) =>
+              data.onConfigChange(id, { ...data, to: e.target.value })
+            }
+            placeholder='recipient@example.com'
+          />
+        </div>
+        <div>
+          <Label>Subject</Label>
+          <Input
+            value={data.subject || ""}
+            onChange={(e) =>
+              data.onConfigChange(id, { ...data, subject: e.target.value })
+            }
+            placeholder='Email subject'
+          />
+        </div>
+        <div>
+          <Label>Body</Label>
+          <Textarea
+            value={data.body || ""}
+            onChange={(e) =>
+              data.onConfigChange(id, { ...data, body: e.target.value })
+            }
+            placeholder='Email body'
+            className='min-h-[100px] mb-2'
+          />
+          <div className='flex flex-col space-y-2'>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant='outline' size='sm' className='w-full'>
+                  Insert Variable
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className='w-64' align='center'>
+                <VariablePicker nodeId={id} data={data} />
+              </PopoverContent>
+            </Popover>
+            <p className='text-xs text-muted-foreground text-center'>
+              Add data from connected nodes to your email
+            </p>
+          </div>
+        </div>
       </div>
-      <div>
-        <Label htmlFor='subject'>Subject</Label>
-        <Input
-          id='subject'
-          value={data.subject || ""}
-          onChange={onSubjectChange}
-          placeholder='Email subject'
-        />
-      </div>
-      <div>
-        <Label htmlFor='body'>Body</Label>
-        <Textarea
-          id='body'
-          value={data.body || ""}
-          onChange={onBodyChange}
-          placeholder='Email body'
-          rows={4}
-        />
-        <p className='text-sm text-muted-foreground mt-1'>
-          Use {"{{"}
-          <span>nodeId.results</span>
-          {"}} "} to include results from other nodes. Example: {"{{"}
-          <span>SCRAPING-123.results</span>
-          {"}}"}
-        </p>
-      </div>
-    </CardContent>
-  )
-);
+    </div>
+  );
+}
 NodeContent.displayName = "NodeContent";
 
-function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
+export default function GmailActionNode({ id, data }: GmailActionNodeProps) {
   const { isGmailConnected, connectGmail } = useGmail();
-
-  const handleConfigChange = useCallback(
-    (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
-      const { onConfigChange } = data;
-      if (!onConfigChange) return;
-
-      const newData = {
-        ...data,
-        [key]: value
-      };
-
-      onConfigChange(id || "", newData);
-    },
-    [data, id]
-  );
-
-  const handleLabelChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("label", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleToChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("to", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleSubjectChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("subject", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleBodyChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      handleConfigChange("body", e.target.value);
-    },
-    [handleConfigChange]
-  );
 
   if (!isGmailConnected) {
     return (
       <div
         className={cn(
           "bg-background text-foreground relative",
-          selected && "ring-2 ring-primary"
+          data.to && data.subject && "ring-2 ring-green-500/50"
         )}
-        data-testid={`node-${type?.toLowerCase()}`}
       >
         <Popover>
           <PopoverTrigger asChild>
@@ -215,9 +218,8 @@ function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
     <div
       className={cn(
         "bg-background text-foreground relative",
-        selected && "ring-2 ring-primary"
+        data.to && data.subject && "ring-2 ring-green-500/50"
       )}
-      data-testid={`node-${type?.toLowerCase()}`}
     >
       <Popover>
         <PopoverTrigger asChild>
@@ -226,7 +228,7 @@ function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
               className={cn(
                 "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
                 "hover:bg-muted/80 active:bg-muted/70",
-                data.to && data.subject && "ring-2 ring-green-500/50"
+                data.label && "ring-2 ring-green-500/50"
               )}
             >
               <GmailIcon />
@@ -254,18 +256,11 @@ function GmailActionNode({ id, data, selected, type }: GmailActionNodeProps) {
               Send an email using your Gmail account
             </CardDescription>
           </CardHeader>
-          <NodeContent
-            data={data}
-            onLabelChange={handleLabelChange}
-            onToChange={handleToChange}
-            onSubjectChange={handleSubjectChange}
-            onBodyChange={handleBodyChange}
-          />
+          <NodeContent id={id} data={data} />
         </PopoverContent>
       </Popover>
       <Handle type='target' position={Position.Left} />
     </div>
   );
 }
-
-export default memo(GmailActionNode);
+GmailActionNode.displayName = "GmailActionNode";
