@@ -81,7 +81,7 @@ const ActionCell = ({ workflow }: { workflow: Workflow }) => {
       <Button
         variant='ghost'
         size='sm'
-        onClick={() => router.push(`/workflow/${workflow.id}`)}
+        onClick={() => router.push(`/workflows/${workflow.id}`)}
         className='h-8 w-8 p-0'
         title='Edit workflow'
       >

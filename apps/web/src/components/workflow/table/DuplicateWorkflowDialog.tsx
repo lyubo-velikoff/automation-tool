@@ -61,7 +61,7 @@ export function DuplicateWorkflowDialog({
       });
 
       // Navigate to the new workflow
-      router.push(`/workflow/${data.duplicateWorkflow.id}`);
+      router.push(`/workflows/${data.duplicateWorkflow.id}`);
       setOpen(false);
     } catch (error) {
       toast({
