@@ -9,7 +9,8 @@ import { WorkflowProvider } from "@/contexts/workflow/WorkflowContext";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 import { WorkflowLoadingSkeleton } from "@/components/ui/feedback/loading-skeleton";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
-import { Header } from "@/components/ui/navigation/Header";
+import { SidebarProvider } from "@/components/ui/layout/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 function WorkflowContent() {
   const params = useParams();
@@ -39,10 +40,10 @@ function WorkflowContent() {
 
   if (error) {
     return (
-      <div className='flex items-center justify-center h-[calc(100vh-4rem)]'>
-        <div className='text-center'>
-          <h2 className='text-lg font-semibold'>Error loading workflow</h2>
-          <p className='text-sm text-muted-foreground'>{error.message}</p>
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">Error loading workflow</h2>
+          <p className="text-sm text-muted-foreground">{error.message}</p>
         </div>
       </div>
     );
@@ -50,10 +51,10 @@ function WorkflowContent() {
 
   if (!data?.workflow) {
     return (
-      <div className='flex items-center justify-center h-[calc(100vh-4rem)]'>
-        <div className='text-center'>
-          <h2 className='text-lg font-semibold'>Workflow not found</h2>
-          <p className='text-sm text-muted-foreground'>
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">Workflow not found</h2>
+          <p className="text-sm text-muted-foreground">
             The workflow you're looking for doesn't exist or you don't have
             access to it.
           </p>
@@ -74,12 +75,14 @@ export default function WorkflowPage() {
       onExecute={handleExecute}
       onSchedule={handleSchedule}
     >
-      <div className='flex flex-col h-screen'>
-        <Header />
-        <div className='flex-grow'>
-          <WorkflowContent />
+      <SidebarProvider>
+        <div className="flex min-h-screen">
+          <AppSidebar />
+          <main className="flex-1">
+            <WorkflowContent />
+          </main>
         </div>
-      </div>
+      </SidebarProvider>
     </WorkflowProvider>
   );
 }
