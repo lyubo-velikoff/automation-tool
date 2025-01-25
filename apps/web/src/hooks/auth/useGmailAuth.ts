@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { usePathname } from "next/navigation";
 
 // Static cache for connection status
 let connectionCheckPromise: Promise<boolean> | null = null;
@@ -12,8 +13,9 @@ const CACHE_DURATION = 30000; // 30 seconds
 export function useGmailAuth() {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [authWindow, setAuthWindow] = useState<Window | null>(null);
+  const pathname = usePathname();
 
-  const checkGmailConnection = useCallback(async () => {
+  const checkGmailConnection = useCallback(async (force = false) => {
     const now = Date.now();
 
     // If there's an ongoing check, wait for it
@@ -23,8 +25,8 @@ export function useGmailAuth() {
       return;
     }
 
-    // If the last check was recent, use cached value
-    if (now - lastCheckTime < CACHE_DURATION) {
+    // If the last check was recent and not forced, use cached value
+    if (!force && now - lastCheckTime < CACHE_DURATION) {
       return;
     }
 
@@ -125,7 +127,8 @@ export function useGmailAuth() {
   }, [authWindow]);
 
   useEffect(() => {
-    checkGmailConnection();
+    // Force check when navigating to /connections
+    checkGmailConnection(pathname === "/connections");
 
     // Listen for messages from popup
     const handleMessage = (event: MessageEvent) => {
@@ -135,7 +138,7 @@ export function useGmailAuth() {
         // Reset cache when receiving connection message
         connectionCheckPromise = null;
         lastCheckTime = 0;
-        checkGmailConnection();
+        checkGmailConnection(true);
       } else if (event.data?.type === "GMAIL_ERROR") {
         toast({
           title: "Connection Failed",
@@ -162,7 +165,7 @@ export function useGmailAuth() {
         authWindow.close();
       }
     };
-  }, [authWindow, checkGmailConnection]);
+  }, [authWindow, checkGmailConnection, pathname]);
 
   return {
     isGmailConnected,
