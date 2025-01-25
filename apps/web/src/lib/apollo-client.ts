@@ -1,7 +1,6 @@
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { supabase } from './supabase';
-import type { Session } from '@supabase/supabase-js';
 
 // Create cache with optimized type policies
 const cache = new InMemoryCache({
@@ -24,17 +23,14 @@ const httpLink = createHttpLink({
   uri: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/graphql`,
 });
 
-// Optimize auth link to cache session
-let cachedSession: Session | null = null;
+// Create auth link with session management
 const authLink = setContext(async (_, { headers }) => {
   try {
-    if (!cachedSession) {
-      const { data: { session } } = await supabase.auth.getSession();
-      cachedSession = session;
-    }
+    // Always get fresh session to ensure we have the latest state
+    const { data: { session } } = await supabase.auth.getSession();
     
-    const token = cachedSession?.access_token;
-    const gmailToken = cachedSession?.provider_token;
+    const token = session?.access_token;
+    const gmailToken = session?.provider_token;
 
     return {
       headers: {
@@ -49,7 +45,7 @@ const authLink = setContext(async (_, { headers }) => {
   }
 });
 
-// Export optimized client
+// Create client instance
 export const client = new ApolloClient({
   link: authLink.concat(httpLink),
   cache,
@@ -59,10 +55,18 @@ export const client = new ApolloClient({
       nextFetchPolicy: 'cache-first',
     },
     query: {
-      fetchPolicy: 'cache-first',
+      fetchPolicy: 'network-only', // Always fetch fresh data after auth changes
     },
   },
   connectToDevTools: process.env.NODE_ENV === 'development',
   assumeImmutableResults: true,
   queryDeduplication: true,
+});
+
+// Listen for auth state changes
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session) {
+    // Reset Apollo cache when auth state changes
+    client.resetStore().catch(console.error);
+  }
 }); 
