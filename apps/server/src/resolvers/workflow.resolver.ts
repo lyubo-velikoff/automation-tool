@@ -255,19 +255,10 @@ export class WorkflowResolver {
     @Arg("id", () => ID) id: string,
     @Ctx() ctx: Context
   ): Promise<boolean> {
-    // First delete all associated executions
-    const { error: executionsError } = await ctx.supabase
-      .from("workflow_executions")
-      .delete()
-      .eq("workflow_id", id)
-      .eq("user_id", ctx.user.id);
-
-    if (executionsError) throw executionsError;
-
-    // Then delete the workflow
+    // Update workflow to set is_active to false (soft delete)
     const { error } = await ctx.supabase
       .from("workflows")
-      .delete()
+      .update({ is_active: false })
       .eq("id", id)
       .eq("user_id", ctx.user.id);
 
