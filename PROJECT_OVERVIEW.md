@@ -371,3 +371,52 @@ TEMPORAL_ADDRESS=localhost:7233
    - Playwright for critical paths
    - User workflows
    - Authentication flows
+
+### Additional Development Tools
+- VSCode configuration in `.vscode/`
+- GitHub Actions workflows in `.github/`
+- NVM configuration for Node.js version management
+- Turbo configuration for monorepo management
+- Prompts directory for AI assistance
+
+### Environment Variables
+```bash
+# Web App Environment Variables
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_API_URL=http://localhost:4000
+
+# Server Environment Variables
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+CORS_ORIGIN=http://localhost:3000
+PORT=4000
+NODE_ENV=development
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# Gmail API Configuration
+GMAIL_CLIENT_ID=your_gmail_client_id
+GMAIL_CLIENT_SECRET=your_gmail_client_secret
+GMAIL_REDIRECT_URI=http://localhost:4000/auth/gmail/callback
+
+# Temporal Configuration
+TEMPORAL_ADDRESS=localhost:7233
+```
+
+### Development Workflow
+1. **Environment Setup**:
+   - Use `.nvmrc` for Node.js version management
+   - Copy `.env.example` to `.env` and configure variables
+   - Install pnpm globally: `npm install -g pnpm@8.15.4`
+
+2. **IDE Setup**:
+   - Use VSCode with provided workspace settings
+   - Install recommended extensions from `.vscode/extensions.json`
+
+3. **Development Process**:
+   - Create feature branches from `main`
+   - Follow commit message conventions
+   - Use GitHub Actions for CI/CD
+   - Submit PRs for review

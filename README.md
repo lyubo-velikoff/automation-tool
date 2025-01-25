@@ -16,30 +16,55 @@ automation-tool/
 ├── apps/
 │   ├── web/          # Next.js frontend
 │   └── server/       # Express + Apollo backend
-└── packages/
-    └── shared/       # Shared utilities and types
+├── packages/         # Shared utilities and types
+├── .github/         # GitHub Actions workflows
+├── .vscode/         # VSCode configuration
+├── .prompts/        # AI assistance prompts
+├── .tasks/          # Task documentation
+├── e2e/            # End-to-end tests
+└── supabase/       # Supabase configuration
 ```
 
 ## Prerequisites
 
-- Node.js v20+
-- pnpm (latest version)
+- Node.js v20+ (managed via `.nvmrc`)
+- pnpm 8.15.4 or later
+- VSCode (recommended)
+- Supabase account
+- OpenAI API key
+- Gmail API credentials (for email automation)
+- Temporal server (local or cloud)
 
 ## Getting Started
 
-1. Install dependencies:
+1. Clone the repository and set up Node.js version:
+   ```bash
+   nvm use  # This will use the version specified in .nvmrc
+   ```
+
+2. Install dependencies:
    ```bash
    pnpm install
    ```
 
-2. Start development servers:
+3. Set up environment variables:
    ```bash
-   pnpm dev
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. Start development servers:
+   ```bash
+   pnpm dev  # Starts all services
+   # Or start individual services:
+   pnpm dev:web     # Frontend only
+   pnpm dev:server  # Backend only
    ```
 
    This will start:
    - Frontend at http://localhost:3000
    - Backend at http://localhost:4000/graphql
+   - Temporal dev server (if configured)
 
 ## Development Commands
 
@@ -47,6 +72,9 @@ automation-tool/
 - `pnpm build` - Build all applications
 - `pnpm test` - Run tests across all applications
 - `pnpm lint` - Run linting across all applications
+- `pnpm temporal:dev` - Start Temporal development server
+- `pnpm test:e2e` - Run end-to-end tests
+- `pnpm test:e2e:ui` - Run end-to-end tests with UI
 
 ## Testing
 
