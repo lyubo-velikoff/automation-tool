@@ -15,6 +15,7 @@ import {
 } from "reactflow";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { toast } from "sonner";
 
 export function useNodeManagement() {
   const { nodes: contextNodes, edges: contextEdges, setNodes: setContextNodes, setEdges: setContextEdges } = useWorkflow();
@@ -83,12 +84,79 @@ export function useNodeManagement() {
 
   const onConnect = useCallback(
     (params: Connection) => {
+      // Get the source and target nodes
+      const sourceNode = nodes.find(n => n.id === params.source);
+      const targetNode = nodes.find(n => n.id === params.target);
+
+      if (!sourceNode || !targetNode) {
+        console.error('Source or target node not found');
+        return;
+      }
+
+      // Validate connection based on node types
+      if (targetNode.type === 'GMAIL_ACTION') {
+        // Gmail action nodes should have their data sources connected first
+        const isValid = sourceNode.type === 'SCRAPING' || sourceNode.type === 'OPENAI';
+        if (!isValid) {
+          toast.error("Gmail action nodes should receive data from Scraping or OpenAI nodes");
+          return;
+        }
+      }
+
+      // Add the edge if validation passes
       const newEdges = addEdge(params, edges);
       setEdges(newEdges);
       setContextEdges(newEdges);
+
+      // Log the execution order for debugging
+      const orderedNodes = getExecutionOrder(nodes, newEdges);
+      console.log('New execution order:', orderedNodes.map(n => n.type));
     },
-    [edges, setEdges, setContextEdges]
+    [edges, nodes, setEdges, setContextEdges]
   );
+
+  // Helper function to determine execution order (same as server-side)
+  const getExecutionOrder = (nodes: Node[], edges: Edge[]): Node[] => {
+    // Create adjacency list
+    const graph = new Map<string, string[]>();
+    const inDegree = new Map<string, number>();
+    
+    // Initialize
+    nodes.forEach(node => {
+      graph.set(node.id, []);
+      inDegree.set(node.id, 0);
+    });
+    
+    // Build graph
+    edges.forEach(edge => {
+      graph.get(edge.source)?.push(edge.target);
+      inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+    });
+    
+    // Find nodes with no dependencies
+    const queue = nodes
+      .filter(node => (inDegree.get(node.id) || 0) === 0)
+      .map(node => node.id);
+    
+    const result: string[] = [];
+    
+    // Process queue
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      result.push(nodeId);
+      
+      const neighbors = graph.get(nodeId) || [];
+      for (const neighbor of neighbors) {
+        inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
+        if (inDegree.get(neighbor) === 0) {
+          queue.push(neighbor);
+        }
+      }
+    }
+    
+    // Map back to nodes
+    return result.map(id => nodes.find(n => n.id === id)!);
+  };
 
   const createConfigChangeHandler = useCallback((initialNodeId: string) => {
     return (nodeId: string, newData: NodeData) => {

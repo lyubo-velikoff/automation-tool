@@ -100,8 +100,10 @@ const NodeContent = memo(
           rows={4}
         />
         <p className='text-sm text-muted-foreground mt-1'>
-          Supports variables: {"{{"}
-          <span>variable_name</span>
+          Use {"{{"}
+          <span>nodeId.results</span>
+          {"}} "} to include results from other nodes. Example: {"{{"}
+          <span>SCRAPING-123.results</span>
           {"}}"}
         </p>
       </div>

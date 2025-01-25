@@ -6,7 +6,16 @@ import { ScrapingService } from '../../integrations/scraping/service';
 
 const scrapingService = new ScrapingService();
 
-export async function executeNode(node: WorkflowNode, userId: string, gmailToken?: string): Promise<void> {
+interface WorkflowContext {
+  nodeResults: Record<string, any>;
+}
+
+export async function executeNode(
+  node: WorkflowNode, 
+  userId: string, 
+  gmailToken?: string,
+  context: WorkflowContext = { nodeResults: {} }
+): Promise<void> {
   console.log(`Executing node ${node.id} of type ${node.type}`);
   
   switch (node.type) {
@@ -14,17 +23,33 @@ export async function executeNode(node: WorkflowNode, userId: string, gmailToken
       await handleGmailTrigger(node, gmailToken);
       break;
     case 'GMAIL_ACTION':
-      await handleGmailAction(node, gmailToken);
+      await handleGmailAction(node, gmailToken, context);
       break;
     case 'OPENAI':
       await handleOpenAICompletion(node);
       break;
     case 'SCRAPING':
-      await handleWebScraping(node);
+      const results = await handleWebScraping(node);
+      context.nodeResults[node.id] = results;
       break;
     default:
       throw new Error(`Unsupported node type: ${node.type}`);
   }
+}
+
+function interpolateVariables(text: string, context: WorkflowContext): string {
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+    const [nodeId, field] = path.trim().split('.');
+    if (context.nodeResults[nodeId]) {
+      if (field === 'results') {
+        return Array.isArray(context.nodeResults[nodeId]) 
+          ? context.nodeResults[nodeId].join('\n')
+          : String(context.nodeResults[nodeId]);
+      }
+      return String(context.nodeResults[nodeId][field] || '');
+    }
+    return match; // Keep original if not found
+  });
 }
 
 async function handleGmailTrigger(node: WorkflowNode, gmailToken?: string): Promise<void> {
@@ -36,7 +61,11 @@ async function handleGmailTrigger(node: WorkflowNode, gmailToken?: string): Prom
   console.log('Checking for new emails...');
 }
 
-async function handleGmailAction(node: WorkflowNode, gmailToken?: string): Promise<void> {
+async function handleGmailAction(
+  node: WorkflowNode, 
+  gmailToken?: string,
+  context: WorkflowContext = { nodeResults: {} }
+): Promise<void> {
   if (!gmailToken) {
     throw new Error('Gmail token not found. Please reconnect your Gmail account.');
   }
@@ -47,15 +76,19 @@ async function handleGmailAction(node: WorkflowNode, gmailToken?: string): Promi
 
   const gmail = createGmailClient(gmailToken);
 
+  // Interpolate variables in subject and body
+  const subject = interpolateVariables(node.data.subject, context);
+  const body = interpolateVariables(node.data.body, context);
+
   // Create email message
   const message = [
     'Content-Type: text/plain; charset="UTF-8"',
     'MIME-Version: 1.0',
     'Content-Transfer-Encoding: 7bit',
     `To: ${node.data.to}`,
-    `Subject: ${node.data.subject}`,
+    `Subject: ${subject}`,
     '',
-    node.data.body
+    body
   ].join('\n');
 
   const encodedMessage = Buffer.from(message)
@@ -80,7 +113,7 @@ async function handleOpenAICompletion(node: WorkflowNode): Promise<void> {
   console.log('Generating AI response...');
 }
 
-async function handleWebScraping(node: WorkflowNode): Promise<void> {
+async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
   if (!node.data?.url || !node.data?.selector) {
     throw new Error('Missing required scraping data (url or selector)');
   }
@@ -96,7 +129,7 @@ async function handleWebScraping(node: WorkflowNode): Promise<void> {
       attribute
     );
     console.log('Scraping results:', results);
-    node.data.results = results;
+    return results;
   } catch (error) {
     console.error('Error during web scraping:', error);
     throw error;

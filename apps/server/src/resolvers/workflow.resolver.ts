@@ -339,67 +339,39 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeGmailTrigger(node: any, credentials: any) {
-    const oauth2Client = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-    oauth2Client.setCredentials(credentials.tokens);
-
-    const gmail = google.gmail({ 
-      version: 'v1', 
-      auth: oauth2Client as any // Type assertion needed due to googleapis types
-    });
-    
-    // Get messages based on filters
-    const { data: messages } = await gmail.users.messages.list({
-      userId: 'me',
-      q: `${node.data.fromFilter ? `from:${node.data.fromFilter}` : ''} ${node.data.subjectFilter ? `subject:${node.data.subjectFilter}` : ''}`.trim(),
-      maxResults: 10
-    });
-
-    if (!messages?.messages?.length) {
-      return { emails: [] };
+  private async executeGmailTrigger(node: WorkflowNode, gmailToken?: string): Promise<any> {
+    if (!gmailToken) {
+      throw new Error('Gmail token not found. Please reconnect your Gmail account.');
     }
 
-    // Get full message details for each email
-    const emails = await Promise.all(
-      messages.messages.map(async (message) => {
-        const { data: email } = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id!,
-          format: 'full'
-        });
-        return email;
-      })
-    );
-
-    return { emails };
+    const gmail = createGmailClient(gmailToken);
+    console.log('Checking for new emails...');
+    return {};
   }
 
-  private async executeGmailAction(node: any, context: Context, inputs: any) {
-    const gmailToken = context.req?.headers['x-gmail-token'];
-    if (!gmailToken || typeof gmailToken !== 'string') {
-      throw new Error('Gmail access token not found. Please reconnect your Gmail account.');
+  private async executeGmailAction(
+    node: WorkflowNode, 
+    gmailToken: string | undefined,
+    context: { nodeResults: Record<string, any> }
+  ): Promise<any> {
+    if (!gmailToken) {
+      throw new Error('Gmail token not found');
     }
 
     const gmail = createGmailClient(gmailToken);
 
-    // Get email content from previous node or node data
-    const emailContent = inputs?.emailContent || node.data.body;
-    const subject = inputs?.subject || node.data.subject;
-    const to = inputs?.to || node.data.to;
+    // Interpolate variables in subject and body
+    const subject = node.data?.subject ? this.interpolateVariables(node.data.subject, context) : '';
+    const body = node.data?.body ? this.interpolateVariables(node.data.body, context) : '';
 
-    // Create email message
     const message = [
       'Content-Type: text/plain; charset="UTF-8"',
       'MIME-Version: 1.0',
       'Content-Transfer-Encoding: 7bit',
-      `To: ${to}`,
+      `To: ${node.data?.to}`,
       `Subject: ${subject}`,
       '',
-      emailContent
+      body
     ].join('\n');
 
     const encodedMessage = Buffer.from(message)
@@ -408,7 +380,6 @@ export class WorkflowResolver {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    // Send email
     await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
@@ -419,41 +390,50 @@ export class WorkflowResolver {
     return { sent: true };
   }
 
-  private async executeOpenAICompletion(node: any, credentials: any, inputs: any) {
-    const openai = new OpenAI({
-      apiKey: credentials.apiKey
+  private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const [nodeId, field] = path.trim().split('.');
+      if (context.nodeResults[nodeId]) {
+        if (field === 'results') {
+          const results = context.nodeResults[nodeId];
+          if (Array.isArray(results)) {
+            return results.join('\n');
+          }
+          return String(results);
+        }
+        return String(context.nodeResults[nodeId][field] || '');
+      }
+      console.log('No results found for node:', nodeId, 'Available nodes:', Object.keys(context.nodeResults));
+      return match; // Keep original if not found
     });
-
-    // Get prompt from previous node or node data
-    const prompt = inputs?.prompt || node.data.prompt;
-    const model = node.data.model || 'gpt-3.5-turbo';
-    const maxTokens = node.data.maxTokens || 100;
-
-    const completion = await openai.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: maxTokens
-    });
-
-    return { 
-      completion: completion.choices[0]?.message?.content,
-      usage: completion.usage
-    };
   }
 
-  private async executeScrapingNode(node: any, _credentials: any, inputs: any) {
-    const scrapingService = new ScrapingService();
-    const url = inputs?.url || node.data.url;
-    const selector = inputs?.selector || node.data.selector;
-    const selectorType = inputs?.selectorType || node.data.selectorType;
-    const attribute = inputs?.attribute || node.data.attribute;
+  private async executeOpenAICompletion(node: WorkflowNode): Promise<any> {
+    // TODO: Implement OpenAI completion logic
+    console.log('Generating AI response...');
+    return {};
+  }
 
-    const results = await scrapingService.scrapeUrl(url, selector, selectorType, attribute);
+  private async executeScrapingNode(node: WorkflowNode): Promise<any> {
+    if (!node.data?.url || !node.data?.selector) {
+      throw new Error('Missing required scraping data (url or selector)');
+    }
+
+    const scrapingService = new ScrapingService();
+    const results = await scrapingService.scrapeUrl(
+      node.data.url,
+      node.data.selector,
+      node.data.selectorType as 'css' | 'xpath',
+      node.data.attribute || 'text'
+    );
+
     return { results };
   }
 
   private getNodeResults(type: string, result: any): string[] {
     switch (type) {
+      case 'START':
+        return ['Workflow started'];
       case 'SCRAPING':
         return result.results || [];
       case 'openaiCompletion':
@@ -467,57 +447,111 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeNode(node: any, inputs: any, context: any, nodeResults: NodeResult[]): Promise<void> {
+  private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
     try {
-      const credentials = await this.getNodeCredentials(context.user.id, node.type);
-      let result;
+      const nodeContext = {
+        nodeResults: context.nodeResults || {}
+      };
 
+      let result;
       switch (node.type) {
+        case 'START':
+          result = { results: ['Workflow started'] };
+          break;
         case 'GMAIL_TRIGGER':
-          result = await this.executeGmailTrigger(node, credentials);
+          result = await this.executeGmailTrigger(node, context.token);
           break;
         case 'GMAIL_ACTION':
-          result = await this.executeGmailAction(node, context, inputs);
+          result = await this.executeGmailAction(node, context.token, nodeContext);
           break;
-        case 'openaiCompletion':
-          result = await this.executeOpenAICompletion(node, credentials, inputs);
+        case 'OPENAI':
+          result = await this.executeOpenAICompletion(node);
           break;
         case 'SCRAPING':
-          result = await this.executeScrapingNode(node, credentials, inputs);
+          result = await this.executeScrapingNode(node);
           break;
         default:
           throw new Error(`Unknown node type: ${node.type}`);
       }
 
-      nodeResults.push({
+      const nodeResult = {
         nodeId: node.id,
         status: 'success',
         results: this.getNodeResults(node.type, result)
-      });
+      };
+
+      // Store results in context for next nodes
+      context.nodeResults = {
+        ...context.nodeResults,
+        [node.id]: result.results || result // Store raw results for interpolation
+      };
+
+      return nodeResult;
     } catch (error) {
-      nodeResults.push({
+      return {
         nodeId: node.id,
         status: 'error',
         results: [error instanceof Error ? error.message : 'Unknown error']
-      });
-      throw error;
+      };
     }
+  }
+
+  private getExecutionOrder(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+    // Create adjacency list
+    const graph = new Map<string, string[]>();
+    const inDegree = new Map<string, number>();
+    
+    // Initialize
+    nodes.forEach(node => {
+      graph.set(node.id, []);
+      inDegree.set(node.id, 0);
+    });
+    
+    // Build graph
+    edges.forEach(edge => {
+      graph.get(edge.source)?.push(edge.target);
+      inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+    });
+    
+    // Find nodes with no dependencies
+    const queue = nodes
+      .filter(node => (inDegree.get(node.id) || 0) === 0)
+      .map(node => node.id);
+    
+    const result: string[] = [];
+    
+    // Process queue
+    while (queue.length > 0) {
+      const nodeId = queue.shift()!;
+      result.push(nodeId);
+      
+      const neighbors = graph.get(nodeId) || [];
+      for (const neighbor of neighbors) {
+        inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
+        if (inDegree.get(neighbor) === 0) {
+          queue.push(neighbor);
+        }
+      }
+    }
+    
+    // Map back to nodes
+    return result.map(id => nodes.find(n => n.id === id)!);
   }
 
   @Mutation(() => ExecutionResult)
   @Authorized()
   async executeWorkflow(
     @Arg("workflowId", () => String) workflowId: string,
-    @Ctx() context: any
+    @Ctx() context: Context
   ): Promise<ExecutionResult> {
     try {
       // Get the Gmail token from context.req.headers
-      const gmailToken = context.req?.headers['x-gmail-token'];
+      const gmailToken = context.req?.get('x-gmail-token');
       
       // Add token to context for node execution
       const executionContext = {
-        ...context,
-        token: gmailToken
+        token: gmailToken,
+        nodeResults: {} as Record<string, string[]>
       };
 
       // Get the workflow
@@ -531,57 +565,34 @@ export class WorkflowResolver {
       if (workflowError) throw workflowError;
       if (!workflow) throw new Error("Workflow not found");
 
-      const nodes = workflow.nodes as any[];
-      const edges = workflow.edges as any[];
+      const nodes = workflow.nodes as WorkflowNode[];
+      const edges = workflow.edges as WorkflowEdge[];
       const executionId = `exec-${Date.now()}`;
       const nodeResults: NodeResult[] = [];
 
       try {
-        // Create a map of node connections
-        const nodeConnections = new Map<string, string[]>();
-        edges.forEach(edge => {
-          if (!nodeConnections.has(edge.source)) {
-            nodeConnections.set(edge.source, []);
-          }
-          nodeConnections.get(edge.source)!.push(edge.target);
-        });
+        // Get execution order using topological sort
+        const orderedNodes = this.getExecutionOrder(nodes, edges);
+        console.log('Execution order:', orderedNodes.map(n => n.type));
 
-        // Find start nodes (nodes with no incoming edges)
-        const startNodes = nodes.filter(node => 
-          !edges.some(edge => edge.target === node.id)
-        );
-
-        // Execute starting from each start node
-        for (const startNode of startNodes) {
-          await this.executeNode(startNode, null, executionContext, nodeResults);
-
-          // Execute connected nodes
-          const processConnectedNodes = async (nodeId: string, inputs: any) => {
-            const nextNodes = nodeConnections.get(nodeId) || [];
-            for (const nextNodeId of nextNodes) {
-              const nextNode = nodes.find(n => n.id === nextNodeId);
-              if (nextNode) {
-                await this.executeNode(nextNode, inputs, executionContext, nodeResults);
-                await processConnectedNodes(nextNode.id, nodeResults[nodeResults.length - 1].results);
-              }
-            }
-          };
-
-          await processConnectedNodes(startNode.id, nodeResults[nodeResults.length - 1].results);
+        // Execute nodes in order
+        for (const node of orderedNodes) {
+          console.log('Executing node:', node.type, node.id);
+          const result = await this.executeNode(node, executionContext);
+          nodeResults.push(result);
+          console.log('Node results:', executionContext.nodeResults);
         }
 
         // Store successful execution results
         await supabase
           .from('workflow_executions')
-          .insert([
-            {
-              workflow_id: workflowId,
-              user_id: context.user.id,
-              execution_id: executionId,
-              status: 'completed',
-              results: nodeResults
-            }
-          ]);
+          .insert([{
+            workflow_id: workflowId,
+            user_id: context.user.id,
+            execution_id: executionId,
+            status: 'completed',
+            results: nodeResults
+          }]);
 
         return {
           success: true,
@@ -603,18 +614,14 @@ export class WorkflowResolver {
             }
           ]);
 
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Unknown error occurred',
-          executionId,
-          results: nodeResults
-        };
+        throw error;
       }
     } catch (error) {
       console.error('Workflow execution error:', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error occurred',
+        executionId: undefined,
         results: []
       };
     }
@@ -671,8 +678,8 @@ export class WorkflowResolver {
         }
       }
       
-      // Get the Gmail token from headers
-      const gmailToken = ctx.headers?.['x-gmail-token'];
+      // Get the Gmail token from request headers
+      const gmailToken = ctx.req?.get('x-gmail-token');
       
       await client.workflow.start('timedWorkflow', {
         args: [{ workflowId, nodes, edges, intervalMinutes, userId: ctx.user.id, gmailToken }],
