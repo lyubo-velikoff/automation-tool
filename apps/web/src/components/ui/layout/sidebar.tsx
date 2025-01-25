@@ -57,7 +57,8 @@ export function Sidebar({
     <Collapsible
       open={!isCollapsed}
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-background transition-all duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-background",
+        "transform-gpu transition-[width] duration-200 ease-out",
         isCollapsed ? "w-16" : "w-64",
         className
       )}
@@ -73,9 +74,14 @@ export function SidebarHeader({
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
+  const { isCollapsed } = useSidebar()
   return (
     <div
-      className={cn("flex h-16 items-center border-b px-4", className)}
+      className={cn(
+        "flex h-14 items-center border-b",
+        isCollapsed ? "justify-center" : "px-4",
+        className
+      )}
       {...props}
     >
       {children}
@@ -89,7 +95,13 @@ export function SidebarContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("flex-1 overflow-auto", className)} {...props}>
+    <div 
+      className={cn(
+        "flex-1 overflow-hidden hover:overflow-auto",
+        className
+      )} 
+      {...props}
+    >
       {children}
     </div>
   )
@@ -100,9 +112,14 @@ export function SidebarFooter({
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
+  const { isCollapsed } = useSidebar()
   return (
     <div
-      className={cn("border-t px-4 py-4", className)}
+      className={cn(
+        "flex h-14 items-center border-t",
+        isCollapsed ? "justify-center" : "px-4",
+        className
+      )}
       {...props}
     >
       {children}
@@ -126,7 +143,7 @@ export function SidebarInset({
   return (
     <div
       className={cn(
-        "transition-[margin] duration-100 ease-in-out",
+        "transform-gpu transition-[margin] duration-200 ease-out",
         isCollapsed ? "lg:ml-16" : "lg:ml-64",
         className
       )}
@@ -163,9 +180,14 @@ export function SidebarGroup({
   children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
+  const { isCollapsed } = useSidebar()
   return (
     <div
-      className={cn("px-2 py-2", className)}
+      className={cn(
+        "py-2",
+        isCollapsed ? "px-1" : "px-2",
+        className
+      )}
       {...props}
     >
       {children}
