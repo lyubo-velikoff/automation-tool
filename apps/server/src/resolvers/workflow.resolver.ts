@@ -87,11 +87,12 @@ export class WorkflowResolver {
       throw new Error("Supabase client not initialized");
     }
 
-    // First, get all workflows
+    // First, get all workflows ordered by created_at desc
     const { data: workflows, error } = await ctx.supabase
       .from("workflows")
       .select("*")
-      .eq("user_id", ctx.user.id);
+      .eq("user_id", ctx.user.id)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
     if (!workflows) return [];
