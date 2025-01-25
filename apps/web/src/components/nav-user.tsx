@@ -25,6 +25,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/layout/sidebar"
+import { Button } from "@/components/ui/inputs/button"
+import { Switch } from "@/components/ui/inputs/switch"
 
 export function NavUser({
   user,
@@ -53,73 +55,44 @@ export function NavUser({
       )}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size={isCollapsed ? "default" : "lg"}
-              className={cn(
-                "w-full",
-                isCollapsed && "h-9 w-9 p-0"
-              )}
-              tooltip={isCollapsed ? user.name : undefined}
-            >
-              <div className="flex h-9 w-9 items-center justify-center">
-                <Avatar className={cn("rounded-lg", isCollapsed ? "h-6 w-6" : "h-8 w-8")}>
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">
-                    {user.name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+            <Button variant="ghost" className="w-full h-12 px-3">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name[0]}</AvatarFallback>
+              </Avatar>
               {!isCollapsed && (
-                <div className="flex-1 text-left">
-                  <p className="truncate text-sm font-semibold leading-tight">{user.name}</p>
-                  <p className="truncate text-xs leading-tight text-muted-foreground">{user.email}</p>
+                <div className="flex flex-col flex-1 space-y-1 items-start ml-3">
+                  <p className="text-sm font-medium">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
               )}
-            </SidebarMenuButton>
+            </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
-            align="end"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-2 py-1.5">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">
-                    {user.name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold leading-tight">{user.name}</p>
-                  <p className="text-xs leading-tight text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-            </DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/profile")}>
+            <DropdownMenuItem>
               <UserIcon className="mr-2 h-4 w-4" />
-              Profile
+              <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault()
-                setTheme(theme === "dark" ? "light" : "dark")
-              }}
-              onSelect={(e) => e.preventDefault()}
-            >
-              {theme === "dark" ? (
-                <Sun className="mr-2 h-4 w-4" />
-              ) : (
-                <Moon className="mr-2 h-4 w-4" />
-              )}
-              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+              <div className="flex items-center">
+                {theme === "dark" ? (
+                  <Moon className="mr-2 h-4 w-4" />
+                ) : (
+                  <Sun className="mr-2 h-4 w-4" />
+                )}
+                <span>Dark Mode</span>
+              </div>
+              <Switch
+                checked={theme === "dark"}
+                onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+              />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
-              Log out
+              <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
