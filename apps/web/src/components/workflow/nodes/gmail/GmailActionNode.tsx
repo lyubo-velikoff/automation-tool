@@ -28,13 +28,12 @@ interface GmailNodeData {
   subject?: string;
   body?: string;
   label?: string;
+  onConfigChange?: (nodeId: string, data: GmailNodeData) => void;
 }
 
 interface GmailActionNodeProps {
   id: string;
-  data: GmailNodeData & {
-    onConfigChange: (nodeId: string, data: GmailNodeData) => void;
-  };
+  data: GmailNodeData;
 }
 
 const GmailIcon = memo(() => <Mail className='h-4 w-4' />);
@@ -57,7 +56,7 @@ function VariablePicker({ nodeId, data }: VariablePickerProps) {
     const newBody = data.body || "";
     const updatedBody = newBody + variable;
 
-    data.onConfigChange(nodeId, {
+    data.onConfigChange?.(nodeId, {
       ...data,
       body: updatedBody
     });
@@ -102,7 +101,7 @@ function NodeContent({ id, data }: GmailActionNodeProps) {
           <Input
             value={data.label || ""}
             onChange={(e) =>
-              data.onConfigChange(id, { ...data, label: e.target.value })
+              data.onConfigChange?.(id, { ...data, label: e.target.value })
             }
             placeholder='Node Label'
           />
@@ -112,7 +111,7 @@ function NodeContent({ id, data }: GmailActionNodeProps) {
           <Input
             value={data.to || ""}
             onChange={(e) =>
-              data.onConfigChange(id, { ...data, to: e.target.value })
+              data.onConfigChange?.(id, { ...data, to: e.target.value })
             }
             placeholder='recipient@example.com'
           />
@@ -122,7 +121,7 @@ function NodeContent({ id, data }: GmailActionNodeProps) {
           <Input
             value={data.subject || ""}
             onChange={(e) =>
-              data.onConfigChange(id, { ...data, subject: e.target.value })
+              data.onConfigChange?.(id, { ...data, subject: e.target.value })
             }
             placeholder='Email subject'
           />
@@ -132,7 +131,7 @@ function NodeContent({ id, data }: GmailActionNodeProps) {
           <Textarea
             value={data.body || ""}
             onChange={(e) =>
-              data.onConfigChange(id, { ...data, body: e.target.value })
+              data.onConfigChange?.(id, { ...data, body: e.target.value })
             }
             placeholder='Email body'
             className='min-h-[100px] mb-2'
@@ -228,7 +227,7 @@ export default function GmailActionNode({ id, data }: GmailActionNodeProps) {
               className={cn(
                 "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
                 "hover:bg-muted/80 active:bg-muted/70",
-                data.label && "ring-2 ring-green-500/50"
+                data.to && data.subject && "ring-2 ring-green-500/50"
               )}
             >
               <GmailIcon />

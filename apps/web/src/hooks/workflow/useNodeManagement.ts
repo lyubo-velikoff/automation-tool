@@ -41,12 +41,13 @@ export function useNodeManagement() {
   // Sync with context when nodes change
   useEffect(() => {
     if (contextNodes?.length) {
-      const nodesWithHandlers = contextNodes.map(node => {
+      const nodesWithHandlers = contextNodes.map((node: Node<NodeData> & { label?: string }) => {
         const handler = createConfigChangeHandler(node.id);
         return {
           ...node,
           data: {
             ...node.data,
+            label: node.label || node.data?.label,
             onConfigChange: handler
           }
         };
@@ -163,7 +164,8 @@ export function useNodeManagement() {
       const updatedNodes = nodesRef.current.map((n) => {
         if (n.id === initialNodeId) {
           return { 
-            ...n, 
+            ...n,
+            label: newData.label,
             data: { 
               ...newData,
               onConfigChange: n.data.onConfigChange 
@@ -187,8 +189,12 @@ export function useNodeManagement() {
         type,
         position: { x: 100, y: 100 },
         data: { 
+          onConfigChange: handler,
           label: `${type} Node`,
-          onConfigChange: handler
+          ...(type === 'GMAIL_ACTION' && { to: '', subject: '', body: '' }),
+          ...(type === 'GMAIL_TRIGGER' && { fromFilter: '', subjectFilter: '', pollingInterval: 5 }),
+          ...(type === 'SCRAPING' && { url: '', selector: '', selectorType: 'css', attribute: 'text' }),
+          ...(type === 'OPENAI' && { prompt: '', model: 'gpt-3.5-turbo', maxTokens: 100 })
         }
       } as Node<NodeData>;
 

@@ -397,11 +397,12 @@ export class WorkflowResolver {
       
       // Find node ID by label in the context
       const nodeEntry = Object.entries(context.nodeResults).find(([_, value]) => 
-        value && typeof value === 'object' && value.label === nodeLabel
+        value && typeof value === 'object' && 
+        (value.label === nodeLabel || value.data?.label === nodeLabel)
       );
 
       if (nodeEntry) {
-        const [nodeId, nodeData] = nodeEntry;
+        const [_, nodeData] = nodeEntry;
         if (field === 'results') {
           const results = nodeData.results;
           if (Array.isArray(results)) {
@@ -409,26 +410,26 @@ export class WorkflowResolver {
           }
           return String(results);
         }
-        return String(nodeData[field] || '');
+        return String(nodeData[field] || nodeData.data?.[field] || '');
       }
 
       // Fallback to node ID if label not found
       const nodeId = nodeLabel;
       if (context.nodeResults[nodeId]) {
         if (field === 'results') {
-          const results = context.nodeResults[nodeId];
+          const results = context.nodeResults[nodeId].results;
           if (Array.isArray(results)) {
             return results.join('\n');
           }
           return String(results);
         }
-        return String(context.nodeResults[nodeId][field] || '');
+        return String(context.nodeResults[nodeId][field] || context.nodeResults[nodeId].data?.[field] || '');
       }
 
       console.log('No results found for node:', nodeLabel, 'Available nodes:', 
         Object.entries(context.nodeResults).map(([id, data]) => ({
           id,
-          label: data?.label || id
+          label: data?.label || data?.data?.label || id
         }))
       );
       return match; // Keep original if not found
@@ -512,6 +513,7 @@ export class WorkflowResolver {
         ...context.nodeResults,
         [node.id]: {
           label: node.data?.label || node.type,
+          data: node.data, // Store full node data
           results: result.results || result
         }
       };

@@ -71,31 +71,32 @@ export function useWorkflowHandlers() {
       return;
     }
 
-    const cleanNodes = nodes.map(node => ({
-      id: node.id,
-      type: node.type,
-      label: node.data?.label || node.type,
-      position: {
-        x: node.position.x,
-        y: node.position.y
-      },
-      data: {
-        pollingInterval: node.data?.pollingInterval,
-        fromFilter: node.data?.fromFilter,
-        subjectFilter: node.data?.subjectFilter,
-        to: node.data?.to,
-        subject: node.data?.subject,
-        body: node.data?.body,
-        prompt: node.data?.prompt,
-        model: node.data?.model,
-        maxTokens: node.data?.maxTokens,
-        url: node.data?.url,
-        selector: node.data?.selector,
-        selectorType: node.data?.selectorType,
-        attribute: node.data?.attribute,
-        label: node.data?.label
-      }
-    }));
+    // Clean nodes while preserving all data fields except __typename and ReactFlow fields
+    const cleanNodes = nodes.map(node => {
+      // Get a clean copy of the data without special fields
+      const cleanData = { ...node.data };
+      delete cleanData.__typename;
+      delete cleanData.onConfigChange;
+      delete cleanData.selected;
+      delete cleanData.dragging;
+      
+      // Keep label in both places for backward compatibility
+      const label = cleanData.label || node.data?.label;
+
+      return {
+        id: node.id,
+        type: node.type,
+        label,  // Put label at node level
+        position: {
+          x: node.position.x,
+          y: node.position.y
+        },
+        data: {
+          ...cleanData,
+          label  // Keep label in data as well
+        }
+      };
+    });
 
     const cleanEdges = edges.map(edge => ({
       id: edge.id,
