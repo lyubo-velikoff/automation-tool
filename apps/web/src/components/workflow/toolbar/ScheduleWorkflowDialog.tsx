@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useMutation } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { START_TIMED_WORKFLOW, STOP_TIMED_WORKFLOW } from "@/graphql/mutations";
+import { IS_WORKFLOW_SCHEDULED } from "@/graphql/queries";
 import { Button } from "@/components/ui/inputs/button";
 import {
   Dialog,
@@ -26,7 +27,17 @@ export function ScheduleWorkflowDialog({
 }: ScheduleWorkflowDialogProps) {
   const { workflowId, nodes, edges } = useWorkflow();
   const [intervalMinutes, setIntervalMinutes] = useState("15");
-  const [isScheduled, setIsScheduled] = useState(false);
+
+  // Query to check if workflow is scheduled, only when dialog is opened
+  const {
+    data: scheduleData,
+    loading: scheduleLoading,
+    refetch
+  } = useQuery(IS_WORKFLOW_SCHEDULED, {
+    variables: { workflowId },
+    skip: !workflowId || !open,
+    fetchPolicy: "network-only" // Always fetch fresh data when opened
+  });
 
   const [startWorkflow] = useMutation(START_TIMED_WORKFLOW, {
     onCompleted: () => {
@@ -34,7 +45,8 @@ export function ScheduleWorkflowDialog({
         title: "Workflow Scheduled",
         description: `Workflow will run every ${intervalMinutes} minutes`
       });
-      setIsScheduled(true);
+      refetch(); // Refetch status after scheduling
+      onOpenChange(false);
     },
     onError: (error) => {
       toast({
@@ -51,7 +63,7 @@ export function ScheduleWorkflowDialog({
         title: "Workflow Stopped",
         description: "The scheduled workflow has been stopped"
       });
-      setIsScheduled(false);
+      refetch(); // Refetch status after stopping
     },
     onError: (error) => {
       toast({
@@ -73,23 +85,31 @@ export function ScheduleWorkflowDialog({
       return;
     }
 
-    // Restructure nodes to match backend schema
-    const formattedNodes = nodes.map((node) => ({
-      id: node.id,
-      type: node.type,
-      label: node.data.label || "Untitled Node",
-      position: node.position,
-      data: {
-        ...node.data,
-        label: undefined // Remove label from data since it's now at root level
-      }
-    }));
+    // Clean nodes by removing __typename and restructuring
+    const formattedNodes = nodes.map((node) => {
+      const { data, position, ...rest } = node;
+      const cleanedData = { ...data };
+      delete cleanedData.__typename;
+
+      return {
+        ...rest,
+        label: data.label || "Untitled Node",
+        position: {
+          x: position.x,
+          y: position.y
+        },
+        data: cleanedData
+      };
+    });
+
+    // Clean edges by removing __typename
+    const formattedEdges = edges.map(({ __typename, ...edge }) => edge);
 
     await startWorkflow({
       variables: {
         workflowId,
         nodes: formattedNodes,
-        edges,
+        edges: formattedEdges,
         intervalMinutes: minutes
       }
     });
@@ -105,13 +125,24 @@ export function ScheduleWorkflowDialog({
 
   if (!workflowId) return null;
 
+  const isScheduled = scheduleData?.isWorkflowScheduled;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (isOpen) {
+          refetch(); // Refetch status when dialog is opened
+        }
+        onOpenChange(isOpen);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Schedule Workflow</DialogTitle>
           <DialogDescription>
             Set up automatic execution of your workflow at regular intervals.
+            {scheduleLoading && " (Checking status...)"}
           </DialogDescription>
         </DialogHeader>
         <div className='grid gap-4 py-4'>
@@ -129,6 +160,11 @@ export function ScheduleWorkflowDialog({
               disabled={isScheduled}
             />
           </div>
+          {isScheduled && (
+            <div className='text-sm text-muted-foreground'>
+              This workflow is currently scheduled and running.
+            </div>
+          )}
         </div>
         <DialogFooter>
           {!isScheduled ? (
