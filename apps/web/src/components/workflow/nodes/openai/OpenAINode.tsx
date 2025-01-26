@@ -175,7 +175,7 @@ function OpenAINode({
                 <div className='space-y-2'>
                   <Label>Model</Label>
                   <Select
-                    value={data?.model || "gpt-3.5-turbo"}
+                    value={data?.model || "gpt-4o"}
                     onValueChange={(value) =>
                       handleConfigChange("model", value)
                     }
@@ -184,10 +184,11 @@ function OpenAINode({
                       <SelectValue placeholder='Select a model' />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value='gpt-3.5-turbo'>
-                        GPT-3.5 Turbo
-                      </SelectItem>
-                      <SelectItem value='gpt-4'>GPT-4</SelectItem>
+                      <SelectItem value='gpt-4o'>GPT-4 Optimized</SelectItem>
+                      <SelectItem value='gpt-4o-mini'>GPT-4 Mini</SelectItem>
+                      <SelectItem value='dall-e-2'>DALL-E 2</SelectItem>
+                      <SelectItem value='dall-e-3'>DALL-E 3</SelectItem>
+                      <SelectItem value='whisper-1'>Whisper-1</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -64,25 +64,19 @@ export class OpenAIService {
       }
 
       return completion.choices[0].message.content;
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      if (error instanceof Error) {
-        // Check for specific OpenAI error types
-        if ('status' in error) {
-          switch ((error as any).status) {
-            case 401:
-              throw new Error('Invalid OpenAI API key');
-            case 429:
-              throw new Error('OpenAI rate limit exceeded');
-            case 500:
-              throw new Error('OpenAI service error');
-            default:
-              throw new Error(`OpenAI error: ${error.message}`);
-          }
+    } catch (error: any) {
+      // Handle specific OpenAI error types
+      if (error.error?.type === 'invalid_request_error') {
+        if (error.error?.code === 'model_not_found') {
+          throw new Error(`Model access error: ${error.error.message}`);
         }
-        throw new Error(`OpenAI error: ${error.message}`);
       }
-      throw new Error('Unknown error occurred while generating completion');
+      
+      // Log the full error for debugging
+      console.error('OpenAI API Error:', error);
+      
+      // Throw a more specific error message
+      throw new Error(`OpenAI error: ${error.status || 500} ${error.error?.message || error.message || 'Unknown error'}`);
     }
   }
 } 

@@ -601,6 +601,9 @@ export class WorkflowResolver {
       case 'GMAIL_ACTION':
         return ['Email sent successfully'];
       case 'OPENAI':
+        if (!result.success) {
+          throw new Error(result.results[0]); // Propagate the error message
+        }
         return result.results || [];
       default:
         return [];
@@ -859,13 +862,13 @@ export class WorkflowResolver {
 
       return {
         success: true,
-        result
+        results: [result]
       };
     } catch (error) {
       console.error('OpenAI node execution error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        results: [error instanceof Error ? error.message : 'Unknown error']
       };
     }
   }

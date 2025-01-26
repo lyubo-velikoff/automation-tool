@@ -195,10 +195,10 @@ export function useNodeManagement() {
           ...(type === 'GMAIL_TRIGGER' && { fromFilter: '', subjectFilter: '', pollingInterval: 5 }),
           ...(type === 'SCRAPING' && { url: '', selector: '', selectorType: 'css', attribute: 'text' }),
           ...(type === 'OPENAI' && { 
-            template: '', 
-            model: 'gpt-3.5-turbo', 
+            prompt: '', 
+            model: 'gpt-4o', 
             maxTokens: 100,
-            temperature: 0.7
+            temperature: 0.7 
           })
         }
       } as Node<NodeData>;
