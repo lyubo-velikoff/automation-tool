@@ -48,6 +48,7 @@
     "limiter": "^2.1.0",
     "node-fetch": "^2.7.0",
     "openai": "^4.24.7",
+    "puppeteer": "^24.1.1",
     "rate-limiter-flexible": "^5.0.5",
     "reactflow": "^11.11.4",
     "reflect-metadata": "^0.2.1",

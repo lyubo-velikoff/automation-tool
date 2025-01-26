@@ -128,12 +128,12 @@ function WebScrapingNode({
       };
 
       // For selectors, we need to flatten the structure back for GraphQL
-      if (key === "selectors" && Array.isArray(value) && value.length > 0) {
-        const firstSelector = value[0] as SelectorConfig;
+      if (key === "selectors") {
+        const firstSelector = (Array.isArray(value) && value[0]) || {};
         const graphqlData = newData as GraphQLNodeData;
-        graphqlData.selector = firstSelector.selector;
-        graphqlData.selectorType = firstSelector.selectorType;
-        graphqlData.attributes = firstSelector.attributes;
+        graphqlData.selector = firstSelector.selector || "";
+        graphqlData.selectorType = firstSelector.selectorType || "css";
+        graphqlData.attributes = firstSelector.attributes || ["text"];
       }
 
       onConfigChange(id || "", newData);

@@ -35,16 +35,6 @@ export class NodeData {
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
 
-  // OpenAI fields
-  @Field(() => String, { nullable: true })
-  prompt?: string;
-
-  @Field(() => String, { nullable: true })
-  model?: string;
-
-  @Field(() => Number, { nullable: true })
-  maxTokens?: number;
-
   // Scraping fields
   @Field(() => String, { nullable: true })
   url?: string;

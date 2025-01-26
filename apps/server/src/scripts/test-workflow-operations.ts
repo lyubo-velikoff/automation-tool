@@ -186,27 +186,47 @@ async function testWorkflowOperations() {
 
   // Test 1: Create Workflow
   console.log('\n1. Testing workflow creation...');
-  const workflowInput = {
+  const createResult = await runGraphQLQuery(CREATE_WORKFLOW, {
     input: {
-      name: 'Test Operations Workflow',
-      description: 'A workflow for testing CRUD operations',
-      nodes: [{
-        id: '1',
-        type: 'SCRAPING',
-        label: 'Web Scraping',
-        position: { x: 0, y: 0 },
-        data: {
-          url: 'https://example.com',
-          selector: 'h1',
-          selectorType: 'css',
-          attributes: ['text']
+      name: 'Test Multi-Node Workflow',
+      description: 'A workflow with multiple connected nodes',
+      nodes: [
+        {
+          id: '1',
+          type: 'SCRAPING',
+          label: 'First Scraper',
+          position: { x: 0, y: 0 },
+          data: {
+            url: 'https://example.com',
+            selector: 'h1',
+            selectorType: 'css',
+            attributes: ['text'],
+            template: '{text}'
+          }
+        },
+        {
+          id: '2', 
+          type: 'SCRAPING',
+          label: 'Second Scraper',
+          position: { x: 300, y: 0 },
+          data: {
+            url: 'https://github.com/trending',
+            selector: 'h2.h3.lh-condensed',
+            selectorType: 'css',
+            attributes: ['text'],
+            template: '{text}'
+          }
         }
-      }],
-      edges: []
+      ],
+      edges: [
+        {
+          id: 'e1-2',
+          source: '1',
+          target: '2'
+        }
+      ]
     }
-  };
-
-  const createResult = await runGraphQLQuery(CREATE_WORKFLOW, workflowInput, token);
+  }, token);
   if (!createResult) {
     console.log('❌ Failed to create workflow');
     return;

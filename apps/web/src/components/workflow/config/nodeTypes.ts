@@ -12,11 +12,6 @@ export interface NodeData {
   subjectFilter?: string;
   pollingInterval?: string | number;
 
-  // OpenAI fields
-  prompt?: string;
-  model?: string;
-  maxTokens?: string | number;
-
   // Scraping fields
   url?: string;
   selector?: string;
@@ -28,12 +23,10 @@ export interface NodeData {
   label?: string;
 } 
 
-
 // Memoized node component
 export const NODE_TYPES = {
   GMAIL_ACTION: GmailActionNode,
   GMAIL_TRIGGER: GmailTriggerNode,
-  OPENAI: BasicNode,
   SCRAPING: WebScrapingNode,
   default: BasicNode
 } as const;

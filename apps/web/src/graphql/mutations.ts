@@ -13,18 +13,6 @@ export const CREATE_WORKFLOW = gql`
   ${WORKFLOW_FIELDS}
 `;
 
-export const GENERATE_COMPLETION = gql`
-  mutation GenerateCompletion($data: CompletionNodeData!) {
-    generateCompletion(data: $data)
-  }
-`;
-
-export const VALIDATE_OPENAI_CONNECTION = gql`
-  mutation ValidateOpenAIConnection($apiKey: String!) {
-    validateOpenAIConnection(apiKey: $apiKey)
-  }
-`;
-
 export const EXECUTE_WORKFLOW = gql`
   mutation ExecuteWorkflow($workflowId: String!) {
     executeWorkflow(workflowId: $workflowId) {
@@ -68,8 +56,8 @@ export const DELETE_WORKFLOW = gql`
 `;
 
 export const DUPLICATE_WORKFLOW = gql`
-  mutation DuplicateWorkflow($workflowId: String!) {
-    duplicateWorkflow(workflowId: $workflowId) {
+  mutation DuplicateWorkflow($id: ID!) {
+    duplicateWorkflow(id: $id) {
       ...WorkflowFields
     }
   }

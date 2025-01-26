@@ -16,7 +16,6 @@ import {
 } from "../schema/workflow-inputs";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
-import OpenAI from 'openai';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../integrations/gmail/config';
 import { ScrapingService } from '../services/scraping.service';
@@ -41,11 +40,6 @@ interface GmailTriggerResult {
 
 interface GmailActionResult {
   sent: boolean;
-}
-
-interface OpenAIResult {
-  completion: string | null;
-  usage?: any;
 }
 
 interface ScrapingResult {
@@ -77,6 +71,30 @@ class ExecutionResult {
 
   @Field(() => [NodeResult], { nullable: true })
   results?: NodeResult[];
+}
+
+@ObjectType()
+class WorkflowTemplate {
+  @Field(() => ID)
+  id!: string;
+
+  @Field()
+  name!: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field(() => [WorkflowNode])
+  nodes!: WorkflowNode[];
+
+  @Field(() => [WorkflowEdge])
+  edges!: WorkflowEdge[];
+
+  @Field()
+  created_at!: Date;
+
+  @Field()
+  updated_at!: Date;
 }
 
 @Resolver(Workflow)
@@ -117,9 +135,9 @@ export class WorkflowResolver {
     }));
   }
 
-  @Query(() => [WorkflowExecution])
+  @Query(() => [WorkflowTemplate])
   @Authorized()
-  async workflowTemplates(@Ctx() ctx: Context): Promise<WorkflowExecution[]> {
+  async workflowTemplates(@Ctx() ctx: Context): Promise<WorkflowTemplate[]> {
     const { data: templates, error } = await ctx.supabase
       .from("workflow_templates")
       .select("*")
@@ -244,12 +262,6 @@ export class WorkflowResolver {
         data: {
           ...node.data,
           label: node.data?.label || node.label,
-          // Preserve all node-specific fields
-          url: node.data?.url,
-          selector: node.data?.selector,
-          selectorType: node.data?.selectorType,
-          attributes: node.data?.attributes,
-          template: node.data?.template,
           // Gmail fields
           pollingInterval: node.data?.pollingInterval,
           fromFilter: node.data?.fromFilter,
@@ -257,10 +269,12 @@ export class WorkflowResolver {
           to: node.data?.to,
           subject: node.data?.subject,
           body: node.data?.body,
-          // OpenAI fields
-          prompt: node.data?.prompt,
-          model: node.data?.model,
-          maxTokens: node.data?.maxTokens
+          // Scraping fields
+          url: node.data?.url,
+          selector: node.data?.selector,
+          selectorType: node.data?.selectorType,
+          attributes: node.data?.attributes,
+          template: node.data?.template
         }
       }));
     }
@@ -527,12 +541,6 @@ export class WorkflowResolver {
     });
   }
 
-  private async executeOpenAICompletion(node: WorkflowNode): Promise<any> {
-    // TODO: Implement OpenAI completion logic
-    console.log('Generating AI response...');
-    return {};
-  }
-
   private async executeScrapingNode(node: WorkflowNode): Promise<any> {
     console.log('Executing scraping node with data:', JSON.stringify(node.data, null, 2));
 
@@ -582,8 +590,6 @@ export class WorkflowResolver {
         return ['Workflow started'];
       case 'SCRAPING':
         return result.results || [];
-      case 'openaiCompletion':
-        return [result.completion || ''];
       case 'GMAIL_TRIGGER':
         return result.emails?.map((e: any) => e.snippet || '') || [];
       case 'GMAIL_ACTION':
@@ -787,9 +793,6 @@ export class WorkflowResolver {
         case 'GMAIL_ACTION':
           result = await this.executeGmailAction(node, context.token, nodeContext);
           break;
-        case 'OPENAI':
-          result = await this.executeOpenAICompletion(node);
-          break;
         case 'SCRAPING':
           result = await this.executeScrapingNode(node);
           break;
@@ -924,56 +927,54 @@ export class WorkflowResolver {
   @Mutation(() => Workflow)
   @Authorized()
   async duplicateWorkflow(
-    @Arg("workflowId") workflowId: string,
-    @Ctx() context: any
+    @Arg("id", () => ID) id: string,
+    @Ctx() context: Context
   ): Promise<Workflow> {
     try {
+      const { supabase } = context;
+
       // Get the original workflow
-      const { data: originalWorkflow, error: workflowError } = await supabase
+      const { data: workflow, error: fetchError } = await supabase
         .from("workflows")
         .select("*")
-        .eq("id", workflowId)
+        .eq("id", id)
         .eq("user_id", context.user.id)
-        .eq("is_active", true)  // Only return active workflows
+        .eq("is_active", true)
         .single();
 
-      if (workflowError) throw workflowError;
-      if (!originalWorkflow) throw new Error("Workflow not found");
+      if (fetchError) throw fetchError;
+      if (!workflow) throw new Error("Workflow not found");
 
-      // Create a copy with a new name, preserving necessary data
+      // Create timestamp for unique node IDs
       const timestamp = Date.now();
+
+      // Create new workflow object
+      const { id: _, ...workflowWithoutId } = workflow;
       const newWorkflow = {
-        name: `${originalWorkflow.name} (Copy)`,
-        description: originalWorkflow.description,
-        nodes: originalWorkflow.nodes.map((node: WorkflowNode) => {
-          const newNodeId = `${node.id}-copy-${timestamp}`;
-          return {
-            ...node,
-            id: newNodeId,
-            data: {
-              ...node.data,
-              label: node.data?.label || node.label,
-              // Preserve all node-specific fields
-              url: node.data?.url,
-              selector: node.data?.selector,
-              selectorType: node.data?.selectorType,
-              attributes: node.data?.attributes,
-              template: node.data?.template,
-              // Gmail fields
-              pollingInterval: node.data?.pollingInterval,
-              fromFilter: node.data?.fromFilter,
-              subjectFilter: node.data?.subjectFilter,
-              to: node.data?.to,
-              subject: node.data?.subject,
-              body: node.data?.body,
-              // OpenAI fields
-              prompt: node.data?.prompt,
-              model: node.data?.model,
-              maxTokens: node.data?.maxTokens
-            }
-          };
-        }),
-        edges: originalWorkflow.edges.map((edge: WorkflowEdge) => ({
+        ...workflowWithoutId,
+        name: `${workflow.name} (Copy)`,
+        nodes: workflow.nodes.map((node: WorkflowNode) => ({
+          ...node,
+          id: `${node.id}-copy-${timestamp}`,
+          data: {
+            ...node.data,
+            label: node.data?.label || node.label,
+            // Gmail fields
+            pollingInterval: node.data?.pollingInterval,
+            fromFilter: node.data?.fromFilter,
+            subjectFilter: node.data?.subjectFilter,
+            to: node.data?.to,
+            subject: node.data?.subject,
+            body: node.data?.body,
+            // Scraping fields
+            url: node.data?.url,
+            selector: node.data?.selector,
+            selectorType: node.data?.selectorType,
+            attributes: node.data?.attributes,
+            template: node.data?.template
+          }
+        })),
+        edges: workflow.edges.map((edge: WorkflowEdge) => ({
           ...edge,
           id: `${edge.id}-copy-${timestamp}`,
           source: `${edge.source}-copy-${timestamp}`,
@@ -1037,11 +1038,11 @@ export class WorkflowResolver {
     return true;
   }
 
-  @Mutation(() => WorkflowExecution)
+  @Mutation(() => WorkflowTemplate)
   async saveWorkflowAsTemplate(
     @Arg("input") input: SaveAsTemplateInput,
     @Ctx() ctx: Context
-  ): Promise<WorkflowExecution> {
+  ): Promise<WorkflowTemplate> {
     // Get the workflow
     const { data: workflow, error: workflowError } = await ctx.supabase
       .from("workflows")

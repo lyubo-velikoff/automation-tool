@@ -68,16 +68,30 @@ async function testGraphQLScraper() {
     );
 
     // Test Case 2: GitHub Trending Repositories
+    const githubTrendingConfig = {
+      url: 'https://github.com/trending',
+      selectors: [
+        {
+          selector: 'h2.h3.lh-condensed',
+          selectorType: 'css',
+          attributes: ['text'],
+          name: 'Repository Names',
+          transform: (text: string) => text.replace(/\s+/g, ' ').trim()
+        },
+        {
+          selector: 'span[itemprop="programmingLanguage"]',
+          selectorType: 'css', 
+          attributes: ['text'],
+          name: 'Programming Languages'
+        }
+      ],
+      outputTemplate: '- {text}'
+    };
     await runTest(
       '2. Testing GitHub trending repositories',
-      'https://github.com/trending',
-      [{
-        selector: 'h2.h3.lh-condensed',
-        selectorType: 'css',
-        attributes: ['text'],
-        name: 'Repository Names'
-      }],
-      '- {text}'
+      githubTrendingConfig.url,
+      githubTrendingConfig.selectors,
+      githubTrendingConfig.outputTemplate
     );
 
     // Test Case 3: GitHub Trending with Links

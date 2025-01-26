@@ -10,10 +10,6 @@ export const WORKFLOW_NODE_DATA_FIELDS = gql`
     to
     subject
     body
-    # OpenAI fields
-    prompt
-    model
-    maxTokens
     # Scraping fields
     url
     selector

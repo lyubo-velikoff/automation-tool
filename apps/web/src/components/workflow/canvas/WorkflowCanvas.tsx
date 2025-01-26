@@ -9,7 +9,6 @@ import ReactFlow, {
   ReactFlowProvider
 } from "reactflow";
 import "reactflow/dist/style.css";
-import OpenAISettingsDialog from "@/components/ui/feedback/OpenAISettingsDialog";
 import { ScheduleWorkflowDialog } from "../toolbar/ScheduleWorkflowDialog";
 import { useNodeManagement } from "@/hooks/workflow/useNodeManagement";
 import { NODE_TYPES } from "../config/nodeTypes";
@@ -34,7 +33,6 @@ function WorkflowCanvas({
   onExecute,
   onSchedule
 }: WorkflowCanvasProps) {
-  const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
 
   const {
@@ -108,10 +106,6 @@ function WorkflowCanvas({
         <ScheduleWorkflowDialog
           open={scheduleDialogOpen}
           onOpenChange={setScheduleDialogOpen}
-        />
-        <OpenAISettingsDialog
-          open={openAISettingsOpen}
-          onOpenChange={setOpenAISettingsOpen}
         />
       </div>
     </ReactFlowProvider>

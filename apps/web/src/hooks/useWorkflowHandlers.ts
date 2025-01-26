@@ -87,23 +87,17 @@ export function useWorkflowHandlers() {
       if (node.type === 'SCRAPING') {
         const scrapingData = {
           label,
-          url: cleanData.url,
-          // Map first selector's properties to top-level fields
+          url: cleanData.url || "",
           selector: cleanData.selectors?.[0]?.selector || "",
           selectorType: cleanData.selectors?.[0]?.selectorType || "css",
-          attributes: cleanData.selectors?.[0]?.attributes || [],
-          // Use template directly
-          template: cleanData.template,
-          // Include null fields required by GraphQL schema
+          attributes: cleanData.selectors?.[0]?.attributes || ["text"],
+          template: cleanData.template || "",
           pollingInterval: null,
           fromFilter: null,
           subjectFilter: null,
           to: null,
           subject: null,
-          body: null,
-          prompt: null,
-          model: null,
-          maxTokens: null
+          body: null
         };
         return {
           id: node.id,
@@ -216,7 +210,7 @@ export function useWorkflowHandlers() {
   const handleDuplicate = async (workflowId: string) => {
     try {
       const { data } = await duplicateWorkflow({
-        variables: { workflowId },
+        variables: { id: workflowId },
         refetchQueries: [{ query: GET_WORKFLOWS }]
       });
 
