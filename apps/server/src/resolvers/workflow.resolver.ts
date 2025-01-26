@@ -238,7 +238,32 @@ export class WorkflowResolver {
     if (typeof input.name === "string") updateData.name = input.name;
     if (typeof input.description === "string")
       updateData.description = input.description;
-    if (Array.isArray(input.nodes)) updateData.nodes = input.nodes;
+    if (Array.isArray(input.nodes)) {
+      updateData.nodes = input.nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          label: node.data?.label || node.label,
+          // Preserve all node-specific fields
+          url: node.data?.url,
+          selector: node.data?.selector,
+          selectorType: node.data?.selectorType,
+          attributes: node.data?.attributes,
+          template: node.data?.template,
+          // Gmail fields
+          pollingInterval: node.data?.pollingInterval,
+          fromFilter: node.data?.fromFilter,
+          subjectFilter: node.data?.subjectFilter,
+          to: node.data?.to,
+          subject: node.data?.subject,
+          body: node.data?.body,
+          // OpenAI fields
+          prompt: node.data?.prompt,
+          model: node.data?.model,
+          maxTokens: node.data?.maxTokens
+        }
+      }));
+    }
     if (Array.isArray(input.edges)) updateData.edges = input.edges;
     if (typeof input.is_active === "boolean")
       updateData.is_active = input.is_active;
@@ -916,18 +941,43 @@ export class WorkflowResolver {
       if (!originalWorkflow) throw new Error("Workflow not found");
 
       // Create a copy with a new name, preserving necessary data
+      const timestamp = Date.now();
       const newWorkflow = {
         name: `${originalWorkflow.name} (Copy)`,
         description: originalWorkflow.description,
-        nodes: originalWorkflow.nodes.map((node: WorkflowNode) => ({
-          ...node,
-          id: `${node.id}-copy-${Date.now()}` // Ensure unique node IDs
-        })),
+        nodes: originalWorkflow.nodes.map((node: WorkflowNode) => {
+          const newNodeId = `${node.id}-copy-${timestamp}`;
+          return {
+            ...node,
+            id: newNodeId,
+            data: {
+              ...node.data,
+              label: node.data?.label || node.label,
+              // Preserve all node-specific fields
+              url: node.data?.url,
+              selector: node.data?.selector,
+              selectorType: node.data?.selectorType,
+              attributes: node.data?.attributes,
+              template: node.data?.template,
+              // Gmail fields
+              pollingInterval: node.data?.pollingInterval,
+              fromFilter: node.data?.fromFilter,
+              subjectFilter: node.data?.subjectFilter,
+              to: node.data?.to,
+              subject: node.data?.subject,
+              body: node.data?.body,
+              // OpenAI fields
+              prompt: node.data?.prompt,
+              model: node.data?.model,
+              maxTokens: node.data?.maxTokens
+            }
+          };
+        }),
         edges: originalWorkflow.edges.map((edge: WorkflowEdge) => ({
           ...edge,
-          id: `${edge.id}-copy-${Date.now()}`, // Ensure unique edge IDs
-          source: `${edge.source}-copy-${Date.now()}`, // Update source to match new node IDs
-          target: `${edge.target}-copy-${Date.now()}` // Update target to match new node IDs
+          id: `${edge.id}-copy-${timestamp}`,
+          source: `${edge.source}-copy-${timestamp}`,
+          target: `${edge.target}-copy-${timestamp}`
         })),
         user_id: context.user.id,
         is_active: true

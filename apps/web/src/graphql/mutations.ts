@@ -1,52 +1,17 @@
 import { gql } from '@apollo/client';
+import {
+  WORKFLOW_FIELDS,
+  WORKFLOW_TAG_FIELDS
+} from './fragments';
 
 export const CREATE_WORKFLOW = gql`
   mutation CreateWorkflow($input: CreateWorkflowInput!) {
     createWorkflow(input: $input) {
-      id
-      name
-      description
-      nodes {
-        id
-        type
-        label
-        position {
-          x
-          y
-        }
-        data {
-          # Gmail fields
-          pollingInterval
-          fromFilter
-          subjectFilter
-          to
-          subject
-          body
-          # Scraping fields
-          url
-          selector
-          selectorType
-          attribute
-        }
-      }
-      edges {
-        id
-        source
-        target
-        sourceHandle
-        targetHandle
-      }
-      is_active
-      created_at
-      updated_at
-      tags {
-        id
-        name
-        color
-      }
+      ...WorkflowFields
     }
   }
-`; 
+  ${WORKFLOW_FIELDS}
+`;
 
 export const GENERATE_COMPLETION = gql`
   mutation GenerateCompletion($data: CompletionNodeData!) {
@@ -78,53 +43,11 @@ export const EXECUTE_WORKFLOW = gql`
 export const UPDATE_WORKFLOW = gql`
   mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
     updateWorkflow(input: $input) {
-      id
-      name
-      description
-      nodes {
-        id
-        type
-        label
-        position {
-          x
-          y
-        }
-        data {
-          pollingInterval
-          fromFilter
-          subjectFilter
-          to
-          subject
-          body
-          prompt
-          model
-          maxTokens
-          url
-          selector
-          selectorType
-          attribute
-          attributes
-          template
-        }
-      }
-      edges {
-        id
-        source
-        target
-        sourceHandle
-        targetHandle
-      }
-      is_active
-      created_at
-      updated_at
-      tags {
-        id
-        name
-        color
-      }
+      ...WorkflowFields
     }
   }
-`; 
+  ${WORKFLOW_FIELDS}
+`;
 
 export const START_TIMED_WORKFLOW = gql`
   mutation StartTimedWorkflow($workflowId: String!, $nodes: [WorkflowNodeInput!]!, $edges: [WorkflowEdgeInput!]!, $intervalMinutes: Int!) {
@@ -147,63 +70,19 @@ export const DELETE_WORKFLOW = gql`
 export const DUPLICATE_WORKFLOW = gql`
   mutation DuplicateWorkflow($workflowId: String!) {
     duplicateWorkflow(workflowId: $workflowId) {
-      id
-      name
-      description
-      nodes {
-        id
-        type
-        label
-        position {
-          x
-          y
-        }
-        data {
-          pollingInterval
-          fromFilter
-          subjectFilter
-          to
-          subject
-          body
-          prompt
-          model
-          maxTokens
-          url
-          selector
-          selectorType
-          attribute
-        }
-      }
-      edges {
-        id
-        source
-        target
-        sourceHandle
-        targetHandle
-      }
-      user_id
-      is_active
-      created_at
-      updated_at
-      tags {
-        id
-        name
-        color
-      }
+      ...WorkflowFields
     }
   }
-`; 
+  ${WORKFLOW_FIELDS}
+`;
 
 export const CREATE_WORKFLOW_TAG = gql`
   mutation CreateWorkflowTag($input: CreateWorkflowTagInput!) {
     createWorkflowTag(input: $input) {
-      id
-      name
-      color
-      created_at
-      updated_at
+      ...WorkflowTagFields
     }
   }
+  ${WORKFLOW_TAG_FIELDS}
 `;
 
 export const DELETE_WORKFLOW_TAG = gql`
@@ -213,46 +92,22 @@ export const DELETE_WORKFLOW_TAG = gql`
 `;
 
 export const SAVE_AS_TEMPLATE = gql`
-  mutation SaveAsTemplate($input: SaveAsTemplateInput!) {
-    saveAsTemplate(input: $input) {
+  mutation SaveWorkflowAsTemplate($input: SaveAsTemplateInput!) {
+    saveWorkflowAsTemplate(input: $input) {
       id
       name
       description
       nodes {
-        id
-        type
-        label
-        position {
-          x
-          y
-        }
-        data {
-          pollingInterval
-          fromFilter
-          subjectFilter
-          to
-          subject
-          body
-          prompt
-          model
-          maxTokens
-          url
-          selector
-          selectorType
-          attribute
-        }
+        ...WorkflowNodeFields
       }
       edges {
-        id
-        source
-        target
-        sourceHandle
-        targetHandle
+        ...WorkflowEdgeFields
       }
       created_at
       updated_at
     }
   }
+  ${WORKFLOW_FIELDS}
 `;
 
 export const DELETE_WORKFLOW_TEMPLATE = gql`
