@@ -83,17 +83,52 @@ export function useWorkflowHandlers() {
       // Keep label in both places for backward compatibility
       const label = cleanData.label || node.data?.label;
 
+      // Transform scraping node data to match GraphQL schema
+      if (node.type === 'SCRAPING') {
+        const scrapingData = {
+          label,
+          url: cleanData.url,
+          // Map first selector's properties to top-level fields
+          selector: cleanData.selectors?.[0]?.selector || "",
+          selectorType: cleanData.selectors?.[0]?.selectorType || "css",
+          attributes: cleanData.selectors?.[0]?.attributes || [],
+          // Map outputTemplate to template
+          template: cleanData.outputTemplate,
+          // Include null fields required by GraphQL schema
+          pollingInterval: null,
+          fromFilter: null,
+          subjectFilter: null,
+          to: null,
+          subject: null,
+          body: null,
+          prompt: null,
+          model: null,
+          maxTokens: null
+        };
+        return {
+          id: node.id,
+          type: node.type,
+          label,
+          position: {
+            x: node.position.x,
+            y: node.position.y
+          },
+          data: scrapingData
+        };
+      }
+
+      // For other node types, keep the data as is
       return {
         id: node.id,
         type: node.type,
-        label,  // Put label at node level
+        label,
         position: {
           x: node.position.x,
           y: node.position.y
         },
         data: {
           ...cleanData,
-          label  // Keep label in data as well
+          label
         }
       };
     });

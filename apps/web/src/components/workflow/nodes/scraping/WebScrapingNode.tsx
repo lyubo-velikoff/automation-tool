@@ -46,7 +46,25 @@ interface NodeData {
   selectors: SelectorConfig[];
   pagination?: PaginationConfig;
   outputTemplate?: string;
-  onConfigChange?: (id: string, data: NodeData) => void;
+  onConfigChange?: (id: string, data: GraphQLNodeData) => void;
+}
+
+interface GraphQLNodeData {
+  label?: string;
+  url?: string;
+  selector: string;
+  selectorType: "css" | "xpath";
+  attributes: string[];
+  template?: string;
+  pollingInterval?: number | null;
+  fromFilter?: string | null;
+  subjectFilter?: string | null;
+  to?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  prompt?: string | null;
+  model?: string | null;
+  maxTokens?: number | null;
 }
 
 interface WebScrapingNodeProps {
@@ -378,6 +396,27 @@ const defaultData: NodeData = {
   outputTemplate: "[{text}]({href})"
 };
 
+// Add a type guard to ensure we only send GraphQL-compatible data
+function createGraphQLNodeData(data: NodeData): GraphQLNodeData {
+  return {
+    label: data.label,
+    url: data.url,
+    selector: data.selectors[0]?.selector || "",
+    selectorType: data.selectors[0]?.selectorType || "css",
+    attributes: data.selectors[0]?.attributes || [],
+    template: data.outputTemplate,
+    pollingInterval: null,
+    fromFilter: null,
+    subjectFilter: null,
+    to: null,
+    subject: null,
+    body: null,
+    prompt: null,
+    model: null,
+    maxTokens: null
+  };
+}
+
 function WebScrapingNode({ id, data, selected, type, isConnectable }: WebScrapingNodeProps) {
   const [testResults, setTestResults] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -387,13 +426,18 @@ function WebScrapingNode({ id, data, selected, type, isConnectable }: WebScrapin
       const { onConfigChange } = data;
       if (!onConfigChange) return;
 
-      const newData: NodeData = {
+      // Update internal state first
+      const newInternalData: NodeData = {
         ...defaultData,
         ...data,
         [key]: value
       };
 
-      onConfigChange(id || "", newData);
+      // Transform to GraphQL format using the type guard
+      const graphqlData = createGraphQLNodeData(newInternalData);
+
+      // Send only the GraphQL-compatible data
+      onConfigChange(id || "", graphqlData);
     },
     [data, id]
   );
