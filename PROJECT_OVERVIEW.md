@@ -223,34 +223,54 @@ TEMPORAL_ADDRESS=localhost:7233
 - kebab-case for configuration: `next-config.ts`
 - Consistent extensions: `.tsx` for React, `.ts` for pure TypeScript
 
-### Development Guidelines
-1. Analysis First:
-   - Review both `apps/server` and `apps/web` before starting tasks
-   - Understand cross-component dependencies
-   - Consider impact on existing functionality
+### Imports
+- Absolute imports using `@/` alias
+- Group imports by type (React, third-party, local)
+- No relative imports going up more than two levels
+- Export named constants and types from `index.ts`
 
-2. Core Functionality:
-   - Avoid changing core functionality unless explicitly instructed
-   - Document any core changes thoroughly
-   - Verify changes together with team
+## Testing Strategy
+1. Unit Tests:
+   - Jest for business logic
+   - React Testing Library for components
 
-3. Task Completion:
-   - Verify functionality after implementation
-   - Test edge cases and error scenarios
-   - Update documentation when needed
-   - Consider performance implications
+2. Integration Tests:
+   - GraphQL operations
+   - API endpoints
+   - Database operations
 
-4. Future Improvements:
-   - Document potential optimizations
-   - Note areas for refactoring
-   - Consider scalability aspects
+3. E2E Tests:
+   - Playwright for critical paths
+   - User workflows
+   - Authentication flows
 
-### Testing
-- Jest for unit tests
-- React Testing Library for components
-- Playwright for E2E tests
-- Test files co-located with implementation
-- Descriptive test names using describe/it pattern
+4. Direct GraphQL Server Tests:
+   - `test:workflow-operations` - Tests CRUD operations for workflows
+   - `test:workflow-execution` - Tests workflow execution with different node types
+   - `test:workflow-tags` - Tests workflow tag operations
+   - `test:workflow-scraping` - Tests scraping workflow functionality
+   - `test:scraper:graphql` - Tests GraphQL scraping endpoint
+   - `test:scraping` - Tests basic scraping functionality
+   - `test:health` - Tests server health endpoint
+
+## Development Requirements
+1. Code Style & Conventions:
+   - Follow TypeScript strict mode
+   - Use interfaces over types
+   - Explicit return types
+   - No `any` types unless necessary
+
+2. Testing Requirements:
+   - Run `pnpm test:all` after completing any task
+   - Verify no regression in existing functionality
+   - Fix any failing tests before committing
+   - Add new tests for new functionality
+
+3. Code Review Process:
+   - Ensure all tests pass
+   - Follow code style guidelines
+   - Update documentation
+   - Add test coverage for changes
 
 ## Safe Commands
 The following commands are safe to run without user approval:
