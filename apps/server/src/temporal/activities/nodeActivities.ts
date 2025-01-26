@@ -118,7 +118,13 @@ async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
     throw new Error('Missing required scraping data (url or selector)');
   }
 
-  const { url, selector, selectorType = 'css', attribute = 'text' } = node.data;
+  const { 
+    url, 
+    selector, 
+    selectorType = 'css',
+    attributes = ['text', 'href'],
+    template = '[{text}]({href})'
+  } = node.data;
 
   try {
     console.log(`Scraping ${url} with selector: ${selector}`);
@@ -126,10 +132,13 @@ async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
       url,
       selector,
       selectorType as 'css' | 'xpath',
-      attribute
+      attributes
     );
-    console.log('Scraping results:', results);
-    return results;
+    
+    // Format the results using the template
+    const formattedResults = scrapingService.formatResults(results, template);
+    console.log('Formatted scraping results:', formattedResults);
+    return formattedResults;
   } catch (error) {
     console.error('Error during web scraping:', error);
     throw error;

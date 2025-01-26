@@ -1,9 +1,7 @@
-import { Field, ID, ObjectType, Float } from 'type-graphql';
-import { NodeResult } from "../resolvers/workflow.resolver";
-import { WorkflowNodeInput, WorkflowEdgeInput, CreateWorkflowInput, UpdateWorkflowInput } from './workflow-inputs';
+import { Field, ID, InputType, Float } from 'type-graphql';
 
-@ObjectType()
-export class Position {
+@InputType()
+export class PositionInput {
   @Field(() => Float)
   x!: number;
 
@@ -11,8 +9,8 @@ export class Position {
   y!: number;
 }
 
-@ObjectType()
-export class NodeData {
+@InputType()
+export class NodeDataInput {
   @Field(() => String, { nullable: true })
   label?: string;
 
@@ -65,8 +63,8 @@ export class NodeData {
   template?: string;
 }
 
-@ObjectType()
-export class WorkflowNode {
+@InputType()
+export class WorkflowNodeInput {
   @Field()
   id!: string;
 
@@ -76,15 +74,30 @@ export class WorkflowNode {
   @Field(() => String, { nullable: true })
   label?: string;
 
-  @Field(() => Position)
-  position!: Position;
+  @Field(() => PositionInput)
+  position!: PositionInput;
 
-  @Field(() => NodeData, { nullable: true })
-  data?: NodeData;
+  @Field(() => NodeDataInput, { nullable: true })
+  data?: NodeDataInput;
+
+  @Field(() => Float, { nullable: true })
+  width?: number;
+
+  @Field(() => Float, { nullable: true })
+  height?: number;
+
+  @Field(() => Boolean, { nullable: true })
+  selected?: boolean;
+
+  @Field(() => PositionInput, { nullable: true })
+  positionAbsolute?: PositionInput;
+
+  @Field(() => Boolean, { nullable: true })
+  dragging?: boolean;
 }
 
-@ObjectType()
-export class WorkflowEdge {
+@InputType()
+export class WorkflowEdgeInput {
   @Field()
   id!: string;
 
@@ -101,77 +114,65 @@ export class WorkflowEdge {
   targetHandle?: string | null;
 }
 
-@ObjectType()
-export class WorkflowTag {
-  @Field(() => ID)
-  id!: string;
-
-  @Field()
-  name!: string;
-
-  @Field()
-  color!: string;
-
-  @Field()
-  created_at!: Date;
-
-  @Field()
-  updated_at!: Date;
-}
-
-@ObjectType()
-export class Workflow {
-  @Field(() => ID)
-  id!: string;
-
+@InputType()
+export class CreateWorkflowInput {
   @Field()
   name!: string;
 
   @Field({ nullable: true })
   description?: string;
 
-  @Field(() => [WorkflowNode])
-  nodes!: WorkflowNode[];
+  @Field(() => [WorkflowNodeInput])
+  nodes!: WorkflowNodeInput[];
 
-  @Field(() => [WorkflowEdge])
-  edges!: WorkflowEdge[];
+  @Field(() => [WorkflowEdgeInput])
+  edges!: WorkflowEdgeInput[];
 
-  @Field()
-  is_active!: boolean;
-
-  @Field(() => [WorkflowTag], { nullable: true })
-  tags?: WorkflowTag[];
-
-  @Field()
-  created_at!: Date;
-
-  @Field()
-  updated_at!: Date;
-
-  @Field()
-  user_id!: string;
+  @Field(() => [String], { nullable: true })
+  tag_ids?: string[];
 }
 
-@ObjectType()
-export class WorkflowExecution {
+@InputType()
+export class UpdateWorkflowInput {
   @Field(() => ID)
   id!: string;
 
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field(() => [WorkflowNodeInput], { nullable: true })
+  nodes?: WorkflowNodeInput[];
+
+  @Field(() => [WorkflowEdgeInput], { nullable: true })
+  edges?: WorkflowEdgeInput[];
+
+  @Field(() => Boolean, { nullable: true })
+  is_active?: boolean;
+
+  @Field(() => [String], { nullable: true })
+  tag_ids?: string[];
+}
+
+@InputType()
+export class CreateWorkflowTagInput {
+  @Field()
+  name!: string;
+
+  @Field()
+  color!: string;
+}
+
+@InputType()
+export class SaveAsTemplateInput {
   @Field(() => ID)
   workflow_id!: string;
 
-  @Field(() => ID)
-  user_id!: string;
+  @Field({ nullable: true })
+  name?: string;
 
-  @Field()
-  execution_id!: string;
-
-  @Field()
-  status!: string;
-
-  @Field(() => [NodeResult], { nullable: true })
-  results?: NodeResult[];
-
-  @Field()
-  created_at!: Date;
+  @Field({ nullable: true })
+  description?: string;
 } 

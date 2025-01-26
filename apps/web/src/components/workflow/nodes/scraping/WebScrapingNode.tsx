@@ -4,14 +4,12 @@ import { memo, useCallback } from "react";
 import { Handle, Position } from "reactflow";
 import {
   Card,
-  CardContent,
   CardHeader,
   CardTitle,
   CardDescription
 } from "@/components/ui/layout/card";
 import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
-import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -25,6 +23,16 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/inputs/select";
+
+interface NodeData {
+  label?: string;
+  url?: string;
+  selector?: string;
+  selectorType?: "css" | "xpath";
+  attributes?: string[];
+  template?: string;
+  onConfigChange?: (id: string, data: NodeData) => void;
+}
 
 interface WebScrapingNodeProps {
   id?: string;
@@ -52,47 +60,61 @@ const WebScrapingIcon = memo(() => (
 ));
 WebScrapingIcon.displayName = "WebScrapingIcon";
 
-interface NodeContentProps {
+function NodeContent({
+  data,
+  handleConfigChange
+}: {
   data: NodeData;
-  onLabelChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onUrlChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSelectorChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSelectorTypeChange: (value: string) => void;
-  onAttributeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-const NodeContent = memo(
-  ({
-    data,
-    onLabelChange,
-    onUrlChange,
-    onSelectorChange,
-    onSelectorTypeChange,
-    onAttributeChange
-  }: NodeContentProps) => (
-    <CardContent className='flex flex-col gap-4 nodrag'>
-      <div className='space-y-2'>
-        <Label>Node Label</Label>
+  handleConfigChange: (
+    key: keyof Omit<NodeData, "onConfigChange">,
+    value: unknown
+  ) => void;
+}) {
+  return (
+    <div className='flex flex-col gap-4 p-4'>
+      <div className='flex flex-col gap-2'>
+        <Label>Label</Label>
         <Input
           value={data.label || ""}
-          onChange={onLabelChange}
-          placeholder='Enter node label'
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            handleConfigChange("label", e.target.value)
+          }
+          placeholder='Enter a label for this node'
         />
       </div>
-      <div>
-        <Label htmlFor='url'>URL</Label>
+      <div className='flex flex-col gap-2'>
+        <Label>URL</Label>
         <Input
-          id='url'
           value={data.url || ""}
-          onChange={onUrlChange}
-          placeholder='https://example.com'
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            handleConfigChange("url", e.target.value)
+          }
+          placeholder='Enter URL to scrape'
         />
+        <p className='text-xs text-muted-foreground'>
+          For Cursor forum, use: https://forum.cursor.com/
+        </p>
       </div>
-      <div>
-        <Label htmlFor='selectorType'>Selector Type</Label>
+      <div className='flex flex-col gap-2'>
+        <Label>Selector</Label>
+        <Input
+          value={data.selector || ""}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            handleConfigChange("selector", e.target.value)
+          }
+          placeholder='Enter CSS or XPath selector'
+        />
+        <p className='text-xs text-muted-foreground'>
+          For Cursor forum, use: td.topic-list-item a.title
+        </p>
+      </div>
+      <div className='flex flex-col gap-2'>
+        <Label>Selector Type</Label>
         <Select
           value={data.selectorType || "css"}
-          onValueChange={onSelectorTypeChange}
+          onValueChange={(value: "css" | "xpath") =>
+            handleConfigChange("selectorType", value)
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder='Select type' />
@@ -103,82 +125,68 @@ const NodeContent = memo(
           </SelectContent>
         </Select>
       </div>
-      <div>
-        <Label htmlFor='selector'>Selector</Label>
-        <Input
-          id='selector'
-          value={data.selector || ""}
-          onChange={onSelectorChange}
-          placeholder={
-            data.selectorType === "xpath"
-              ? "//div[@class='example']"
-              : ".example"
+      <div className='flex flex-col gap-2'>
+        <Label>Attributes</Label>
+        <Select
+          value={data.attributes?.join(",")}
+          onValueChange={(value: string) =>
+            handleConfigChange("attributes", value.split(","))
           }
-        />
+        >
+          <SelectTrigger>
+            <SelectValue placeholder='Select attributes' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='text'>Text Content</SelectItem>
+            <SelectItem value='href'>Link URL (href)</SelectItem>
+            <SelectItem value='text,href'>Both Text and URL</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div>
-        <Label htmlFor='attribute'>Attribute (optional)</Label>
+      <div className='flex flex-col gap-2'>
+        <Label>Template</Label>
         <Input
-          id='attribute'
-          value={data.attribute || ""}
-          onChange={onAttributeChange}
-          placeholder='href, src, etc.'
+          value={data.template || ""}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            handleConfigChange("template", e.target.value)
+          }
+          placeholder='Enter template for results'
         />
+        <p className='text-xs text-muted-foreground'>
+          Example: [{"{text}"}]({"{href}"})
+        </p>
       </div>
-    </CardContent>
-  )
-);
-NodeContent.displayName = "NodeContent";
+    </div>
+  );
+}
+
+const defaultData: NodeData = {
+  url: "https://forum.cursor.com/",
+  selector: "td.topic-list-item a.title",
+  selectorType: "css",
+  attributes: ["text", "href"],
+  template: "[{text}]({href})"
+};
 
 function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
   const handleConfigChange = useCallback(
-    (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
+    (key: keyof Omit<NodeData, "onConfigChange">, value: unknown) => {
       const { onConfigChange } = data;
       if (!onConfigChange) return;
 
-      const newData = {
+      const newData: NodeData = {
+        ...defaultData,
         ...data,
         [key]: value
       };
 
+      if (!newData.selectorType) {
+        newData.selectorType = "css";
+      }
+
       onConfigChange(id || "", newData);
     },
     [data, id]
-  );
-
-  const handleLabelChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("label", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleUrlChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("url", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleSelectorChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("selector", e.target.value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleSelectorTypeChange = useCallback(
-    (value: string) => {
-      handleConfigChange("selectorType", value);
-    },
-    [handleConfigChange]
-  );
-
-  const handleAttributeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      handleConfigChange("attribute", e.target.value);
-    },
-    [handleConfigChange]
   );
 
   return (
@@ -224,14 +232,7 @@ function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
               Extract data from websites using CSS or XPath selectors
             </CardDescription>
           </CardHeader>
-          <NodeContent
-            data={data}
-            onLabelChange={handleLabelChange}
-            onUrlChange={handleUrlChange}
-            onSelectorChange={handleSelectorChange}
-            onSelectorTypeChange={handleSelectorTypeChange}
-            onAttributeChange={handleAttributeChange}
-          />
+          <NodeContent data={data} handleConfigChange={handleConfigChange} />
         </PopoverContent>
       </Popover>
       <Handle type='target' position={Position.Left} />

@@ -1,18 +1,19 @@
 import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int, ID } from "type-graphql";
 import {
   Workflow,
-  CreateWorkflowInput,
-  UpdateWorkflowInput,
   WorkflowNode,
   WorkflowEdge,
-  WorkflowNodeInput,
-  WorkflowEdgeInput,
   WorkflowTag,
-  CreateWorkflowTagInput,
-  WorkflowTemplate,
-  SaveAsTemplateInput,
   WorkflowExecution
 } from "../schema/workflow";
+import {
+  CreateWorkflowInput,
+  UpdateWorkflowInput,
+  WorkflowNodeInput,
+  WorkflowEdgeInput,
+  CreateWorkflowTagInput,
+  SaveAsTemplateInput
+} from "../schema/workflow-inputs";
 import { ObjectType, Field } from 'type-graphql';
 import { google } from 'googleapis';
 import OpenAI from 'openai';
@@ -115,8 +116,9 @@ export class WorkflowResolver {
     }));
   }
 
-  @Query(() => [WorkflowTemplate])
-  async workflowTemplates(@Ctx() ctx: Context): Promise<WorkflowTemplate[]> {
+  @Query(() => [WorkflowExecution])
+  @Authorized()
+  async workflowTemplates(@Ctx() ctx: Context): Promise<WorkflowExecution[]> {
     const { data: templates, error } = await ctx.supabase
       .from("workflow_templates")
       .select("*")
@@ -514,7 +516,7 @@ export class WorkflowResolver {
         [node.id]: {
           label: node.data?.label || node.type,
           data: node.data, // Store full node data
-          results: result.results || result
+          results: Array.isArray(result.results) ? result.results : [result.results]
         }
       };
 
@@ -847,11 +849,11 @@ export class WorkflowResolver {
     return true;
   }
 
-  @Mutation(() => WorkflowTemplate)
+  @Mutation(() => WorkflowExecution)
   async saveWorkflowAsTemplate(
     @Arg("input") input: SaveAsTemplateInput,
     @Ctx() ctx: Context
-  ): Promise<WorkflowTemplate> {
+  ): Promise<WorkflowExecution> {
     // Get the workflow
     const { data: workflow, error: workflowError } = await ctx.supabase
       .from("workflows")

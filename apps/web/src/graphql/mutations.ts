@@ -103,6 +103,8 @@ export const UPDATE_WORKFLOW = gql`
           selector
           selectorType
           attribute
+          attributes
+          template
         }
       }
       edges {
