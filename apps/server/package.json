@@ -12,13 +12,14 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:all": "pnpm test:workflow-operations && pnpm test:workflow-execution && pnpm test:workflow-tags && pnpm test:workflow-scraping && pnpm test:scraper:graphql && pnpm test:scraping",
+    "test:all": "pnpm test:workflow-operations && pnpm test:workflow-execution && pnpm test:workflow-tags && pnpm test:workflow-scraping && pnpm test:scraper:graphql && pnpm test:scraping && pnpm test:health",
     "test:scraper:graphql": "ts-node src/scripts/test-graphql-scraper.ts",
     "test:scraping": "ts-node src/scripts/test-scraping.ts",
     "test:workflow-scraping": "ts-node src/scripts/test-workflow-scraping.ts",
     "test:workflow-operations": "ts-node src/scripts/test-workflow-operations.ts",
     "test:workflow-execution": "ts-node src/scripts/test-workflow-execution.ts",
-    "test:workflow-tags": "ts-node src/scripts/test-workflow-tags.ts"
+    "test:workflow-tags": "ts-node src/scripts/test-workflow-tags.ts",
+    "test:health": "ts-node src/scripts/test-health.ts"
   },
   "keywords": [],
   "author": "",
