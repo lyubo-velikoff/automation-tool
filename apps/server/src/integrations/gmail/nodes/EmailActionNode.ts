@@ -1,6 +1,16 @@
 import { Field, ObjectType } from 'type-graphql';
 import { GmailService } from '../service';
 
+interface NodeContext {
+  label?: string;
+  data?: {
+    label?: string;
+    [key: string]: any;
+  };
+  results?: any[];
+  [key: string]: any;
+}
+
 @ObjectType()
 export class EmailActionConfig {
   @Field()
@@ -28,7 +38,7 @@ export class EmailActionNode {
     this.config = config;
   }
 
-  async execute(context: any = {}) {
+  async execute(context: Record<string, NodeContext> = {}) {
     try {
       // Support template variables in the config
       const to = this.replaceTemplateVariables(this.config.to, context);
@@ -47,10 +57,38 @@ export class EmailActionNode {
     }
   }
 
-  private replaceTemplateVariables(text: string, context: any): string {
-    return text.replace(/\{\{(.*?)\}\}/g, (match, key) => {
-      const value = key.split('.').reduce((obj: any, k: string) => obj?.[k], context);
-      return value !== undefined ? String(value) : match;
+  private replaceTemplateVariables(text: string, context: Record<string, NodeContext>): string {
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      // Split path and handle spaces in node labels
+      const [nodeLabel, field] = path.trim().split('.');
+      
+      // First try to find the node by exact label
+      const nodeEntry = Object.entries(context).find(([_, value]) => 
+        value && 
+        (value.label === nodeLabel || value.data?.label === nodeLabel)
+      );
+
+      if (nodeEntry) {
+        const [_, nodeData] = nodeEntry;
+        if (field === 'results') {
+          // Handle both array results and direct results
+          const results = nodeData.results || nodeData.data?.results;
+          if (Array.isArray(results)) {
+            return results.join('\n');
+          }
+          return String(results || '');
+        }
+        return String(nodeData[field] || nodeData.data?.[field] || '');
+      }
+
+      // Log available nodes for debugging
+      console.log('Available nodes:', Object.entries(context).map(([id, data]) => ({
+        id,
+        label: data.label || data.data?.label,
+        hasResults: Boolean(data.results || data.data?.results)
+      })));
+
+      return match; // Keep original if not found
     });
   }
 } 

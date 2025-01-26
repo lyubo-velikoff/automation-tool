@@ -66,20 +66,19 @@ function VariablePicker({ nodeId, data }: VariablePickerProps) {
     <div className='p-2 space-y-2'>
       <h4 className='font-medium'>Insert Variable</h4>
       <div className='space-y-1'>
-        {sourceNodes.map((node) => (
-          <Button
-            key={node.id}
-            variant='ghost'
-            className='w-full justify-start text-sm'
-            onClick={() =>
-              handleInsertVariable(
-                `{{${node.data?.label || node.type}.results}}`
-              )
-            }
-          >
-            {node.data?.label || node.type}
-          </Button>
-        ))}
+        {sourceNodes.map((node) => {
+          const nodeLabel = node.data?.label || node.type;
+          return (
+            <Button
+              key={node.id}
+              variant='ghost'
+              className='w-full justify-start text-sm'
+              onClick={() => handleInsertVariable(`{{${nodeLabel}.results}}`)}
+            >
+              {nodeLabel}
+            </Button>
+          );
+        })}
         {sourceNodes.length === 0 && (
           <p className='text-sm text-muted-foreground p-2'>
             No data source nodes connected. Add a Scraping or OpenAI node and

@@ -309,16 +309,19 @@ function WebScrapingNode({
                 </div>
               </div>
             )}
-
-            <Handle
-              type='source'
-              position={Position.Bottom}
-              isConnectable={isConnectable}
-            />
           </CardContent>
         </PopoverContent>
       </Popover>
-      <Handle type='target' position={Position.Left} />
+      <Handle
+        type='target'
+        position={Position.Left}
+        isConnectable={isConnectable}
+      />
+      <Handle
+        type='source'
+        position={Position.Right}
+        isConnectable={isConnectable}
+      />
     </div>
   );
 }
