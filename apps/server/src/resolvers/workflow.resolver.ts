@@ -568,59 +568,6 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
-    try {
-      const nodeContext = {
-        nodeResults: context.nodeResults || {}
-      };
-
-      let result;
-      switch (node.type) {
-        case 'START':
-          result = { results: ['Workflow started'] };
-          break;
-        case 'GMAIL_TRIGGER':
-          result = await this.executeGmailTrigger(node, context.token);
-          break;
-        case 'GMAIL_ACTION':
-          result = await this.executeGmailAction(node, context.token, nodeContext);
-          break;
-        case 'OPENAI':
-          result = await this.executeOpenAICompletion(node);
-          break;
-        case 'SCRAPING':
-          result = await this.executeScrapingNode(node);
-          break;
-        default:
-          throw new Error(`Unknown node type: ${node.type}`);
-      }
-
-      const nodeResult = {
-        nodeId: node.id,
-        status: 'success',
-        results: this.getNodeResults(node.type, result)
-      };
-
-      // Store results in context for next nodes
-      context.nodeResults = {
-        ...context.nodeResults,
-        [node.id]: {
-          label: node.data?.label || node.type,
-          data: node.data, // Store full node data
-          results: Array.isArray(result.results) ? result.results : [result.results]
-        }
-      };
-
-      return nodeResult;
-    } catch (error) {
-      return {
-        nodeId: node.id,
-        status: 'error',
-        results: [error instanceof Error ? error.message : 'Unknown error']
-      };
-    }
-  }
-
   private getExecutionOrder(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
     // Create adjacency list
     const graph = new Map<string, string[]>();
@@ -685,7 +632,7 @@ export class WorkflowResolver {
         .select("*")
         .eq("id", workflowId)
         .eq("user_id", context.user.id)
-        .eq("is_active", true)  // Only return active workflows
+        .eq("is_active", true)
         .single();
 
       if (workflowError) throw workflowError;
@@ -701,28 +648,50 @@ export class WorkflowResolver {
         const orderedNodes = this.getExecutionOrder(nodes, edges);
         console.log('Execution order:', orderedNodes.map(n => n.type));
 
+        let hasFailedNodes = false;
+
         // Execute nodes in order
         for (const node of orderedNodes) {
           console.log('Executing node:', node.type, node.id);
           const result = await this.executeNode(node, executionContext);
           nodeResults.push(result);
+          
+          // Track if any nodes failed
+          if (result.status === 'error') {
+            hasFailedNodes = true;
+          }
+          
+          // If a node fails and it has dependent nodes, mark them as skipped
+          if (result.status === 'error') {
+            const dependentNodes = this.getDependentNodes(node.id, edges, nodes);
+            for (const depNode of dependentNodes) {
+              nodeResults.push({
+                nodeId: depNode.id,
+                status: 'skipped',
+                results: ['Skipped due to upstream node failure']
+              });
+            }
+            // Break execution since downstream nodes can't proceed
+            break;
+          }
+
           console.log('Node results:', executionContext.nodeResults);
         }
 
-        // Store successful execution results
+        // Store execution results
         await supabase
           .from('workflow_executions')
           .insert([{
             workflow_id: workflowId,
             user_id: context.user.id,
             execution_id: executionId,
-            status: 'completed',
+            status: hasFailedNodes ? 'failed' : 'completed',
             results: nodeResults
           }]);
 
         return {
-          success: true,
-          message: 'Workflow executed successfully',
+          success: !hasFailedNodes,
+          message: hasFailedNodes ? 'Workflow execution failed' : 'Workflow executed successfully',
           executionId,
           results: nodeResults
         };
@@ -749,6 +718,82 @@ export class WorkflowResolver {
         message: error instanceof Error ? error.message : 'Unknown error occurred',
         executionId: undefined,
         results: []
+      };
+    }
+  }
+
+  private getDependentNodes(nodeId: string, edges: WorkflowEdge[], nodes: WorkflowNode[]): WorkflowNode[] {
+    const dependentNodes: WorkflowNode[] = [];
+    const visited = new Set<string>();
+    
+    const traverse = (currentId: string) => {
+      if (visited.has(currentId)) return;
+      visited.add(currentId);
+      
+      // Find all edges where current node is the source
+      const outgoingEdges = edges.filter(e => e.source === currentId);
+      for (const edge of outgoingEdges) {
+        const targetNode = nodes.find(n => n.id === edge.target);
+        if (targetNode) {
+          dependentNodes.push(targetNode);
+          traverse(edge.target);
+        }
+      }
+    };
+    
+    traverse(nodeId);
+    return dependentNodes;
+  }
+
+  private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
+    try {
+      const nodeContext = {
+        nodeResults: context.nodeResults || {}
+      };
+
+      let result;
+      switch (node.type) {
+        case 'START':
+          result = { results: ['Workflow started'] };
+          break;
+        case 'GMAIL_TRIGGER':
+          result = await this.executeGmailTrigger(node, context.token);
+          break;
+        case 'GMAIL_ACTION':
+          result = await this.executeGmailAction(node, context.token, nodeContext);
+          break;
+        case 'OPENAI':
+          result = await this.executeOpenAICompletion(node);
+          break;
+        case 'SCRAPING':
+          result = await this.executeScrapingNode(node);
+          break;
+        default:
+          throw new Error(`Unsupported node type: ${node.type}`);
+      }
+
+      const nodeResult = {
+        nodeId: node.id,
+        status: 'success',
+        results: this.getNodeResults(node.type, result)
+      };
+
+      // Store results in context for next nodes
+      context.nodeResults = {
+        ...context.nodeResults,
+        [node.id]: {
+          label: node.data?.label || node.type,
+          data: node.data,
+          results: Array.isArray(result.results) ? result.results : [result.results]
+        }
+      };
+
+      return nodeResult;
+    } catch (error) {
+      return {
+        nodeId: node.id,
+        status: 'error',
+        results: [error instanceof Error ? error.message : 'Unknown error']
       };
     }
   }

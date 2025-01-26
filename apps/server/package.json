@@ -19,7 +19,7 @@
     "test:scraping": "ts-node src/scripts/test-scraping.ts",
     "test:workflow-scraping": "ts-node src/scripts/test-workflow-scraping.ts",
     "test:workflow-operations": "ts-node src/scripts/test-workflow-operations.ts",
-    "test:workflow-tags": "ts-node src/scripts/test-workflow-tags.ts"
+    "test:workflow-execution": "ts-node src/scripts/test-workflow-execution.ts"
   },
   "keywords": [],
   "author": "",
