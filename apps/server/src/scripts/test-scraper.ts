@@ -1,4 +1,4 @@
-import { ScrapingService } from '../integrations/scraping/service';
+import { ScrapingService } from '../services/scraping.service';
 import { ScrapingNode, ScrapingNodeData } from '../integrations/scraping/nodes/ScrapingNode';
 
 async function testScraper() {

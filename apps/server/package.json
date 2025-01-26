@@ -16,7 +16,8 @@
     "test:scraper:watch": "ts-node-dev --respawn src/scripts/test-scraper.ts",
     "test:scraper:graphql": "ts-node src/scripts/test-graphql-scraper.ts",
     "test:scraper:graphql:watch": "ts-node-dev --respawn src/scripts/test-graphql-scraper.ts",
-    "test:scraping": "ts-node src/scripts/test-scraping.ts"
+    "test:scraping": "ts-node src/scripts/test-scraping.ts",
+    "test:workflow-scraping": "ts-node src/scripts/test-workflow-scraping.ts"
   },
   "keywords": [],
   "author": "",

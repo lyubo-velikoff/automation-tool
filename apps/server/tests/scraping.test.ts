@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { ScrapingService } from '../src/integrations/scraping/service';
+import { ScrapingService } from '../src/services/scraping.service';
 import { ScrapingNode, ScrapingNodeData } from '../src/integrations/scraping/nodes/ScrapingNode';
 
 interface MockElement {
@@ -63,74 +63,110 @@ describe('Web Scraping Integration', () => {
   const mockUserId = 'test-user-123';
 
   describe('ScrapingNode', () => {
-    it('should scrape content using CSS selector', async () => {
+    const scrapingService = new ScrapingService();
+
+    it('should scrape basic HTML', async () => {
       const config: ScrapingNodeData = {
         url: 'https://example.com',
-        selector: '.test-class',
-        selectorType: 'css',
-        attribute: 'text'
+        selectors: [{
+          selector: 'h1',
+          selectorType: 'css',
+          attributes: ['text']
+        }],
+        outputTemplate: '{text}'
       };
 
-      const scrapingNode = new ScrapingNode(mockUserId, config);
-      const result = await scrapingNode.execute({});
-
-      expect(result.success).toBe(true);
-      expect(result.results).toContain('Test content');
+      const node = new ScrapingNode('test-user', config);
+      const results = await node.execute({});
+      expect(results).toEqual({
+        success: true,
+        results: ['Example Domain']
+      });
     });
 
-    it('should scrape attribute using CSS selector', async () => {
+    it('should scrape with href attribute', async () => {
       const config: ScrapingNodeData = {
         url: 'https://example.com',
-        selector: '#test-id',
-        selectorType: 'css',
-        attribute: 'href'
+        selectors: [{
+          selector: 'a',
+          selectorType: 'css',
+          attributes: ['text', 'href']
+        }],
+        outputTemplate: '[{text}]({href})'
       };
 
-      const scrapingNode = new ScrapingNode(mockUserId, config);
-      const result = await scrapingNode.execute({});
-
-      expect(result.success).toBe(true);
-      expect(result.results).toContain('test-attribute');
+      const node = new ScrapingNode('test-user', config);
+      const results = await node.execute({});
+      expect(results).toEqual({
+        success: true,
+        results: ['[More information...](/more-information.html)']
+      });
     });
 
-    it('should handle invalid selectors gracefully', async () => {
+    it('should handle errors gracefully', async () => {
       const config: ScrapingNodeData = {
-        url: 'https://example.com',
-        selector: '.non-existent',
-        selectorType: 'css',
-        attribute: 'text'
+        url: 'https://nonexistent.example.com',
+        selectors: [{
+          selector: 'h1',
+          selectorType: 'css',
+          attributes: ['text']
+        }],
+        outputTemplate: '{text}'
       };
 
-      const scrapingNode = new ScrapingNode(mockUserId, config);
-      const result = await scrapingNode.execute({});
-
-      expect(result.success).toBe(true);
-      expect(result.results).toHaveLength(0);
+      const node = new ScrapingNode('test-user', config);
+      const results = await node.execute({});
+      expect(results).toEqual({
+        success: false,
+        results: [],
+        error: 'Failed to fetch URL: https://nonexistent.example.com'
+      });
     });
   });
 
   describe('ScrapingService', () => {
+    const service = new ScrapingService();
+
+    it('should scrape basic HTML', async () => {
+      const results = await service.scrapeUrl(
+        'https://example.com',
+        'h1',
+        'css',
+        ['text']
+      );
+      expect(results).toEqual([{ text: 'Example Domain' }]);
+    });
+
+    it('should scrape with href attribute', async () => {
+      const results = await service.scrapeUrl(
+        'https://example.com',
+        'a',
+        'css',
+        ['text', 'href']
+      );
+      expect(results).toEqual([{
+        text: 'More information...',
+        href: '/more-information.html'
+      }]);
+    });
+
     it('should scrape URL with rate limiting', async () => {
-      const service = new ScrapingService();
       const results = await service.scrapeUrl(
         'https://example.com',
         '.test-class',
         'css',
-        'text'
+        ['text']
       );
-
       expect(Array.isArray(results)).toBe(true);
-      expect(results).toContain('Test content');
     });
 
     it('should handle network errors', async () => {
-      const service = new ScrapingService();
       await expect(
         service.scrapeUrl(
           'https://invalid-url.com',
           '.test-class',
           'css',
-          'text'
+          ['text']
         )
       ).rejects.toThrow();
     });

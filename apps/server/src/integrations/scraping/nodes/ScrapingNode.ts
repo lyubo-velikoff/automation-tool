@@ -1,5 +1,5 @@
 import { Field, ObjectType, InputType } from 'type-graphql';
-import { ScrapingService } from '../service';
+import { ScrapingService } from '../../../services/scraping.service';
 
 @ObjectType()
 @InputType('SelectorConfigInput')

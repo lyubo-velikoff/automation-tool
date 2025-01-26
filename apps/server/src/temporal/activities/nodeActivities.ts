@@ -2,7 +2,7 @@ import type { WorkflowNode } from '../../types/workflow';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../../integrations/gmail/config';
-import { ScrapingService } from '../../integrations/scraping/service';
+import { ScrapingService } from '../../services/scraping.service';
 
 const scrapingService = new ScrapingService();
 

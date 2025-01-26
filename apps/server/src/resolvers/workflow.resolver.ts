@@ -19,7 +19,7 @@ import { google } from 'googleapis';
 import OpenAI from 'openai';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../integrations/gmail/config';
-import { ScrapingService } from '../integrations/scraping/service';
+import { ScrapingService } from '../services/scraping.service';
 import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
 import { supabase } from '../lib/supabase';
@@ -445,19 +445,46 @@ export class WorkflowResolver {
   }
 
   private async executeScrapingNode(node: WorkflowNode): Promise<any> {
+    console.log('Executing scraping node with data:', JSON.stringify(node.data, null, 2));
+
     if (!node.data?.url || !node.data?.selector) {
       throw new Error('Missing required scraping data (url or selector)');
     }
 
     const scrapingService = new ScrapingService();
-    const results = await scrapingService.scrapeUrl(
-      node.data.url,
-      node.data.selector,
-      node.data.selectorType as 'css' | 'xpath',
-      node.data.attribute || 'text'
-    );
+    console.log('Calling scrapeUrl with:', {
+      url: node.data.url,
+      selector: node.data.selector,
+      selectorType: node.data.selectorType,
+      attributes: node.data.attributes || ['text']
+    });
 
-    return { results };
+    try {
+      const results = await scrapingService.scrapeUrl(
+        node.data.url,
+        node.data.selector,
+        node.data.selectorType as 'css' | 'xpath',
+        node.data.attributes || ['text']
+      );
+
+      console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+
+      if (!results || results.length === 0) {
+        console.log('Warning: No results found from scraping');
+      }
+
+      // Format results if template is provided
+      const formattedResults = node.data.template 
+        ? scrapingService.formatResults(results, node.data.template)
+        : results.map(r => JSON.stringify(r));
+
+      console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
+
+      return { results: formattedResults };
+    } catch (error) {
+      console.error('Error in scraping service:', error);
+      throw error;
+    }
   }
 
   private getNodeResults(type: string, result: any): string[] {
