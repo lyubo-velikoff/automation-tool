@@ -198,7 +198,32 @@ export class WorkflowResolver {
       if (tagError) throw tagError;
     }
 
-    return workflow;
+    // Get workflow with tags
+    const { data: workflowWithTags, error: getError } = await ctx.supabase
+      .from("workflows")
+      .select(`
+        *,
+        tags:workflow_tags_workflows(
+          workflow_tags (
+            id,
+            name,
+            color,
+            created_at,
+            updated_at
+          )
+        )
+      `)
+      .eq("id", workflow.id)
+      .eq("user_id", ctx.user.id)
+      .single();
+
+    if (getError) throw getError;
+
+    // Transform the tags structure to match the expected format
+    return {
+      ...workflowWithTags,
+      tags: workflowWithTags.tags?.map((t: any) => t.workflow_tags) || []
+    };
   }
 
   @Mutation(() => Workflow)
@@ -216,24 +241,36 @@ export class WorkflowResolver {
     if (typeof input.is_active === "boolean")
       updateData.is_active = input.is_active;
 
-    const { data: workflow, error } = await ctx.supabase
+    // First verify the workflow exists and belongs to the user
+    const { data: existingWorkflow, error: existingError } = await ctx.supabase
+      .from("workflows")
+      .select()
+      .eq("id", input.id)
+      .eq("user_id", ctx.user.id)
+      .single();
+
+    if (existingError) throw existingError;
+    if (!existingWorkflow) throw new Error("Workflow not found");
+
+    // Update workflow
+    const { error: updateError } = await ctx.supabase
       .from("workflows")
       .update(updateData)
       .eq("id", input.id)
-      .eq("user_id", ctx.user.id)
-      .select()
-      .single();
+      .eq("user_id", ctx.user.id);
 
-    if (error) throw error;
+    if (updateError) throw updateError;
 
-    if (input.tag_ids) {
+    if (input.tag_ids !== undefined) {
       // Remove existing tags
-      await ctx.supabase
+      const { error: deleteError } = await ctx.supabase
         .from("workflow_tags_workflows")
         .delete()
         .eq("workflow_id", input.id);
 
-      // Add new tags
+      if (deleteError) throw deleteError;
+
+      // Add new tags if any
       if (input.tag_ids.length > 0) {
         const { error: tagError } = await ctx.supabase
           .from("workflow_tags_workflows")
@@ -248,7 +285,32 @@ export class WorkflowResolver {
       }
     }
 
-    return workflow;
+    // Get updated workflow with tags
+    const { data: updatedWorkflow, error: getError } = await ctx.supabase
+      .from("workflows")
+      .select(`
+        *,
+        tags:workflow_tags_workflows(
+          workflow_tags (
+            id,
+            name,
+            color,
+            created_at,
+            updated_at
+          )
+        )
+      `)
+      .eq("id", input.id)
+      .eq("user_id", ctx.user.id)
+      .single();
+
+    if (getError) throw getError;
+
+    // Transform the tags structure to match the expected format
+    return {
+      ...updatedWorkflow,
+      tags: updatedWorkflow.tags?.map((t: any) => t.workflow_tags) || []
+    };
   }
 
   @Mutation(() => Boolean)
