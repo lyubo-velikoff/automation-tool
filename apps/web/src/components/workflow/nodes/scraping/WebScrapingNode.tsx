@@ -59,21 +59,6 @@ interface WebScrapingNodeProps {
   isConnectable: boolean;
 }
 
-const presets = {
-  cursorForum: {
-    name: "Cursor Forum Posts",
-    url: "https://forum.cursor.com",
-    selectors: [
-      {
-        selector: 'tr.topic-list-item a[href*="/t/"]',
-        selectorType: "css" as const,
-        attributes: ["text", "href"]
-      }
-    ],
-    template: "{{text}}\nURL: {{href}}"
-  }
-};
-
 const WebScrapingIcon = memo(() => (
   <svg
     xmlns='http://www.w3.org/2000/svg'
@@ -199,13 +184,6 @@ function WebScrapingNode({
     }
   };
 
-  const applyPreset = (preset: typeof presets.cursorForum) => {
-    handleConfigChange("url", preset.url);
-    handleConfigChange("selectors", preset.selectors);
-    handleConfigChange("template", preset.template);
-    handleConfigChange("label", preset.name);
-  };
-
   return (
     <div
       className={cn(
@@ -253,15 +231,14 @@ function WebScrapingNode({
           </CardHeader>
           <CardContent className='flex flex-col gap-4'>
             <div>
-              <Label>Presets</Label>
-              <div className='flex gap-2 mt-2'>
-                <Button
-                  variant='outline'
-                  onClick={() => applyPreset(presets.cursorForum)}
-                >
-                  Cursor Forum Posts
-                </Button>
-              </div>
+              <Label>Node Label</Label>
+              <Input
+                value={nodeData.label || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleConfigChange("label", e.target.value)
+                }
+                placeholder='Node Label'
+              />
             </div>
 
             <div>

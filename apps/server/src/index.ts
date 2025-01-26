@@ -117,7 +117,7 @@ async function bootstrap() {
   app.post('/api/test-selector', async (req, res) => {
     try {
       console.log('Received test-selector request:', req.body);
-      const { url, selector } = req.body;
+      const { url, selector, selectorType, attributes } = req.body;
       
       if (!url || !selector) {
         return res.status(400).json({ 
@@ -129,7 +129,12 @@ async function bootstrap() {
       try {
         const scrapingService = new ScrapingService();
         console.log('Created scraping service, starting scrape...');
-        const results = await scrapingService.scrapeWithSelector(url, selector);
+        const results = await scrapingService.scrapeUrl(
+          url,
+          selector,
+          selectorType || 'css',
+          attributes || ['text', 'href']
+        );
         console.log('Scraping complete:', results);
         
         res.json({ 
