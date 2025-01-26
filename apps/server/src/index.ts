@@ -7,6 +7,7 @@ import cors from "cors";
 import session from "express-session";
 import { HealthResolver } from "./resolvers/health.resolver";
 import { WorkflowResolver } from "./resolvers/workflow.resolver";
+import { ScrapingResolver } from "./resolvers/scraping.resolver";
 import { runWorker } from './temporal/worker';
 import { supabase } from './lib/supabase';
 
@@ -121,7 +122,7 @@ async function bootstrap() {
 
   // GraphQL setup
   const schema = await buildSchema({
-    resolvers: [HealthResolver, WorkflowResolver],
+    resolvers: [HealthResolver, WorkflowResolver, ScrapingResolver],
     validate: false,
     authChecker: async ({ context }) => {
       try {

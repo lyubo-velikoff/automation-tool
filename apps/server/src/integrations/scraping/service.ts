@@ -10,6 +10,7 @@ interface ScrapedItem {
 
 export class ScrapingService {
   private limiter: RateLimiter;
+  private readonly defaultUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
   constructor() {
     // Rate limit to 10 requests per minute
@@ -25,101 +26,145 @@ export class ScrapingService {
     selectorType: 'css' | 'xpath',
     attributes: string[] = ['text']
   ): Promise<ScrapedItem[]> {
-    // Wait for rate limiter
     await this.limiter.removeTokens(1);
 
     try {
-      console.log(`Fetching URL: ${url} with selector: ${selector}`);
-      
-      // Fetch the page
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.statusText}`);
-      }
-
-      const html = await response.text();
-      console.log('Fetched HTML content (first 500 chars):', html.substring(0, 500));
-      console.log('Full HTML length:', html.length);
+      console.log(`Fetching URL: ${url}`);
+      const html = await this.fetchPage(url);
+      console.log(`HTML length: ${html.length} characters`);
       
       const $ = cheerio.load(html);
       const results: ScrapedItem[] = [];
 
-      // Log all td elements to see what's available
-      console.log('Found td elements:', $('td').length);
-      $('td').each((i, el) => {
-        console.log(`TD ${i}:`, $(el).html()?.substring(0, 100));
-      });
-
-      // Special handling for Cursor forum if no specific selector is provided
-      if (url.includes('forum.cursor.com') && !selector) {
-        console.log('Using default Cursor forum selectors');
-        $('td a').each((_, element) => {
-          const $element = $(element);
-          const href = $element.attr('href');
-          const text = $element.text().trim();
-          
-          if (href && href.includes('/t/')) {
-            results.push({
-              text,
-              href: `https://forum.cursor.com${href}`
-            });
-          }
-        });
-      } else {
-        // Use provided selector
-        console.log(`Looking for elements with selector: ${selector}`);
-        const elements = $(selector);
-        console.log(`Found ${elements.length} elements matching selector`);
-        
-        elements.each((_, element) => {
-          const $element = $(element);
-          const item: ScrapedItem = { text: '' };
-
-          // Extract requested attributes
-          attributes.forEach(attr => {
-            if (attr === 'text') {
-              item.text = $element.text().trim();
-            } else {
-              const value = $element.attr(attr);
-              if (value) {
-                // Handle relative URLs for href attributes
-                if (attr === 'href' && value.startsWith('/')) {
-                  const baseUrl = new URL(url).origin;
-                  item[attr] = `${baseUrl}${value}`;
-                } else {
-                  item[attr] = value;
-                }
-              }
-            }
-          });
-
-          // Only add items that have at least one non-empty value
-          if (Object.values(item).some(v => v)) {
-            console.log('Found item:', item);
-            results.push(item);
-          }
-        });
+      // Handle Cursor forum special case
+      if (url.includes('forum.cursor.com') && selector.includes('forum-posts')) {
+        console.log('Using Cursor forum special handler');
+        return this.handleCursorForumPosts($);
       }
 
-      console.log('Final results:', results);
-      return results;
+      // Use provided selector
+      console.log(`Using selector: ${selector} (${selectorType})`);
+      const elements = $(selector);
+      console.log(`Found ${elements.length} elements matching selector: ${selector}`);
 
+      if (elements.length === 0) {
+        // Log a sample of the HTML to help debug selector issues
+        console.log('Sample HTML:', html.slice(0, 500));
+      }
+
+      elements.each((_, element) => {
+        const $element = $(element);
+        const item: ScrapedItem = { text: '' };
+
+        // Extract requested attributes
+        attributes.forEach(attr => {
+          if (attr === 'text') {
+            item.text = $element.text().trim();
+          } else if (attr === 'html') {
+            item.html = $element.html()?.trim() || '';
+          } else if (attr === 'innerText') {
+            // Get text content without HTML tags
+            item.innerText = $element.contents().text().trim();
+          } else {
+            const value = $element.attr(attr);
+            if (value) {
+              if (attr === 'href' || attr === 'src') {
+                item[attr] = this.resolveUrl(url, value);
+              } else {
+                item[attr] = value;
+              }
+            }
+          }
+        });
+
+        console.log('Extracted item:', item);
+
+        if (Object.values(item).some(v => v)) {
+          results.push(item);
+        }
+      });
+
+      console.log(`Returning ${results.length} results`);
+      return results;
     } catch (error) {
       console.error('Scraping error:', error);
-      throw error;
+      throw this.handleError(error);
     }
+  }
+
+  private async fetchPage(url: string): Promise<string> {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': this.defaultUserAgent
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL (${response.status}): ${response.statusText}`);
+    }
+
+    return response.text();
+  }
+
+  private handleCursorForumPosts($: cheerio.CheerioAPI): ScrapedItem[] {
+    const results: ScrapedItem[] = [];
+    
+    // Find all topic links in the forum
+    $('td a[href*="/t/"]').each((_, element) => {
+      const $element = $(element);
+      const href = $element.attr('href');
+      const text = $element.text().trim();
+      
+      if (href?.includes('/t/')) {
+        // Extract topic ID and slug
+        const topicMatch = href.match(/\/t\/([^\/]+)\/(\d+)/);
+        if (topicMatch) {
+          const [, slug, id] = topicMatch;
+          results.push({
+            text,
+            href: `https://forum.cursor.com${href}`,
+            topicId: id,
+            slug,
+            title: text
+          });
+        }
+      }
+    });
+
+    return results;
+  }
+
+  private resolveUrl(baseUrl: string, relativeUrl: string): string {
+    try {
+      if (relativeUrl.startsWith('http')) {
+        return relativeUrl;
+      }
+      const base = new URL(baseUrl);
+      if (relativeUrl.startsWith('//')) {
+        return `${base.protocol}${relativeUrl}`;
+      }
+      if (relativeUrl.startsWith('/')) {
+        return `${base.origin}${relativeUrl}`;
+      }
+      return new URL(relativeUrl, baseUrl).toString();
+    } catch {
+      return relativeUrl;
+    }
+  }
+
+  private handleError(error: unknown): Error {
+    if (error instanceof Error) {
+      return error;
+    }
+    return new Error('An unknown error occurred during scraping');
   }
 
   formatResults(results: ScrapedItem[], template: string = '[{text}]({href})'): string[] {
     return results.map(item => {
       let formatted = template;
       Object.entries(item).forEach(([key, value]) => {
-        formatted = formatted.replace(`{${key}}`, value || '');
+        const regex = new RegExp(`{${key}}`, 'g');
+        formatted = formatted.replace(regex, value?.toString() || '');
       });
       return formatted;
     });
