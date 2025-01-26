@@ -10,6 +10,8 @@ import { WorkflowResolver } from "./resolvers/workflow.resolver";
 import { ScrapingResolver } from "./resolvers/scraping.resolver";
 import { runWorker } from './temporal/worker';
 import { supabase } from './lib/supabase';
+import { ScrapingService } from './services/scraping.service';
+import { json } from 'body-parser';
 
 // Validate required environment variables
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
@@ -21,14 +23,8 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
 async function bootstrap() {
   const app = express();
 
-  app.use(
-    cors({
-      origin: true,
-      credentials: true,
-      methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-gmail-token']
-    })
-  );
+  app.use(cors());
+  app.use(json());
 
   app.use(
     session({
@@ -43,11 +39,6 @@ async function bootstrap() {
       }
     })
   );
-
-  app.use(express.json());
-
-  // Create instances of resolvers
-  const workflowResolver = new WorkflowResolver();
 
   // REST endpoints
   app.get("/health", (_: Request, res: Response) => {
@@ -76,6 +67,7 @@ async function bootstrap() {
         }
 
         try {
+          const workflowResolver = new WorkflowResolver();
           const workflow = await workflowResolver.saveWorkflow(
             user_id,
             name,
@@ -105,6 +97,7 @@ async function bootstrap() {
       const { name, nodes, edges } = req.body;
 
       try {
+        const workflowResolver = new WorkflowResolver();
         const workflow = await workflowResolver.saveWorkflow(
           user.id,
           name,
@@ -117,6 +110,46 @@ async function bootstrap() {
       }
     } catch (error: any) {
       return res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  });
+
+  // Add test-selector endpoint
+  app.post('/api/test-selector', async (req, res) => {
+    try {
+      console.log('Received test-selector request:', req.body);
+      const { url, selector } = req.body;
+      
+      if (!url || !selector) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'URL and selector are required' 
+        });
+      }
+
+      try {
+        const scrapingService = new ScrapingService();
+        console.log('Created scraping service, starting scrape...');
+        const results = await scrapingService.scrapeWithSelector(url, selector);
+        console.log('Scraping complete:', results);
+        
+        res.json({ 
+          success: true, 
+          results,
+          count: results.length
+        });
+      } catch (error) {
+        console.error('Error in scraping service:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Error occurred during scraping'
+        });
+      }
+    } catch (error) {
+      console.error('Error processing request:', error);
+      res.status(400).json({ 
+        success: false, 
+        error: 'Invalid request format'
+      });
     }
   });
 

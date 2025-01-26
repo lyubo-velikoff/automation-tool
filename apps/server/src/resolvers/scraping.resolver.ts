@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Arg, Ctx } from 'type-graphql';
-import { ScrapingService } from '../integrations/scraping/service';
+import { ScrapingService } from '../services/scraping.service';
 import { ScrapingNode, ScrapingNodeData, SelectorConfig, ScrapingResult } from '../integrations/scraping/nodes/ScrapingNode';
 import { Context } from '../types/context';
 
@@ -18,9 +18,11 @@ export class ScrapingResolver {
     @Arg('outputTemplate', { nullable: true }) outputTemplate?: string
   ): Promise<ScrapingResult> {
     try {
-      console.log('Scraping URL:', url);
-      console.log('Selectors:', JSON.stringify(selectors, null, 2));
-      console.log('Output Template:', outputTemplate);
+      console.log('Starting scrapeUrl query with:', {
+        url,
+        selectors: JSON.stringify(selectors, null, 2),
+        outputTemplate
+      });
 
       const allResults = [];
       
@@ -32,16 +34,18 @@ export class ScrapingResolver {
           selector.selectorType,
           selector.attributes
         );
-        console.log('Results for selector:', results);
+        console.log('Raw results:', JSON.stringify(results, null, 2));
         allResults.push(...results);
       }
+
+      console.log('All raw results:', JSON.stringify(allResults, null, 2));
 
       // Format results if template is provided
       const formattedResults = outputTemplate 
         ? this.scrapingService.formatResults(allResults, outputTemplate)
         : allResults.map(r => JSON.stringify(r));
 
-      console.log('Final formatted results:', formattedResults);
+      console.log('Formatted results:', formattedResults);
 
       return {
         success: true,

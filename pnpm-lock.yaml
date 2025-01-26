@@ -38,6 +38,9 @@ importers:
       '@temporalio/workflow':
         specifier: ^1.8.6
         version: 1.11.6
+      '@types/body-parser':
+        specifier: ^1.19.5
+        version: 1.19.5
       '@types/cheerio':
         specifier: ^0.22.35
         version: 0.22.35
@@ -50,8 +53,11 @@ importers:
       axios:
         specifier: ^1.7.9
         version: 1.7.9
+      body-parser:
+        specifier: ^1.20.3
+        version: 1.20.3
       cheerio:
-        specifier: ^1.0.0-rc.12
+        specifier: ^1.0.0
         version: 1.0.0
       cors:
         specifier: ^2.8.5

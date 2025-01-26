@@ -1,15 +1,18 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import { Handle, Position } from "reactflow";
 import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardContent
 } from "@/components/ui/layout/card";
 import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
+import { Button } from "@/components/ui/inputs/button";
+import { Textarea } from "@/components/ui/inputs/textarea";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -24,13 +27,25 @@ import {
   SelectValue
 } from "@/components/ui/inputs/select";
 
+interface SelectorConfig {
+  selector: string;
+  selectorType: "css" | "xpath";
+  attributes: string[];
+  name?: string;
+  description?: string;
+}
+
+interface PaginationConfig {
+  selector?: string;
+  maxPages?: number;
+}
+
 interface NodeData {
   label?: string;
   url?: string;
-  selector?: string;
-  selectorType?: "css" | "xpath";
-  attributes?: string[];
-  template?: string;
+  selectors: SelectorConfig[];
+  pagination?: PaginationConfig;
+  outputTemplate?: string;
   onConfigChange?: (id: string, data: NodeData) => void;
 }
 
@@ -39,7 +54,21 @@ interface WebScrapingNodeProps {
   data: NodeData;
   selected?: boolean;
   type?: string;
+  isConnectable: boolean;
 }
+
+const presets = {
+  cursorForum: {
+    name: 'Cursor Forum Posts',
+    url: 'https://forum.cursor.com',
+    selectors: [{
+      selector: 'tr.topic-list-item a[href*="/t/"]',
+      selectorType: 'css' as const,
+      attributes: ['text', 'href']
+    }],
+    template: '{{text}}\nURL: {{href}}'
+  }
+};
 
 const WebScrapingIcon = memo(() => (
   <svg
@@ -60,117 +89,301 @@ const WebScrapingIcon = memo(() => (
 ));
 WebScrapingIcon.displayName = "WebScrapingIcon";
 
+function SelectorInput({
+  selector,
+  onChange,
+  onTest,
+  onRemove,
+  isOnly,
+  isLoading
+}: {
+  selector: SelectorConfig;
+  onChange: (updates: Partial<SelectorConfig>) => void;
+  onTest: () => void;
+  onRemove: () => void;
+  isOnly: boolean;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="border rounded-md p-4 mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <Input
+          value={selector.name || ""}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder="Selector name (optional)"
+          className="w-2/3"
+        />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTest}
+            disabled={isLoading}
+          >
+            {isLoading ? "Testing..." : "Test"}
+          </Button>
+          {!isOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRemove}
+              className="text-red-500"
+              disabled={isLoading}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div>
+          <Label>Selector</Label>
+          <div className="flex gap-2">
+            <Input
+              value={selector.selector}
+              onChange={(e) => onChange({ selector: e.target.value })}
+              placeholder="Enter CSS or XPath selector"
+              className="flex-1"
+            />
+            <Select
+              value={selector.selectorType}
+              onValueChange={(value: "css" | "xpath") => 
+                onChange({ selectorType: value })
+              }
+            >
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="css">CSS</SelectItem>
+                <SelectItem value="xpath">XPath</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label>Attributes to Extract</Label>
+          <Select
+            value={selector.attributes.join(",")}
+            onValueChange={(value: string) =>
+              onChange({ attributes: value.split(",") })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="text">Text Content</SelectItem>
+              <SelectItem value="href">Link URL (href)</SelectItem>
+              <SelectItem value="text,href">Text + URL</SelectItem>
+              <SelectItem value="text,href,title">Text + URL + Title</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PresetButton({ 
+  preset: [key, preset], 
+  onClick 
+}: { 
+  preset: [string, { 
+    name: string; 
+    url?: string;
+    selectors: SelectorConfig[]; 
+    template: string 
+  }];
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      key={key}
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      title={`Use preset configuration for ${preset.name}`}
+    >
+      {preset.name}
+    </Button>
+  );
+}
+
 function NodeContent({
   data,
   handleConfigChange
 }: {
   data: NodeData;
   handleConfigChange: (
-    key: keyof Omit<NodeData, "onConfigChange">,
+    key: keyof NodeData,
     value: unknown
   ) => void;
 }) {
+  const [testResults, setTestResults] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSelectorTest = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:4000/api/test-selector', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: data.url,
+          selector: data.selectors[0].selector,
+          selectorType: data.selectors[0].selectorType,
+          attributes: data.selectors[0].attributes
+        })
+      });
+      
+      const result = await response.json() as { success: boolean; results: Array<{ text?: string; href?: string }>; error?: string };
+      if (result.success) {
+        setTestResults(result.results.map(r => 
+          data.outputTemplate
+            ? data.outputTemplate
+                .replace(/{{text}}/g, r.text || '')
+                .replace(/{{href}}/g, r.href || '')
+            : JSON.stringify(r)
+        ));
+      } else {
+        setTestResults([`Error: ${result.error}`]);
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setTestResults([`Error: ${errorMessage}`]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const applyPreset = (preset: typeof presets.cursorForum) => {
+    handleConfigChange('url', preset.url);
+    handleConfigChange('selectors', preset.selectors);
+    handleConfigChange('outputTemplate', preset.template);
+    handleConfigChange('label', preset.name);
+  };
+
+  const addSelector = () => {
+    const newSelectors = [...data.selectors, {
+      selector: "",
+      selectorType: "css",
+      attributes: ["text"],
+      name: `Selector ${data.selectors.length + 1}`
+    }];
+    handleConfigChange("selectors", newSelectors);
+  };
+
+  const removeSelector = (index: number) => {
+    const newSelectors = data.selectors.filter((_, i) => i !== index);
+    handleConfigChange("selectors", newSelectors);
+  };
+
+  const updateSelector = (index: number, updates: Partial<SelectorConfig>) => {
+    const newSelectors = [...data.selectors];
+    newSelectors[index] = { ...newSelectors[index], ...updates };
+    handleConfigChange("selectors", newSelectors);
+  };
+
   return (
     <div className='flex flex-col gap-4 p-4'>
       <div className='flex flex-col gap-2'>
         <Label>Label</Label>
         <Input
           value={data.label || ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            handleConfigChange("label", e.target.value)
-          }
+          onChange={(e) => handleConfigChange("label", e.target.value)}
           placeholder='Enter a label for this node'
         />
       </div>
+
       <div className='flex flex-col gap-2'>
         <Label>URL</Label>
         <Input
           value={data.url || ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            handleConfigChange("url", e.target.value)
-          }
+          onChange={(e) => handleConfigChange("url", e.target.value)}
           placeholder='Enter URL to scrape'
         />
-        <p className='text-xs text-muted-foreground'>
-          For Cursor forum, use: https://forum.cursor.com/
-        </p>
+        <div className="flex gap-2 mt-1">
+          <PresetButton
+            preset={["cursorForum", presets.cursorForum]}
+            onClick={() => applyPreset(presets.cursorForum)}
+          />
+        </div>
       </div>
-      <div className='flex flex-col gap-2'>
-        <Label>Selector</Label>
-        <Input
-          value={data.selector || ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            handleConfigChange("selector", e.target.value)
-          }
-          placeholder='Enter CSS or XPath selector'
-        />
-        <p className='text-xs text-muted-foreground'>
-          For Cursor forum, use: td.topic-list-item a.title
-        </p>
+
+      <div className='flex flex-col gap-4'>
+        <div className="flex justify-between items-center">
+          <Label>Selectors</Label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addSelector}
+          >
+            Add Selector
+          </Button>
+        </div>
+        
+        {data.selectors.map((selector, index) => (
+          <SelectorInput
+            key={index}
+            selector={selector}
+            onChange={(updates) => updateSelector(index, updates)}
+            onTest={() => handleSelectorTest()}
+            onRemove={() => removeSelector(index)}
+            isOnly={data.selectors.length === 1}
+            isLoading={isLoading}
+          />
+        ))}
       </div>
+
       <div className='flex flex-col gap-2'>
-        <Label>Selector Type</Label>
-        <Select
-          value={data.selectorType || "css"}
-          onValueChange={(value: "css" | "xpath") =>
-            handleConfigChange("selectorType", value)
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder='Select type' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='css'>CSS</SelectItem>
-            <SelectItem value='xpath'>XPath</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className='flex flex-col gap-2'>
-        <Label>Attributes</Label>
-        <Select
-          value={data.attributes?.join(",")}
-          onValueChange={(value: string) =>
-            handleConfigChange("attributes", value.split(","))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder='Select attributes' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='text'>Text Content</SelectItem>
-            <SelectItem value='href'>Link URL (href)</SelectItem>
-            <SelectItem value='text,href'>Both Text and URL</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className='flex flex-col gap-2'>
-        <Label>Template</Label>
-        <Input
-          value={data.template || ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            handleConfigChange("template", e.target.value)
-          }
+        <Label>Output Template</Label>
+        <Textarea
+          value={data.outputTemplate || ""}
+          onChange={(e) => handleConfigChange("outputTemplate", e.target.value)}
           placeholder='Enter template for results'
+          rows={3}
         />
         <p className='text-xs text-muted-foreground'>
-          Example: [{"{text}"}]({"{href}"})
+          Available variables: {"{text}"}, {"{href}"}, {"{title}"}
         </p>
       </div>
+
+      {testResults.length > 0 && (
+        <div className='mt-4'>
+          <Label>Test Results</Label>
+          <div className='bg-muted p-2 rounded-md mt-1'>
+            <pre className='whitespace-pre-wrap text-sm'>
+              {testResults.slice(0, 5).join('\n\n')}
+              {testResults.length > 5 && '\n\n...and ' + (testResults.length - 5) + ' more results'}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const defaultData: NodeData = {
-  url: "https://forum.cursor.com/",
-  selector: "td.topic-list-item a.title",
-  selectorType: "css",
-  attributes: ["text", "href"],
-  template: "[{text}]({href})"
+  selectors: [{
+    selector: "td.topic-list-item a.title",
+    selectorType: "css",
+    attributes: ["text", "href"],
+    name: "Main Content"
+  }],
+  outputTemplate: "[{text}]({href})"
 };
 
-function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
+function WebScrapingNode({ id, data, selected, type, isConnectable }: WebScrapingNodeProps) {
+  const [testResults, setTestResults] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleConfigChange = useCallback(
-    (key: keyof Omit<NodeData, "onConfigChange">, value: unknown) => {
+    (key: keyof NodeData, value: unknown) => {
       const { onConfigChange } = data;
       if (!onConfigChange) return;
 
@@ -180,14 +393,59 @@ function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
         [key]: value
       };
 
-      if (!newData.selectorType) {
-        newData.selectorType = "css";
-      }
-
       onConfigChange(id || "", newData);
     },
     [data, id]
   );
+
+  const handleSelectorTest = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:4000/api/test-selector', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: data.url,
+          selector: data.selectors[0].selector,
+          selectorType: data.selectors[0].selectorType,
+          attributes: data.selectors[0].attributes
+        })
+      });
+      
+      const result = await response.json() as { success: boolean; results: Array<{ text?: string; href?: string }>; error?: string };
+      if (result.success) {
+        setTestResults(result.results.map(r => 
+          data.outputTemplate
+            ? data.outputTemplate
+                .replace(/{{text}}/g, r.text || '')
+                .replace(/{{href}}/g, r.href || '')
+            : JSON.stringify(r)
+        ));
+      } else {
+        setTestResults([`Error: ${result.error}`]);
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setTestResults([`Error: ${errorMessage}`]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const applyPreset = (preset: typeof presets.cursorForum) => {
+    handleConfigChange('url', preset.url);
+    handleConfigChange('selectors', preset.selectors);
+    handleConfigChange('outputTemplate', preset.template);
+    handleConfigChange('label', preset.name);
+  };
+
+  // Ensure data has default values
+  const nodeData: NodeData = {
+    ...defaultData,
+    ...data
+  };
 
   return (
     <div
@@ -204,13 +462,13 @@ function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
               className={cn(
                 "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
                 "hover:bg-muted/80 active:bg-muted/70",
-                data.url && data.selector && "ring-2 ring-blue-500/50"
+                nodeData.url && nodeData.selectors.length > 0 && "ring-2 ring-blue-500/50"
               )}
             >
               <WebScrapingIcon />
-              {data.label && (
+              {nodeData.label && (
                 <div className='absolute -bottom-6 text-xs text-gray-600 font-medium'>
-                  {data.label}
+                  {nodeData.label}
                 </div>
               )}
             </Card>
@@ -232,11 +490,80 @@ function WebScrapingNode({ id, data, selected, type }: WebScrapingNodeProps) {
               Extract data from websites using CSS or XPath selectors
             </CardDescription>
           </CardHeader>
-          <NodeContent data={data} handleConfigChange={handleConfigChange} />
+          <CardContent className="flex flex-col gap-4">
+            <div>
+              <Label>Presets</Label>
+              <div className="flex gap-2 mt-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => applyPreset(presets.cursorForum)}
+                >
+                  Cursor Forum Posts
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label>URL</Label>
+              <Input
+                value={nodeData.url || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleConfigChange("url", e.target.value)}
+                placeholder="https://example.com"
+              />
+            </div>
+
+            <div>
+              <Label>CSS Selector</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={nodeData.selectors[0]?.selector}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleConfigChange("selectors", [{
+                    ...nodeData.selectors[0],
+                    selector: e.target.value
+                  }])}
+                  placeholder="h1, .post-title, etc"
+                />
+                <Button 
+                  variant="outline"
+                  onClick={handleSelectorTest}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Testing...' : 'Test'}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label>Output Template</Label>
+              <Textarea
+                value={nodeData.outputTemplate || ""}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleConfigChange("outputTemplate", e.target.value)}
+                placeholder="{{text}}\nURL: {{href}}"
+                rows={3}
+              />
+            </div>
+
+            {testResults.length > 0 && (
+              <div>
+                <Label>Test Results</Label>
+                <div className="mt-2 p-2 bg-muted rounded-md">
+                  <pre className="whitespace-pre-wrap text-sm">
+                    {testResults.slice(0, 5).join('\n\n')}
+                    {testResults.length > 5 && '\n\n...and ' + (testResults.length - 5) + ' more results'}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              isConnectable={isConnectable}
+            />
+          </CardContent>
         </PopoverContent>
       </Popover>
       <Handle type='target' position={Position.Left} />
-      <Handle type='source' position={Position.Right} />
     </div>
   );
 }
