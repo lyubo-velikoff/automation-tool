@@ -85,12 +85,19 @@ export function useWorkflowHandlers() {
 
       // Transform scraping node data to match GraphQL schema
       if (node.type === 'SCRAPING') {
+        // First get the selector data to ensure it exists
+        const selectorData = cleanData.selectors?.[0] || {
+          selector: cleanData.selector || "",
+          selectorType: cleanData.selectorType || "css",
+          attributes: cleanData.attributes || ["text"]
+        };
+        
         const scrapingData = {
           label,
           url: cleanData.url || "",
-          selector: cleanData.selectors?.[0]?.selector || "",
-          selectorType: cleanData.selectors?.[0]?.selectorType || "css",
-          attributes: cleanData.selectors?.[0]?.attributes || ["text"],
+          selector: selectorData.selector,
+          selectorType: selectorData.selectorType,
+          attributes: selectorData.attributes,
           template: cleanData.template || "",
           pollingInterval: null,
           fromFilter: null,
