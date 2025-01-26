@@ -88,11 +88,12 @@ export class WorkflowResolver {
       throw new Error("Supabase client not initialized");
     }
 
-    // First, get all workflows ordered by created_at desc
+    // First, get all active workflows ordered by created_at desc
     const { data: workflows, error } = await ctx.supabase
       .from("workflows")
       .select("*")
       .eq("user_id", ctx.user.id)
+      .eq("is_active", true)  // Only return active workflows
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -150,6 +151,7 @@ export class WorkflowResolver {
       .select("*")
       .eq("id", id)
       .eq("user_id", context.user.id)
+      .eq("is_active", true)  // Only return active workflows
       .single();
 
     if (error) throw error;
@@ -683,6 +685,7 @@ export class WorkflowResolver {
         .select("*")
         .eq("id", workflowId)
         .eq("user_id", context.user.id)
+        .eq("is_active", true)  // Only return active workflows
         .single();
 
       if (workflowError) throw workflowError;
@@ -861,6 +864,7 @@ export class WorkflowResolver {
         .select("*")
         .eq("id", workflowId)
         .eq("user_id", context.user.id)
+        .eq("is_active", true)  // Only return active workflows
         .single();
 
       if (workflowError) throw workflowError;
@@ -949,6 +953,7 @@ export class WorkflowResolver {
       .select("*")
       .eq("id", input.workflow_id)
       .eq("user_id", ctx.user.id)
+      .eq("is_active", true)  // Only return active workflows
       .single();
 
     if (workflowError) throw workflowError;

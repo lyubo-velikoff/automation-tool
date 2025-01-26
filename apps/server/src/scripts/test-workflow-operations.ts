@@ -10,10 +10,15 @@ mutation CreateWorkflow($input: CreateWorkflowInput!) {
   createWorkflow(input: $input) {
     id
     name
+    description
     nodes {
       id
       type
       label
+      position {
+        x
+        y
+      }
       data {
         url
         selector
@@ -27,19 +32,7 @@ mutation CreateWorkflow($input: CreateWorkflowInput!) {
       source
       target
     }
-  }
-}`;
-
-const UPDATE_WORKFLOW = `
-mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
-  updateWorkflow(input: $input) {
-    id
-    name
-    nodes {
-      id
-      type
-      label
-    }
+    is_active
   }
 }`;
 
@@ -48,16 +41,60 @@ query GetWorkflow($id: ID!) {
   workflow(id: $id) {
     id
     name
+    description
     nodes {
       id
       type
       label
+      position {
+        x
+        y
+      }
+      data {
+        url
+        selector
+        selectorType
+        attributes
+        template
+      }
     }
     edges {
       id
       source
       target
     }
+    is_active
+  }
+}`;
+
+const UPDATE_WORKFLOW = `
+mutation UpdateWorkflow($input: UpdateWorkflowInput!) {
+  updateWorkflow(input: $input) {
+    id
+    name
+    description
+    nodes {
+      id
+      type
+      label
+      position {
+        x
+        y
+      }
+      data {
+        url
+        selector
+        selectorType
+        attributes
+        template
+      }
+    }
+    edges {
+      id
+      source
+      target
+    }
+    is_active
   }
 }`;
 
@@ -149,40 +186,40 @@ async function testWorkflowOperations() {
 
   // Test 1: Create Workflow
   console.log('\n1. Testing workflow creation...');
-  const createInput = {
+  const workflowInput = {
     input: {
-      name: 'Test Workflow Operations',
+      name: 'Test Operations Workflow',
+      description: 'A workflow for testing CRUD operations',
       nodes: [{
         id: '1',
         type: 'SCRAPING',
-        label: 'Web Scraping Test',
+        label: 'Web Scraping',
         position: { x: 0, y: 0 },
         data: {
           url: 'https://example.com',
           selector: 'h1',
           selectorType: 'css',
-          attributes: ['text'],
-          template: '{text}'
+          attributes: ['text']
         }
       }],
       edges: []
     }
   };
 
-  const createResult = await runGraphQLQuery(CREATE_WORKFLOW, createInput, token);
+  const createResult = await runGraphQLQuery(CREATE_WORKFLOW, workflowInput, token);
   if (!createResult) {
     console.log('❌ Failed to create workflow');
     return;
   }
+  console.log('✅ Successfully created workflow');
 
   const workflowId = createResult.createWorkflow.id;
-  console.log('✅ Workflow created with ID:', workflowId);
 
   // Test 2: Get Workflow
   console.log('\n2. Testing workflow retrieval...');
   const getResult = await runGraphQLQuery(GET_WORKFLOW, { id: workflowId }, token);
   if (!getResult) {
-    console.log('❌ Failed to get workflow');
+    console.log('❌ Failed to retrieve workflow');
     return;
   }
   console.log('✅ Successfully retrieved workflow');
@@ -193,17 +230,17 @@ async function testWorkflowOperations() {
     input: {
       id: workflowId,
       name: 'Updated Test Workflow',
+      description: 'Updated description',
       nodes: [{
         id: '1',
         type: 'SCRAPING',
-        label: 'Updated Web Scraping',
+        label: 'Updated Scraping',
         position: { x: 100, y: 100 },
         data: {
           url: 'https://example.com',
-          selector: 'h1',
+          selector: 'h2',
           selectorType: 'css',
-          attributes: ['text', 'href'],
-          template: '[{text}]({href})'
+          attributes: ['text', 'href']
         }
       }],
       edges: []
@@ -225,6 +262,15 @@ async function testWorkflowOperations() {
     return;
   }
   console.log('✅ Successfully deleted workflow');
+
+  // Verify deletion
+  console.log('\n5. Verifying deletion...');
+  const verifyResult = await runGraphQLQuery(GET_WORKFLOW, { id: workflowId }, token);
+  if (verifyResult?.workflow) {
+    console.log('❌ Workflow still exists after deletion');
+  } else {
+    console.log('✅ Workflow successfully deleted');
+  }
 }
 
 // Run the tests
