@@ -27,7 +27,8 @@ export const GET_WORKFLOWS = gql`
           url
           selector
           selectorType
-          attribute
+          attributes
+          template
         }
       }
       edges {
@@ -77,7 +78,8 @@ export const GET_WORKFLOW = gql`
           url
           selector
           selectorType
-          attribute
+          attributes
+          template
         }
       }
       edges {

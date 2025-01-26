@@ -92,8 +92,8 @@ export function useWorkflowHandlers() {
           selector: cleanData.selectors?.[0]?.selector || "",
           selectorType: cleanData.selectors?.[0]?.selectorType || "css",
           attributes: cleanData.selectors?.[0]?.attributes || [],
-          // Map outputTemplate to template
-          template: cleanData.outputTemplate,
+          // Use template directly
+          template: cleanData.template,
           // Include null fields required by GraphQL schema
           pollingInterval: null,
           fromFilter: null,

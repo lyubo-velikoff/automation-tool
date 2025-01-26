@@ -22,8 +22,6 @@ export interface NodeData {
   selector?: string;
   selectorType?: "css" | "xpath";
   attribute?: string;
-  attributes?: string[];
-  template?: string;
 
   // Common fields
   onConfigChange?: (nodeId: string, data: NodeData) => void;
