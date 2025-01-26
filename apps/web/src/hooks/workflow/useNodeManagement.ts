@@ -194,7 +194,12 @@ export function useNodeManagement() {
           ...(type === 'GMAIL_ACTION' && { to: '', subject: '', body: '' }),
           ...(type === 'GMAIL_TRIGGER' && { fromFilter: '', subjectFilter: '', pollingInterval: 5 }),
           ...(type === 'SCRAPING' && { url: '', selector: '', selectorType: 'css', attribute: 'text' }),
-          ...(type === 'OPENAI' && { prompt: '', model: 'gpt-3.5-turbo', maxTokens: 100 })
+          ...(type === 'OPENAI' && { 
+            template: '', 
+            model: 'gpt-3.5-turbo', 
+            maxTokens: 100,
+            temperature: 0.7
+          })
         }
       } as Node<NodeData>;
 

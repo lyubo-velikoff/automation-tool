@@ -53,6 +53,19 @@ export class NodeData {
 
   @Field(() => String, { nullable: true })
   template?: string;
+
+  // OpenAI fields
+  @Field(() => String, { nullable: true })
+  prompt?: string;
+
+  @Field(() => String, { nullable: true })
+  model?: string;
+
+  @Field(() => Number, { nullable: true })
+  temperature?: number;
+
+  @Field(() => Number, { nullable: true })
+  maxTokens?: number;
 }
 
 @ObjectType()

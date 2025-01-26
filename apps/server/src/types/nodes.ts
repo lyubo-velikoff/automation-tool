@@ -3,7 +3,8 @@ import { Field, ID, ObjectType } from 'type-graphql';
 export enum NodeType {
   GMAIL_TRIGGER = 'GMAIL_TRIGGER',
   GMAIL_ACTION = 'GMAIL_ACTION',
-  SCRAPING = 'SCRAPING'
+  SCRAPING = 'SCRAPING',
+  OPENAI = 'OPENAI'
 }
 
 @ObjectType()

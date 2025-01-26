@@ -14,7 +14,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 const documents = {
-    "\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n  }\n": types.WorkflowNodeDataFieldsFragmentDoc,
+    "\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n    # OpenAI fields\n    prompt\n    model\n    temperature\n    maxTokens\n  }\n": types.WorkflowNodeDataFieldsFragmentDoc,
     "\n  fragment WorkflowNodeFields on WorkflowNode {\n    id\n    type\n    label\n    position {\n      x\n      y\n    }\n    data {\n      ...WorkflowNodeDataFields\n    }\n  }\n": types.WorkflowNodeFieldsFragmentDoc,
     "\n  fragment WorkflowEdgeFields on WorkflowEdge {\n    id\n    source\n    target\n    sourceHandle\n    targetHandle\n  }\n": types.WorkflowEdgeFieldsFragmentDoc,
     "\n  fragment WorkflowTagFields on WorkflowTag {\n    id\n    name\n    color\n    created_at\n    updated_at\n  }\n": types.WorkflowTagFieldsFragmentDoc,
@@ -56,7 +56,7 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n  }\n"): (typeof documents)["\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n  }\n"];
+export function graphql(source: "\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n    # OpenAI fields\n    prompt\n    model\n    temperature\n    maxTokens\n  }\n"): (typeof documents)["\n  fragment WorkflowNodeDataFields on NodeData {\n    label\n    # Gmail fields\n    pollingInterval\n    fromFilter\n    subjectFilter\n    to\n    subject\n    body\n    # Scraping fields\n    url\n    selector\n    selectorType\n    attributes\n    template\n    # OpenAI fields\n    prompt\n    model\n    temperature\n    maxTokens\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

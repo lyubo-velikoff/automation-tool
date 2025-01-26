@@ -22,6 +22,7 @@ import { ScrapingService } from '../services/scraping.service';
 import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
 import { supabase } from '../lib/supabase';
+import { OpenAIService } from '../services/openai.service';
 
 interface NodeExecutionResult {
   nodeId: string;
@@ -274,7 +275,12 @@ export class WorkflowResolver {
           selector: node.data?.selector,
           selectorType: node.data?.selectorType,
           attributes: node.data?.attributes,
-          template: node.data?.template
+          template: node.data?.template,
+          // OpenAI fields
+          prompt: node.data?.prompt,
+          model: node.data?.model,
+          temperature: node.data?.temperature,
+          maxTokens: node.data?.maxTokens
         }
       }));
     }
@@ -594,6 +600,8 @@ export class WorkflowResolver {
         return result.emails?.map((e: any) => e.snippet || '') || [];
       case 'GMAIL_ACTION':
         return ['Email sent successfully'];
+      case 'OPENAI':
+        return result.results || [];
       default:
         return [];
     }
@@ -651,10 +659,11 @@ export class WorkflowResolver {
       // Get the Gmail token from context.req.headers
       const gmailToken = context.req?.get('x-gmail-token');
       
-      // Add token to context for node execution
+      // Add token and user to context for node execution
       const executionContext = {
         token: gmailToken,
-        nodeResults: {} as Record<string, string[]>
+        nodeResults: {} as Record<string, string[]>,
+        user: context.user // Add the entire user object
       };
 
       // Get the workflow
@@ -779,7 +788,8 @@ export class WorkflowResolver {
   private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
     try {
       const nodeContext = {
-        nodeResults: context.nodeResults || {}
+        nodeResults: context.nodeResults || {},
+        userId: context.user?.id
       };
 
       let result;
@@ -795,6 +805,9 @@ export class WorkflowResolver {
           break;
         case 'SCRAPING':
           result = await this.executeScrapingNode(node);
+          break;
+        case 'OPENAI':
+          result = await this.executeOpenAINode(node, nodeContext);
           break;
         default:
           throw new Error(`Unsupported node type: ${node.type}`);
@@ -822,6 +835,37 @@ export class WorkflowResolver {
         nodeId: node.id,
         status: 'error',
         results: [error instanceof Error ? error.message : 'Unknown error']
+      };
+    }
+  }
+
+  private async executeOpenAINode(
+    node: WorkflowNode,
+    context: { nodeResults: Record<string, any>; userId: string }
+  ): Promise<any> {
+    if (!node.data?.prompt) {
+      throw new Error('Missing prompt in OpenAI node');
+    }
+
+    try {
+      const openaiService = await OpenAIService.create(context.userId);
+      const prompt = this.interpolateVariables(node.data.prompt, context);
+      
+      const result = await openaiService.complete(prompt, {
+        model: node.data.model,
+        temperature: node.data.temperature,
+        maxTokens: node.data.maxTokens
+      });
+
+      return {
+        success: true,
+        result
+      };
+    } catch (error) {
+      console.error('OpenAI node execution error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

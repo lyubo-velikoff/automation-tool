@@ -16,6 +16,11 @@ export const WORKFLOW_NODE_DATA_FIELDS = gql`
     selectorType
     attributes
     template
+    # OpenAI fields
+    prompt
+    model
+    temperature
+    maxTokens
   }
 `;
 

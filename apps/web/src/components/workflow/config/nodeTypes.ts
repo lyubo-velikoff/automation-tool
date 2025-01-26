@@ -2,32 +2,40 @@ import { BasicNode } from "@/components/ui/data-display/basic-node";
 import GmailActionNode from "../nodes/gmail/GmailActionNode";
 import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
 import WebScrapingNode from "../nodes/scraping/WebScrapingNode";
+import OpenAINode from "../nodes/openai/OpenAINode";
 
 export interface NodeData {
+  id?: string;
+  label?: string;
   // Gmail fields
-  to?: string;
   subject?: string;
   body?: string;
-  fromFilter?: string;
-  subjectFilter?: string;
-  pollingInterval?: string | number;
-
+  to?: string;
   // Scraping fields
   url?: string;
   selector?: string;
-  selectorType?: "css" | "xpath";
-  attribute?: string;
-
+  selectorType?: string;
+  attributes?: string[];
+  template?: string;
+  // OpenAI fields
+  prompt?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
   // Common fields
   onConfigChange?: (nodeId: string, data: NodeData) => void;
-  label?: string;
+  fromFilter?: string;
+  subjectFilter?: string;
+  pollingInterval?: string | number;
+  attribute?: string;
 } 
 
-// Memoized node component
+// Memoized node components
 export const NODE_TYPES = {
-  GMAIL_ACTION: GmailActionNode,
   GMAIL_TRIGGER: GmailTriggerNode,
+  GMAIL_ACTION: GmailActionNode,
   SCRAPING: WebScrapingNode,
+  OPENAI: OpenAINode,
   default: BasicNode
 } as const;
 

@@ -51,6 +51,19 @@ export class NodeDataInput {
 
   @Field(() => String, { nullable: true })
   template?: string;
+
+  // OpenAI fields
+  @Field({ nullable: true })
+  prompt?: string;
+
+  @Field({ nullable: true })
+  model?: string;
+
+  @Field({ nullable: true })
+  temperature?: number;
+
+  @Field({ nullable: true })
+  maxTokens?: number;
 }
 
 @InputType()
