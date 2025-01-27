@@ -13,9 +13,8 @@ interface BatchConfig {
 }
 
 interface ScrapingResult {
-  url: string;
   success: boolean;
-  results: ScrapedItem[];
+  data?: { [key: string]: string };
   error?: string;
 }
 
@@ -23,23 +22,23 @@ export class ScrapingService {
   private limiter: RateLimiter;
 
   constructor() {
-    // Default rate limit: 100 requests per 15 minutes
+    // Global rate limiter: 300 requests per 15 minutes
     this.limiter = new RateLimiter({
-      tokensPerInterval: 100,
-      interval: 15 * 60 * 1000 // 15 minutes in milliseconds
+      tokensPerInterval: 300,
+      interval: 15 * 60 * 1000 // 15 minutes
     });
   }
 
   async scrapeUrls(
     urls: string[],
-    selector: string,
-    selectorType: 'css' | 'xpath',
-    attributes: string[] = ['text'],
+    selectors: { selector: string; selectorType: 'css' | 'xpath'; attributes: string[]; name: string }[],
+    _selectorType?: 'css' | 'xpath',
+    _attributes?: string[],
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
     const config = {
-      batchSize: batchConfig?.batchSize || 5,
-      rateLimit: batchConfig?.rateLimit || 10
+      batchSize: batchConfig?.batchSize || 10,
+      rateLimit: batchConfig?.rateLimit || 30
     };
 
     // Create a rate limiter for this batch
@@ -51,36 +50,102 @@ export class ScrapingService {
     // Create a concurrency limiter
     const concurrencyLimit = pLimit(config.batchSize);
 
-    // Process URLs in batches with rate limiting
+    // Process URLs in batches with rate limiting and retries
     const results = await Promise.all(
       urls.map(url =>
         concurrencyLimit(async () => {
-          try {
-            // Check both limiters
-            const [globalTokens, batchTokens] = await Promise.all([
-              this.limiter.tryRemoveTokens(1),
-              batchLimiter.tryRemoveTokens(1)
-            ]);
+          const maxRetries = 3;
+          let retryCount = 0;
 
-            if (!globalTokens || !batchTokens) {
-              throw new Error('Rate limit exceeded');
+          while (retryCount < maxRetries) {
+            try {
+              // Wait for both limiters with a timeout
+              const [globalTokens, batchTokens] = await Promise.all([
+                this.limiter.removeTokens(1).catch(() => false),
+                batchLimiter.removeTokens(1).catch(() => false)
+              ]);
+
+              if (!globalTokens || !batchTokens) {
+                // If rate limited, wait and retry
+                await new Promise(resolve => setTimeout(resolve, 5000 * (retryCount + 1)));
+                retryCount++;
+                continue;
+              }
+
+              // Fetch the page once
+              console.log('Fetching page:', url);
+              const html = await this.fetchPage(url);
+              console.log('Page fetched, length:', html.length);
+              const $ = cheerio.load(html);
+
+              // Remove noscript tags as they can contain duplicate content
+              $('noscript').remove();
+
+              const data: { [key: string]: string } = {};
+              
+              // Process each selector using the same Cheerio instance
+              for (const selector of selectors) {
+                console.log(`Processing selector: ${selector.selector}`);
+                let elements;
+                if (selector.selectorType === 'xpath') {
+                  // TODO: Implement XPath support
+                  throw new Error('XPath selectors not yet supported');
+                } else {
+                  elements = $(selector.selector);
+                }
+
+                console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
+                if (elements.length === 0) {
+                  console.log('HTML snippet around where elements should be:');
+                  const bodyText = $('body').html()?.substring(0, 500) || 'No body found';
+                  console.log(bodyText);
+                  continue;
+                }
+
+                // Take the first element's data
+                const firstElement = elements.first();
+                selector.attributes.forEach(attr => {
+                  if (attr === 'text') {
+                    const text = firstElement.text().trim();
+                    console.log(`Extracted text for ${selector.name}:`, text);
+                    data[selector.name] = text;
+                  } else if (attr === 'html') {
+                    const html = firstElement.html() || '';
+                    console.log(`Extracted HTML for ${selector.name}:`, html);
+                    data[selector.name] = html;
+                  } else {
+                    const value = firstElement.attr(attr);
+                    console.log(`Extracted ${attr} for ${selector.name}:`, value);
+                    if (value) {
+                      data[selector.name] = value;
+                    }
+                  }
+                });
+              }
+
+              return {
+                success: true,
+                data
+              };
+            } catch (error) {
+              if (retryCount < maxRetries - 1) {
+                console.log(`Retrying ${url} (attempt ${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 5000 * (retryCount + 1)));
+                retryCount++;
+                continue;
+              }
+              console.error(`Error scraping ${url} after ${maxRetries} attempts:`, error);
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+              };
             }
-
-            const scrapedData = await this.scrapeUrl(url, selector, selectorType, attributes);
-            return {
-              url,
-              success: true,
-              results: scrapedData
-            };
-          } catch (error) {
-            console.error(`Error scraping ${url}:`, error);
-            return {
-              url,
-              success: false,
-              results: [],
-              error: error instanceof Error ? error.message : 'Unknown error occurred'
-            };
           }
+
+          return {
+            success: false,
+            error: `Failed after ${maxRetries} retries`
+          };
         })
       )
     );
@@ -100,7 +165,9 @@ export class ScrapingService {
     console.log('Extracting attributes:', attributes);
 
     try {
+      console.log('Fetching page...');
       const html = await this.fetchPage(url);
+      console.log('Page fetched, length:', html.length);
       const $ = cheerio.load(html);
 
       // Remove noscript tags as they can contain duplicate content
@@ -115,6 +182,11 @@ export class ScrapingService {
       }
 
       console.log(`Found ${elements.length} elements matching selector: ${selector}`);
+      if (elements.length === 0) {
+        console.log('HTML snippet around where elements should be:');
+        const bodyText = $('body').html()?.substring(0, 500) || 'No body found';
+        console.log(bodyText);
+      }
 
       const results: ScrapedItem[] = [];
       elements.each((_, el) => {
@@ -122,11 +194,16 @@ export class ScrapingService {
         
         attributes.forEach(attr => {
           if (attr === 'text') {
-            item[attr] = $(el).text().trim();
+            const text = $(el).text().trim();
+            console.log('Extracted text:', text);
+            item[attr] = text;
           } else if (attr === 'html') {
-            item[attr] = $(el).html() || '';
+            const html = $(el).html() || '';
+            console.log('Extracted HTML:', html);
+            item[attr] = html;
           } else {
             const value = $(el).attr(attr);
+            console.log(`Extracted ${attr}:`, value);
             if (value) {
               item[attr] = value;
             }
@@ -138,6 +215,7 @@ export class ScrapingService {
         }
       });
 
+      console.log('Final results:', JSON.stringify(results, null, 2));
       return results;
     } catch (error) {
       console.error('Error scraping URL:', error);
@@ -147,11 +225,15 @@ export class ScrapingService {
 
   private async fetchPage(url: string): Promise<string> {
     try {
+      console.log('Sending request to:', url);
       const response = await fetch(url);
+      console.log('Response status:', response.status);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return await response.text();
+      const text = await response.text();
+      console.log('Response length:', text.length);
+      return text;
     } catch (error) {
       console.error('Error fetching page:', error);
       throw error;
@@ -172,19 +254,15 @@ export class ScrapingService {
     if (!template) {
       // If no template, return JSON stringified results
       return results.map(result => 
-        JSON.stringify({
-          url: result.url,
-          success: result.success,
-          data: result.results
-        })
+        result.success && result.data ? JSON.stringify(result.data) : `Error: ${result.error || 'Unknown error'}`
       );
     }
 
     return results.flatMap(result => {
-      if (!result.success) {
-        return [`Error scraping ${result.url}: ${result.error}`];
+      if (!result.success || !result.data) {
+        return [`Error: ${result.error || 'Unknown error'}`];
       }
-      return this.formatResults(result.results, template);
+      return this.formatResults([result.data], template);
     });
   }
 } 

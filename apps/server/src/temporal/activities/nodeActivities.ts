@@ -6,8 +6,32 @@ import { ScrapingService } from '../../services/scraping.service';
 
 const scrapingService = new ScrapingService();
 
+interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
 interface WorkflowContext {
   nodeResults: Record<string, any>;
+}
+
+interface SelectorResult {
+  [key: string]: string;
+}
+
+interface ScrapingResult {
+  success: boolean;
+  error?: string;
+  data?: SelectorResult;
+}
+
+interface SelectorConfig {
+  selector: string;
+  selectorType: 'css' | 'xpath';
+  attributes: string[];
+  name: string;
+  description?: string;
 }
 
 export async function executeNode(
@@ -31,6 +55,10 @@ export async function executeNode(
     case 'SCRAPING':
       const results = await handleWebScraping(node);
       context.nodeResults[node.id] = results;
+      break;
+    case 'MULTI_URL_SCRAPING':
+      const multiResults = await handleMultiURLScraping(node, context);
+      context.nodeResults[node.id] = multiResults;
       break;
     default:
       throw new Error(`Unsupported node type: ${node.type}`);
@@ -143,4 +171,76 @@ async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
     console.error('Error during web scraping:', error);
     throw error;
   }
+}
+
+async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
+  // Get the source node ID from the context
+  const sourceNodeId = Object.keys(context.nodeResults).find(id => {
+    const results = context.nodeResults[id];
+    return Array.isArray(results) && results.length > 0;
+  });
+
+  if (!sourceNodeId) {
+    throw new Error('No source node found with results for multi-URL scraping');
+  }
+
+  // Get the results from the source node
+  const sourceNodeResults = context.nodeResults[sourceNodeId];
+  if (!sourceNodeResults || !Array.isArray(sourceNodeResults)) {
+    throw new Error(`Invalid results found from source node ${sourceNodeId}`);
+  }
+
+  return sourceNodeResults;
+}
+
+function cleanHtmlContent(content: string): string {
+  // Remove HTML tags while preserving line breaks
+  return content
+    .replace(/<br\s*\/?>/gi, '\n') // Replace <br> tags with newlines
+    .replace(/<[^>]+>/g, '') // Remove all other HTML tags
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .replace(/\n\s+/g, '\n') // Clean up spaces after newlines
+    .trim(); // Remove leading/trailing whitespace
+}
+
+async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
+  console.log('Starting multi-URL scraping...');
+
+  const selectors = node.data?.selectors as SelectorConfig[];
+  const template = node.data?.template as string;
+
+  if (!selectors || selectors.length === 0) {
+    throw new Error('No selectors provided for multi-URL scraping');
+  }
+
+  const urls = await getSourceNodeResults(node, context);
+  console.log('Source node results (URLs):', urls);
+
+  if (!urls || urls.length === 0) {
+    throw new Error('No URLs found from source node');
+  }
+
+  console.log('Using selectors:', selectors);
+  const results = await scrapingService.scrapeUrls(urls, selectors);
+  console.log('Scraping results:', results);
+
+  // Format results using template if provided
+  if (template) {
+    return results.map((result: ScrapingResult) => {
+      let formattedResult = template;
+      selectors.forEach(selector => {
+        const value = cleanHtmlContent(result.data?.[selector.name] || '');
+        formattedResult = formattedResult.replace(`{{${selector.name}}}`, value);
+      });
+      return formattedResult;
+    });
+  }
+
+  // Return raw results if no template
+  return results.map((result: ScrapingResult) => {
+    const cleanedData = Object.fromEntries(
+      Object.entries(result.data || {}).map(([key, value]) => [key, cleanHtmlContent(value)])
+    );
+    return JSON.stringify(cleanedData);
+  });
 } 

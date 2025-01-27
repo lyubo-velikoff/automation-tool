@@ -1,4 +1,5 @@
 import { Field, ID, InputType, Float } from 'type-graphql';
+import { ScrapingNodeDataInput, SelectorConfigInput, BatchConfigInput } from './workflow';
 
 @InputType()
 export class PositionInput {
@@ -14,6 +15,21 @@ export class NodeDataInput {
   @Field(() => String, { nullable: true })
   label?: string;
 
+  @Field(() => String, { nullable: true })
+  url?: string;
+
+  @Field(() => [String], { nullable: true })
+  urls?: string[];
+
+  @Field(() => [SelectorConfigInput], { nullable: true })
+  selectors?: SelectorConfigInput[];
+
+  @Field(() => BatchConfigInput, { nullable: true })
+  batchConfig?: BatchConfigInput;
+
+  @Field(() => String, { nullable: true })
+  template?: string;
+
   // Gmail fields
   @Field(() => String, { nullable: true })
   to?: string;
@@ -25,44 +41,25 @@ export class NodeDataInput {
   body?: string;
 
   @Field(() => String, { nullable: true })
-  fromFilter?: string;
+  subjectFilter?: string;
 
   @Field(() => String, { nullable: true })
-  subjectFilter?: string;
+  fromFilter?: string;
 
   @Field(() => Number, { nullable: true })
   pollingInterval?: number;
 
-  // Scraping fields
-  @Field(() => String, { nullable: true })
-  url?: string;
-
-  @Field(() => String, { nullable: true })
-  selector?: string;
-
-  @Field(() => String, { nullable: true })
-  selectorType?: string;
-
-  @Field(() => String, { nullable: true })
-  attribute?: string;
-
-  @Field(() => [String], { nullable: true })
-  attributes?: string[];
-
-  @Field(() => String, { nullable: true })
-  template?: string;
-
   // OpenAI fields
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   prompt?: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   model?: string;
 
-  @Field({ nullable: true })
+  @Field(() => Number, { nullable: true })
   temperature?: number;
 
-  @Field({ nullable: true })
+  @Field(() => Number, { nullable: true })
   maxTokens?: number;
 }
 

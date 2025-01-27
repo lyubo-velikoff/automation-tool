@@ -27,4 +27,35 @@ async function testScraping() {
   }
 }
 
-testScraping(); 
+async function testForumScraping() {
+  const service = new ScrapingService();
+  const url = 'https://forum.cursor.com/t/cursor-deepseek/43261';
+
+  // Test different selectors to find the correct one
+  const selectors = [
+    '.topic-owner .cooked',
+    '.topic-post.topic-owner .cooked',
+    '.topic-post.topic-owner .post-content',
+    '.topic-post.topic-owner .post .cooked',
+    'article.topic-post.topic-owner .cooked',
+    'article.boxed.topic-owner .cooked'
+  ];
+
+  for (const selector of selectors) {
+    console.log(`\nTesting selector: ${selector}`);
+    try {
+      const results = await service.scrapeUrl(
+        url,
+        selector,
+        'css',
+        ['text']
+      );
+      console.log('Results:', results);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  }
+}
+
+testScraping();
+testForumScraping().catch(console.error); 

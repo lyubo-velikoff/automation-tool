@@ -1,5 +1,5 @@
 import { Field, ID, ObjectType, Float, Int, InputType } from 'type-graphql';
-import { NodeResult } from "../resolvers/workflow.resolver";
+import { NodeResult } from "./node-result";
 import { WorkflowNodeInput, WorkflowEdgeInput, CreateWorkflowInput, UpdateWorkflowInput } from './workflow-inputs';
 
 @ObjectType()

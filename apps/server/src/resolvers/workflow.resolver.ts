@@ -6,6 +6,7 @@ import {
   WorkflowTag,
   WorkflowExecution
 } from "../schema/workflow";
+import { NodeResult } from "../schema/node-result";
 import {
   CreateWorkflowInput,
   UpdateWorkflowInput,
@@ -24,12 +25,6 @@ import { Context } from "../types";
 import { supabase } from '../lib/supabase';
 import { OpenAIService } from '../services/openai.service';
 
-interface NodeExecutionResult {
-  nodeId: string;
-  status: 'success' | 'error';
-  results: string[];
-}
-
 interface GmailTriggerResult {
   emails: Array<{
     id?: string;
@@ -45,18 +40,6 @@ interface GmailActionResult {
 
 interface ScrapingResult {
   results: string[];
-}
-
-@ObjectType()
-export class NodeResult {
-  @Field()
-  nodeId!: string;
-
-  @Field()
-  status!: string;
-
-  @Field(() => [String], { nullable: true })
-  results?: string[];
 }
 
 @ObjectType()
@@ -100,6 +83,8 @@ class WorkflowTemplate {
 
 @Resolver(Workflow)
 export class WorkflowResolver {
+  private currentWorkflow: Workflow | null = null;
+
   @Query(() => [Workflow])
   @Authorized()
   async workflows(@Ctx() ctx: Context): Promise<Workflow[]> {
@@ -272,10 +257,10 @@ export class WorkflowResolver {
           body: node.data?.body,
           // Scraping fields
           url: node.data?.url,
-          selector: node.data?.selector,
-          selectorType: node.data?.selectorType,
-          attributes: node.data?.attributes,
+          urls: node.data?.urls,
+          selectors: node.data?.selectors,
           template: node.data?.template,
+          batchConfig: node.data?.batchConfig,
           // OpenAI fields
           prompt: node.data?.prompt,
           model: node.data?.model,
@@ -566,47 +551,109 @@ export class WorkflowResolver {
     });
   }
 
-  private async executeScrapingNode(node: WorkflowNode): Promise<any> {
+  private async executeScrapingNode(node: WorkflowNode, nodeResults: Record<string, any>): Promise<any> {
     console.log('Executing scraping node with data:', JSON.stringify(node.data, null, 2));
+    console.log('Node results:', nodeResults);
 
-    if (!node.data?.url || !node.data?.selector) {
-      throw new Error('Missing required scraping data (url or selector)');
-    }
+    if (node.type === 'MULTI_URL_SCRAPING') {
+      // For multi-URL scraping, get URLs from previous node's results
+      const sourceNodeId = this.getSourceNodeId(node.id);
+      if (!sourceNodeId || !nodeResults[sourceNodeId]?.results) {
+        throw new Error('No URLs provided for multi-URL scraping');
+      }
+      const urls = nodeResults[sourceNodeId].results;
+      console.log('Using URLs from previous node:', urls);
 
-    const scrapingService = new ScrapingService();
-    console.log('Calling scrapeUrl with:', {
-      url: node.data.url,
-      selector: node.data.selector,
-      selectorType: node.data.selectorType,
-      attributes: node.data.attributes || ['text']
-    });
-
-    try {
-      const results = await scrapingService.scrapeUrl(
-        node.data.url,
-        node.data.selector,
-        node.data.selectorType as 'css' | 'xpath',
-        node.data.attributes || ['text']
-      );
-
-      console.log('Raw scraping results:', JSON.stringify(results, null, 2));
-
-      if (!results || results.length === 0) {
-        console.log('Warning: No results found from scraping');
+      if (!node.data?.selectors?.[0]) {
+        throw new Error('Missing required selector configuration');
       }
 
-      // Format results if template is provided
-      const formattedResults = node.data.template 
-        ? scrapingService.formatResults(results, node.data.template)
-        : results.map(r => JSON.stringify(r));
+      const scrapingService = new ScrapingService();
+      const firstSelector = node.data.selectors[0];
+      const batchConfig = node.data.batchConfig || { batchSize: 5, rateLimit: 2 };
 
-      console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
+      try {
+        console.log('Starting multi-URL scraping with config:', {
+          selector: firstSelector.selector,
+          selectorType: firstSelector.selectorType,
+          attributes: firstSelector.attributes,
+          batchConfig
+        });
 
-      return { results: formattedResults };
-    } catch (error) {
-      console.error('Error in scraping service:', error);
-      throw error;
+        const results = await scrapingService.scrapeUrls(
+          urls,
+          firstSelector.selector,
+          firstSelector.selectorType as 'css' | 'xpath',
+          firstSelector.attributes,
+          batchConfig
+        );
+
+        console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+
+        if (!results || results.length === 0) {
+          console.log('Warning: No results found from scraping');
+        }
+
+        // Format results using the template
+        const formattedResults = node.data.template 
+          ? scrapingService.formatBatchResults(results, node.data.template)
+          : results.flatMap(r => r.success ? r.results.map(item => JSON.stringify(item)) : [`Error: ${r.error}`]);
+
+        console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
+
+        return { results: formattedResults };
+      } catch (error) {
+        console.error('Error in scraping service:', error);
+        throw error;
+      }
+    } else {
+      // Regular single-URL scraping
+      if (!node.data?.url || !node.data?.selectors?.[0]) {
+        throw new Error('Missing required scraping data (url or selector)');
+      }
+
+      const scrapingService = new ScrapingService();
+      const firstSelector = node.data.selectors[0];
+      console.log('Starting single-URL scraping with config:', {
+        url: node.data.url,
+        selector: firstSelector.selector,
+        selectorType: firstSelector.selectorType,
+        attributes: firstSelector.attributes
+      });
+
+      try {
+        const results = await scrapingService.scrapeUrl(
+          node.data.url,
+          firstSelector.selector,
+          firstSelector.selectorType as 'css' | 'xpath',
+          firstSelector.attributes
+        );
+
+        console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+
+        if (!results || results.length === 0) {
+          console.log('Warning: No results found from scraping');
+        }
+
+        // Format results using the template
+        const formattedResults = node.data.template 
+          ? scrapingService.formatResults(results, node.data.template)
+          : results.map(r => JSON.stringify(r));
+
+        console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
+
+        return { results: formattedResults };
+      } catch (error) {
+        console.error('Error in scraping service:', error);
+        throw error;
+      }
     }
+  }
+
+  private getSourceNodeId(nodeId: string): string | null {
+    if (!this.currentWorkflow) return null;
+    const edge = this.currentWorkflow.edges.find((e: WorkflowEdge) => e.target === nodeId);
+    return edge?.source || null;
   }
 
   private getNodeResults(type: string, result: any): string[] {
@@ -682,110 +729,104 @@ export class WorkflowResolver {
   @Authorized()
   async executeWorkflow(
     @Arg("workflowId", () => String) workflowId: string,
-    @Ctx() context: Context
+    @Ctx() context: any
   ): Promise<ExecutionResult> {
+    // Get workflow
+    const { data: workflowData, error } = await supabase
+      .from("workflows")
+      .select("*")
+      .eq("id", workflowId)
+      .single();
+
+    if (error) throw error;
+    if (!workflowData) throw new Error("Workflow not found");
+
+    this.currentWorkflow = workflowData;
+
     try {
       // Get the Gmail token from context.req.headers
-      const gmailToken = context.req?.get('x-gmail-token');
-      
-      // Add token and user to context for node execution
-      const executionContext = {
-        token: gmailToken,
-        nodeResults: {} as Record<string, string[]>,
-        user: context.user // Add the entire user object
-      };
+      const gmailToken = context.req?.headers?.['gmail-token'];
+      const userId = context.user?.id;
 
-      // Get the workflow
-      const { data: workflow, error: workflowError } = await supabase
-        .from("workflows")
-        .select("*")
-        .eq("id", workflowId)
-        .eq("user_id", context.user.id)
-        .eq("is_active", true)
-        .single();
-
-      if (workflowError) throw workflowError;
-      if (!workflow) throw new Error("Workflow not found");
-
-      const nodes = workflow.nodes as WorkflowNode[];
-      const edges = workflow.edges as WorkflowEdge[];
-      const executionId = `exec-${Date.now()}`;
-      const nodeResults: NodeResult[] = [];
-
-      try {
-        // Get execution order using topological sort
-        const orderedNodes = this.getExecutionOrder(nodes, edges);
-        console.log('Execution order:', orderedNodes.map(n => n.type));
-
-        let hasFailedNodes = false;
-
-        // Execute nodes in order
-        for (const node of orderedNodes) {
-          console.log('Executing node:', node.type, node.id);
-          const result = await this.executeNode(node, executionContext);
-          nodeResults.push(result);
-          
-          // Track if any nodes failed
-          if (result.status === 'error') {
-            hasFailedNodes = true;
-          }
-          
-          // If a node fails and it has dependent nodes, mark them as skipped
-          if (result.status === 'error') {
-            const dependentNodes = this.getDependentNodes(node.id, edges, nodes);
-            for (const depNode of dependentNodes) {
-              nodeResults.push({
-                nodeId: depNode.id,
-                status: 'skipped',
-                results: ['Skipped due to upstream node failure']
-              });
-            }
-            // Break execution since downstream nodes can't proceed
-            break;
-          }
-
-          console.log('Node results:', executionContext.nodeResults);
-        }
-
-        // Store execution results
-        await supabase
-          .from('workflow_executions')
-          .insert([{
-            workflow_id: workflowId,
-            user_id: context.user.id,
-            execution_id: executionId,
-            status: hasFailedNodes ? 'failed' : 'completed',
-            results: nodeResults
-          }]);
-
-        return {
-          success: !hasFailedNodes,
-          message: hasFailedNodes ? 'Workflow execution failed' : 'Workflow executed successfully',
-          executionId,
-          results: nodeResults
-        };
-      } catch (error) {
-        // Store failed execution
-        await supabase
-          .from('workflow_executions')
-          .insert([
-            {
-              workflow_id: workflowId,
-              user_id: context.user.id,
-              execution_id: executionId,
-              status: 'failed',
-              results: nodeResults
-            }
-          ]);
-
-        throw error;
+      if (!userId) {
+        throw new Error("User ID is required");
       }
-    } catch (error) {
-      console.error('Workflow execution error:', error);
+
+      // Create execution context
+      const nodeResults = {} as Record<string, any>;
+      const executionId = `exec-${Date.now()}`;
+      const results: NodeResult[] = [];
+
+      // Execute nodes in order based on edges
+      for (const node of workflowData.nodes) {
+        console.log(`Executing node: ${node.type} ${node.id}`);
+        try {
+          let nodeResult;
+          switch (node.type) {
+            case "GMAIL_TRIGGER":
+              nodeResult = await this.executeGmailTrigger(node, gmailToken);
+              break;
+            case "GMAIL_ACTION":
+              nodeResult = await this.executeGmailAction(node, gmailToken, { nodeResults });
+              break;
+            case "OPENAI":
+              nodeResult = await this.executeOpenAINode(node, { nodeResults, userId });
+              break;
+            case "SCRAPING":
+            case "MULTI_URL_SCRAPING":
+              nodeResult = await this.executeScrapingNode(node, nodeResults);
+              break;
+            default:
+              throw new Error(`Unsupported node type: ${node.type}`);
+          }
+
+          // Store results for next nodes
+          nodeResults[node.id] = nodeResult;
+
+          // Add to results array
+          results.push(new NodeResult(
+            node.id,
+            "success",
+            Array.isArray(nodeResult?.results) ? nodeResult.results : [JSON.stringify(nodeResult)]
+          ));
+        } catch (error: any) {
+          console.error(`Error executing node ${node.id}:`, error);
+          results.push(new NodeResult(
+            node.id,
+            "error",
+            [error.message || "Unknown error"]
+          ));
+          break; // Stop execution on error
+        }
+      }
+
+      // Save execution results
+      const { error: saveError } = await supabase
+        .from("workflow_executions")
+        .insert({
+          workflow_id: workflowId,
+          user_id: userId,
+          execution_id: executionId,
+          status: results.some(r => r.status === "error") ? "error" : "success",
+          results
+        });
+
+      if (saveError) {
+        console.error("Error saving execution results:", saveError);
+      }
+
+      return {
+        success: !results.some(r => r.status === "error"),
+        message: results.some(r => r.status === "error") ? "Workflow execution failed" : "Workflow executed successfully",
+        executionId,
+        results
+      };
+    } catch (error: any) {
+      console.error("Error executing workflow:", error);
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
-        executionId: undefined,
+        message: error.message || "Unknown error",
+        executionId: `exec-${Date.now()}`,
         results: []
       };
     }
@@ -826,7 +867,7 @@ export class WorkflowResolver {
           results = await this.executeGmailAction(node, context.token, context);
           break;
         case "SCRAPING":
-          results = await this.executeScrapingNode(node);
+          results = await this.executeScrapingNode(node, context.nodeResults);
           break;
         case "MULTI_URL_SCRAPING":
           results = await this.executeMultiURLScrapingNode(node);
@@ -1091,9 +1132,7 @@ export class WorkflowResolver {
             body: node.data?.body,
             // Scraping fields
             url: node.data?.url,
-            selector: node.data?.selector,
-            selectorType: node.data?.selectorType,
-            attributes: node.data?.attributes,
+            selectors: node.data?.selectors,
             template: node.data?.template
           }
         })),
