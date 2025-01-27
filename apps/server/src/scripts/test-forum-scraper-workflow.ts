@@ -150,57 +150,28 @@ async function testForumScraperWorkflow() {
         {
           id: 'node1',
           type: 'SCRAPING',
-          label: 'Forum Topics Scraper',
+          label: 'Forum Post Content Scraper',
           data: {
-            url: 'https://forum.cursor.com/',
-            selectors: [{
-              selector: 'td a.raw-topic-link',
-              selectorType: 'css',
-              attributes: ['text', 'href'],
-              name: 'Topic Links',
-              description: 'Extracts forum topic links'
-            }],
-            template: '{{href}}'
-          },
-          position: { x: 100, y: 100 }
-        },
-        {
-          id: 'node2',
-          type: 'MULTI_URL_SCRAPING',
-          label: 'Forum Posts Content Scraper',
-          position: { x: 300, y: 100 },
-          data: {
+            url: 'https://forum.cursor.com/t/cursor-deepseek/43261',
             selectors: [
               {
-                selector: '#topic-title h1 a',
-                selectorType: 'css',
-                attributes: ['text'],
-                name: 'Post Title',
-                description: 'Extracts the forum post title'
-              },
-              {
-                selector: '.post[itemprop="text"]',
+                selector: '#post_1 .post[itemprop="text"]',
                 selectorType: 'css',
                 attributes: ['text'],
                 name: 'Post Content',
                 description: 'Extracts the main post content'
               }
             ],
-            template: '# {{Post Title}}\n\n{{Post Content}}',
+            template: '{{Post Content}}',
             batchConfig: {
-              batchSize: 20,
-              rateLimit: 30
+              batchSize: 5,
+              rateLimit: 20
             }
-          }
+          },
+          position: { x: 100, y: 100 }
         }
       ],
-      edges: [
-        {
-          id: 'edge1',
-          source: 'node1',
-          target: 'node2'
-        }
-      ]
+      edges: []
     }
   };
 

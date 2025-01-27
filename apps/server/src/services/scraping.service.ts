@@ -22,9 +22,9 @@ export class ScrapingService {
   private limiter: RateLimiter;
 
   constructor() {
-    // Global rate limiter: 300 requests per 15 minutes
+    // Global rate limiter: 200 requests per 15 minutes (reduced from 250)
     this.limiter = new RateLimiter({
-      tokensPerInterval: 300,
+      tokensPerInterval: 200,
       interval: 15 * 60 * 1000 // 15 minutes
     });
   }
@@ -37,8 +37,8 @@ export class ScrapingService {
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
     const config = {
-      batchSize: batchConfig?.batchSize || 10,
-      rateLimit: batchConfig?.rateLimit || 30
+      batchSize: batchConfig?.batchSize || 5,
+      rateLimit: batchConfig?.rateLimit || 20
     };
 
     // Create a rate limiter for this batch
@@ -81,47 +81,53 @@ export class ScrapingService {
               // Remove noscript tags as they can contain duplicate content
               $('noscript').remove();
 
+              // Debug: Log a sample of the HTML
+              console.log('HTML sample:', html.substring(0, 1000));
+              console.log('Body HTML sample:', $('body').html()?.substring(0, 1000));
+
               const data: { [key: string]: string } = {};
               
               // Process each selector using the same Cheerio instance
-              for (const selector of selectors) {
-                console.log(`Processing selector: ${selector.selector}`);
+              for (const { selector, selectorType, attributes, name } of selectors) {
+                console.log(`Processing selector "${selector}" for "${name}"`);
                 let elements;
-                if (selector.selectorType === 'xpath') {
+                if (selectorType === 'xpath') {
                   // TODO: Implement XPath support
                   throw new Error('XPath selectors not yet supported');
                 } else {
-                  elements = $(selector.selector);
+                  elements = $(selector);
                 }
 
-                console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
+                console.log(`Found ${elements.length} elements matching selector: ${selector}`);
                 if (elements.length === 0) {
-                  console.log('HTML snippet around where elements should be:');
-                  const bodyText = $('body').html()?.substring(0, 500) || 'No body found';
-                  console.log(bodyText);
+                  console.log(`No elements found for selector "${selector}"`);
+                  console.log('Available elements with similar classes:', 
+                    $('[itemprop]').length ? $('[itemprop]').get().map(el => $(el).attr('itemprop')).join(', ') : 'None');
                   continue;
                 }
 
-                // Take the first element's data
+                // Take only the first element's data
                 const firstElement = elements.first();
-                selector.attributes.forEach(attr => {
+                attributes.forEach(attr => {
                   if (attr === 'text') {
                     const text = firstElement.text().trim();
-                    console.log(`Extracted text for ${selector.name}:`, text);
-                    data[selector.name] = text;
+                    console.log(`Extracted text for ${name}:`, text);
+                    data[name] = text;
                   } else if (attr === 'html') {
                     const html = firstElement.html() || '';
-                    console.log(`Extracted HTML for ${selector.name}:`, html);
-                    data[selector.name] = html;
+                    console.log(`Extracted HTML for ${name}:`, html);
+                    data[name] = html;
                   } else {
                     const value = firstElement.attr(attr);
-                    console.log(`Extracted ${attr} for ${selector.name}:`, value);
+                    console.log(`Extracted ${attr} for ${name}:`, value);
                     if (value) {
-                      data[selector.name] = value;
+                      data[name] = value;
                     }
                   }
                 });
               }
+
+              console.log('Final data object:', data);
 
               return {
                 success: true,
@@ -183,7 +189,6 @@ export class ScrapingService {
 
       console.log(`Found ${elements.length} elements matching selector: ${selector}`);
       if (elements.length === 0) {
-        console.log('HTML snippet around where elements should be:');
         const bodyText = $('body').html()?.substring(0, 500) || 'No body found';
         console.log(bodyText);
       }
@@ -226,6 +231,8 @@ export class ScrapingService {
   private async fetchPage(url: string): Promise<string> {
     try {
       console.log('Sending request to:', url);
+      // Add a small delay before each request
+      await new Promise(resolve => setTimeout(resolve, 500));
       const response = await fetch(url);
       console.log('Response status:', response.status);
       if (!response.ok) {

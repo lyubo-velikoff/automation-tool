@@ -40,7 +40,7 @@ export async function executeNode(
   gmailToken?: string,
   context: WorkflowContext = { nodeResults: {} }
 ): Promise<void> {
-  console.log(`Executing node ${node.id} of type ${node.type}`);
+  console.log(`Executing node ${node.id} of type ${node.type} with data:`, JSON.stringify(node.data, null, 2));
   
   switch (node.type) {
     case 'GMAIL_TRIGGER':
@@ -57,6 +57,7 @@ export async function executeNode(
       context.nodeResults[node.id] = results;
       break;
     case 'MULTI_URL_SCRAPING':
+      console.log('Node data before multi-URL scraping:', node.data);
       const multiResults = await handleMultiURLScraping(node, context);
       context.nodeResults[node.id] = multiResults;
       break;
@@ -142,31 +143,47 @@ async function handleOpenAICompletion(node: WorkflowNode): Promise<void> {
 }
 
 async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
-  if (!node.data?.url || !node.data?.selector) {
-    throw new Error('Missing required scraping data (url or selector)');
+  if (!node.data?.url || !node.data?.selectors) {
+    throw new Error('Missing required scraping data (url or selectors)');
   }
 
   const { 
-    url, 
-    selector, 
-    selectorType = 'css',
-    attributes = ['text', 'href'],
-    template = '[{text}]({href})'
+    url,
+    selectors,
+    template
   } = node.data;
 
   try {
-    console.log(`Scraping ${url} with selector: ${selector}`);
-    const results = await scrapingService.scrapeUrl(
-      url,
-      selector,
-      selectorType as 'css' | 'xpath',
-      attributes
+    console.log(`Scraping ${url} with selectors:`, selectors);
+    const results = await scrapingService.scrapeUrls(
+      [url],
+      selectors,
+      undefined,
+      undefined,
+      node.data.batchConfig
     );
     
+    console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+    
     // Format the results using the template
-    const formattedResults = scrapingService.formatResults(results, template);
-    console.log('Formatted scraping results:', formattedResults);
-    return formattedResults;
+    if (template) {
+      return results.map((result: ScrapingResult) => {
+        if (!result.success || !result.data) {
+          return `Error: ${result.error || 'Unknown error'}`;
+        }
+        
+        let formattedResult = template;
+        Object.entries(result.data).forEach(([key, value]) => {
+          formattedResult = formattedResult.replace(`{{${key}}}`, value || '');
+        });
+        return formattedResult;
+      });
+    }
+
+    // If no template, return raw data
+    return results.map(result => 
+      result.success && result.data ? JSON.stringify(result.data) : `Error: ${result.error || 'Unknown error'}`
+    );
   } catch (error) {
     console.error('Error during web scraping:', error);
     throw error;
@@ -174,7 +191,7 @@ async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
 }
 
 async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
-  // Get the source node ID from the context
+  // Find the edge that targets this node
   const sourceNodeId = Object.keys(context.nodeResults).find(id => {
     const results = context.nodeResults[id];
     return Array.isArray(results) && results.length > 0;
@@ -190,7 +207,14 @@ async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext
     throw new Error(`Invalid results found from source node ${sourceNodeId}`);
   }
 
-  return sourceNodeResults;
+  // Filter out any non-URL results
+  const urls = sourceNodeResults.filter(result => result.startsWith('http'));
+  if (urls.length === 0) {
+    throw new Error('No valid URLs found in source node results');
+  }
+
+  console.log('Found URLs from source node:', urls);
+  return urls;
 }
 
 function cleanHtmlContent(content: string): string {
@@ -204,14 +228,28 @@ function cleanHtmlContent(content: string): string {
 }
 
 async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
-  console.log('Starting multi-URL scraping...');
+  console.log('Starting multi-URL scraping with node:', JSON.stringify(node, null, 2));
+  console.log('Context:', JSON.stringify(context, null, 2));
 
-  const selectors = node.data?.selectors as SelectorConfig[];
-  const template = node.data?.template as string;
+  if (!node.data) {
+    throw new Error('No data provided for multi-URL scraping node');
+  }
+
+  // Handle both single selector and array of selectors
+  const selectors = Array.isArray(node.data.selectors) 
+    ? node.data.selectors 
+    : [{
+      selector: node.data.selector,
+      selectorType: node.data.selectorType || 'css',
+      attributes: node.data.attributes || ['text'],
+      name: 'content'
+    }];
 
   if (!selectors || selectors.length === 0) {
     throw new Error('No selectors provided for multi-URL scraping');
   }
+
+  const template = node.data.template;
 
   const urls = await getSourceNodeResults(node, context);
   console.log('Source node results (URLs):', urls);
@@ -221,7 +259,7 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
   }
 
   console.log('Using selectors:', selectors);
-  const results = await scrapingService.scrapeUrls(urls, selectors);
+  const results = await scrapingService.scrapeUrls(urls, selectors, undefined, undefined, node.data.batchConfig);
   console.log('Scraping results:', results);
 
   // Format results using template if provided
