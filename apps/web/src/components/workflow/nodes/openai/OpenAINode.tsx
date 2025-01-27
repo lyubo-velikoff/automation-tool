@@ -29,6 +29,7 @@ import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { useOpenAI } from "@/contexts/auth/OpenAIContext";
 import { Button } from "@/components/ui/inputs/button";
 import { useState } from "react";
+import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
 
 interface OpenAINodeProps {
   id?: string;
@@ -164,12 +165,37 @@ function OpenAINode({
                 <div className='space-y-2'>
                   <Label>Prompt</Label>
                   <Textarea
-                    value={data?.prompt || ""}
+                    value={data.prompt ?? ""}
                     onChange={(e) =>
                       handleConfigChange("prompt", e.target.value)
                     }
                     placeholder='Enter your prompt'
+                    className='mb-2'
                   />
+                  <div className='flex flex-col space-y-2'>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant='outline' size='sm' className='w-full'>
+                          Insert Variable
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className='w-64' align='center'>
+                        <VariablePicker
+                          nodeId={id || ""}
+                          onInsertVariable={(variable) => {
+                            const currentPrompt = data.prompt || "";
+                            handleConfigChange(
+                              "prompt",
+                              currentPrompt + variable
+                            );
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <p className='text-xs text-muted-foreground text-center'>
+                      Add data from connected nodes to your prompt
+                    </p>
+                  </div>
                 </div>
 
                 <div className='space-y-2'>

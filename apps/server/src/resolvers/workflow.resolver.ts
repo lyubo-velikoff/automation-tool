@@ -502,48 +502,67 @@ export class WorkflowResolver {
   }
 
   private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
+    if (!text) return '';
+
+    const availableNodes = Object.entries(context.nodeResults).map(([id, data]) => ({
+      id,
+      label: data?.label || data?.data?.label || id,
+      results: data?.results || []
+    }));
+
     // First try to match by node label
     return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
-      const [nodeLabel, field] = path.trim().split('.');
-      
-      // Find node ID by label in the context
-      const nodeEntry = Object.entries(context.nodeResults).find(([_, value]) => 
-        value && typeof value === 'object' && 
-        (value.label === nodeLabel || value.data?.label === nodeLabel)
-      );
+      try {
+        const [nodeIdentifier, field] = path.trim().split('.');
+        
+        // Find node by label first
+        const nodeByLabel = availableNodes.find(node => 
+          node.label.toLowerCase() === nodeIdentifier.toLowerCase()
+        );
 
-      if (nodeEntry) {
-        const [_, nodeData] = nodeEntry;
+        // Then try by ID if not found by label
+        const node = nodeByLabel || availableNodes.find(node => 
+          node.id === nodeIdentifier
+        );
+
+        if (!node) {
+          console.warn(`No node found with identifier: ${nodeIdentifier}. Available nodes:`, 
+            availableNodes.map(n => ({ id: n.id, label: n.label }))
+          );
+          return match; // Keep original if not found
+        }
+
+        const nodeData = context.nodeResults[node.id];
+        if (!nodeData) {
+          console.warn(`No results found for node: ${nodeIdentifier}`);
+          return '';
+        }
+
+        // Handle special fields
         if (field === 'results') {
           const results = nodeData.results;
+          if (!results) {
+            console.warn(`No results found in node: ${nodeIdentifier}`);
+            return '';
+          }
           if (Array.isArray(results)) {
             return results.join('\n');
           }
           return String(results);
         }
-        return String(nodeData[field] || nodeData.data?.[field] || '');
-      }
 
-      // Fallback to node ID if label not found
-      const nodeId = nodeLabel;
-      if (context.nodeResults[nodeId]) {
-        if (field === 'results') {
-          const results = context.nodeResults[nodeId].results;
-          if (Array.isArray(results)) {
-            return results.join('\n');
-          }
-          return String(results);
+        // Handle nested data fields
+        const value = field.split('.').reduce((obj: Record<string, any>, key: string) => obj?.[key], nodeData);
+        if (value === undefined) {
+          console.warn(`Field '${field}' not found in node: ${nodeIdentifier}`);
+          return '';
         }
-        return String(context.nodeResults[nodeId][field] || context.nodeResults[nodeId].data?.[field] || '');
-      }
 
-      console.log('No results found for node:', nodeLabel, 'Available nodes:', 
-        Object.entries(context.nodeResults).map(([id, data]) => ({
-          id,
-          label: data?.label || data?.data?.label || id
-        }))
-      );
-      return match; // Keep original if not found
+        return String(value);
+      } catch (error) {
+        console.error('Error interpolating variables:', error);
+        return match; // Keep original on error
+      }
     });
   }
 
@@ -591,22 +610,29 @@ export class WorkflowResolver {
   }
 
   private getNodeResults(type: string, result: any): string[] {
-    switch (type) {
-      case 'START':
-        return ['Workflow started'];
-      case 'SCRAPING':
-        return result.results || [];
-      case 'GMAIL_TRIGGER':
-        return result.emails?.map((e: any) => e.snippet || '') || [];
-      case 'GMAIL_ACTION':
-        return ['Email sent successfully'];
-      case 'OPENAI':
-        if (!result.success) {
-          throw new Error(result.results[0]); // Propagate the error message
-        }
-        return result.results || [];
-      default:
-        return [];
+    try {
+      switch (type) {
+        case 'START':
+          return ['Workflow started'];
+        case 'SCRAPING':
+          return result.results || [];
+        case 'GMAIL_TRIGGER':
+          return result.emails?.map((e: any) => e.snippet || '') || [];
+        case 'GMAIL_ACTION':
+          return ['Email sent successfully'];
+        case 'OPENAI':
+          if (!result.success) {
+            const errorMsg = result.error?.message || result.results[0];
+            throw new Error(errorMsg);
+          }
+          return result.results || [];
+        default:
+          console.warn(`Unknown node type: ${type}`);
+          return [];
+      }
+    } catch (error) {
+      console.error(`Error getting node results for type ${type}:`, error);
+      throw error;
     }
   }
 
@@ -852,7 +878,14 @@ export class WorkflowResolver {
 
     try {
       const openaiService = await OpenAIService.create(context.userId);
+      
+      // Interpolate variables in prompt
       const prompt = this.interpolateVariables(node.data.prompt, context);
+      if (!prompt.trim()) {
+        throw new Error('Prompt is empty after variable interpolation');
+      }
+
+      console.log('Executing OpenAI node with prompt:', prompt);
       
       const result = await openaiService.complete(prompt, {
         model: node.data.model,
@@ -860,15 +893,35 @@ export class WorkflowResolver {
         maxTokens: node.data.maxTokens
       });
 
+      console.log('OpenAI node execution completed successfully');
+
       return {
         success: true,
-        results: [result]
+        results: [result],
+        prompt, // Include the interpolated prompt for debugging
+        model: node.data.model,
+        usage: {
+          prompt_tokens: prompt.length / 4, // Rough estimate
+          completion_tokens: result.length / 4 // Rough estimate
+        }
       };
     } catch (error) {
       console.error('OpenAI node execution error:', error);
+      
+      // Determine if this is a user configuration error
+      const isConfigError = error instanceof Error && (
+        error.message.includes('API key') ||
+        error.message.includes('model not found') ||
+        error.message.includes('invalid model')
+      );
+
       return {
         success: false,
-        results: [error instanceof Error ? error.message : 'Unknown error']
+        results: [error instanceof Error ? error.message : 'Unknown error'],
+        error: {
+          type: isConfigError ? 'configuration' : 'execution',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }
