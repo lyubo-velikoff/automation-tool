@@ -31,6 +31,11 @@ const nodeOptions = [
     type: "SCRAPING",
     label: "Web Scraping",
     description: "Extract data from websites"
+  },
+  {
+    type: "MULTI_URL_SCRAPING",
+    label: "Multi-URL Scraping",
+    description: "Extract data from multiple websites"
   }
 ];
 

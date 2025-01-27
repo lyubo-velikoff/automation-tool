@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/layout/card";
 import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
+import { Button } from "@/components/ui/inputs/button";
+import { Textarea } from "@/components/ui/inputs/textarea";
 import {
   Popover,
   PopoverContent,
@@ -18,6 +20,8 @@ import {
 } from "@/components/ui/overlays/popover";
 import { cn } from "@/lib/utils";
 import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
+import { ScrollArea } from "@/components/ui/layout/scroll-area";
+import { X } from "lucide-react";
 
 // Reuse existing selector config
 interface SelectorConfig {
@@ -73,6 +77,15 @@ const MultiURLScrapingIcon = memo(() => (
 ));
 MultiURLScrapingIcon.displayName = "MultiURLScrapingIcon";
 
+const validateURL = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 function MultiURLScrapingNode({
   id,
   data,
@@ -80,7 +93,9 @@ function MultiURLScrapingNode({
   type,
   isConnectable
 }: MultiURLScrapingNodeProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [bulkUrls, setBulkUrls] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const handleConfigChange = useCallback(
     (key: keyof MultiURLNodeData, value: unknown) => {
@@ -97,6 +112,63 @@ function MultiURLScrapingNode({
     [data, id]
   );
 
+  const handleAddUrl = useCallback(() => {
+    if (!newUrl) {
+      setUrlError("URL cannot be empty");
+      return;
+    }
+
+    if (!validateURL(newUrl)) {
+      setUrlError("Invalid URL format");
+      return;
+    }
+
+    const currentUrls = data.urls || [];
+    if (currentUrls.includes(newUrl)) {
+      setUrlError("URL already exists in the list");
+      return;
+    }
+
+    handleConfigChange("urls", [...currentUrls, newUrl]);
+    setNewUrl("");
+    setUrlError(null);
+  }, [newUrl, data.urls, handleConfigChange]);
+
+  const handleRemoveUrl = useCallback(
+    (urlToRemove: string) => {
+      const currentUrls = data.urls || [];
+      handleConfigChange(
+        "urls",
+        currentUrls.filter((url) => url !== urlToRemove)
+      );
+    },
+    [data.urls, handleConfigChange]
+  );
+
+  const handleBulkAdd = useCallback(() => {
+    if (!bulkUrls.trim()) {
+      setUrlError("Please enter URLs");
+      return;
+    }
+
+    const urlList = bulkUrls
+      .split("\n")
+      .map((url) => url.trim())
+      .filter((url) => url && validateURL(url));
+
+    if (urlList.length === 0) {
+      setUrlError("No valid URLs found");
+      return;
+    }
+
+    const currentUrls = new Set(data.urls || []);
+    urlList.forEach((url) => currentUrls.add(url));
+
+    handleConfigChange("urls", Array.from(currentUrls));
+    setBulkUrls("");
+    setUrlError(null);
+  }, [bulkUrls, data.urls, handleConfigChange]);
+
   return (
     <div
       className={cn(
@@ -107,7 +179,7 @@ function MultiURLScrapingNode({
     >
       <Handle
         type='target'
-        position={Position.Top}
+        position={Position.Left}
         isConnectable={isConnectable}
       />
 
@@ -137,7 +209,7 @@ function MultiURLScrapingNode({
           align='start'
           alignOffset={-240}
           sideOffset={12}
-          className='w-[300px]'
+          className='w-[400px]'
         >
           <CardHeader>
             <CardTitle className='flex items-center gap-2'>
@@ -159,13 +231,95 @@ function MultiURLScrapingNode({
                 placeholder='Node Label'
               />
             </div>
+
+            <div className='space-y-4'>
+              <div>
+                <Label>Add URL</Label>
+                <div className='flex gap-2'>
+                  <Input
+                    value={newUrl}
+                    onChange={(e) => {
+                      setNewUrl(e.target.value);
+                      setUrlError(null);
+                    }}
+                    placeholder='https://example.com'
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddUrl();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleAddUrl}
+                    className='whitespace-nowrap'
+                    variant='secondary'
+                  >
+                    Add URL
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Bulk Add URLs</Label>
+                <Textarea
+                  value={bulkUrls}
+                  onChange={(e) => {
+                    setBulkUrls(e.target.value);
+                    setUrlError(null);
+                  }}
+                  placeholder='Enter multiple URLs (one per line)'
+                  className='min-h-[100px]'
+                />
+                <Button
+                  onClick={handleBulkAdd}
+                  variant='secondary'
+                  className='mt-2'
+                >
+                  Add URLs
+                </Button>
+              </div>
+
+              {urlError && (
+                <div className='text-sm text-red-500 mt-1'>{urlError}</div>
+              )}
+
+              <div>
+                <Label>URL List ({data.urls?.length || 0})</Label>
+                <ScrollArea className='h-[200px] w-full border rounded-md'>
+                  <div className='p-4 space-y-2'>
+                    {data.urls?.map((url, index) => (
+                      <div
+                        key={index}
+                        className='flex items-center justify-between gap-2 p-2 bg-muted rounded-md'
+                      >
+                        <span className='text-sm truncate flex-1'>{url}</span>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => handleRemoveUrl(url)}
+                          className='h-6 w-6 p-0'
+                        >
+                          <X className='h-4 w-4' />
+                        </Button>
+                      </div>
+                    ))}
+                    {(!data.urls || data.urls.length === 0) && (
+                      <div className='text-sm text-muted-foreground'>
+                        No URLs added yet
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
           </CardContent>
         </PopoverContent>
       </Popover>
 
       <Handle
         type='source'
-        position={Position.Bottom}
+        position={Position.Right}
         isConnectable={isConnectable}
       />
     </div>
