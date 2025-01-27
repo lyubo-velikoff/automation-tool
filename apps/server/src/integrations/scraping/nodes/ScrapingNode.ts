@@ -1,24 +1,6 @@
 import { Field, ObjectType, InputType } from 'type-graphql';
 import { ScrapingService } from '../../../services/scraping.service';
-
-@ObjectType()
-@InputType('SelectorConfigInput')
-export class SelectorConfig {
-  @Field()
-  selector!: string;
-
-  @Field()
-  selectorType!: 'css' | 'xpath';
-
-  @Field(() => [String])
-  attributes!: string[];
-
-  @Field({ nullable: true })
-  name?: string;
-
-  @Field({ nullable: true })
-  description?: string;
-}
+import { SelectorConfig, BatchConfig } from '../../../schema/workflow';
 
 @ObjectType()
 @InputType('PaginationConfigInput')
@@ -33,17 +15,23 @@ export class PaginationConfig {
 @ObjectType()
 @InputType('ScrapingNodeDataInput')
 export class ScrapingNodeData {
-  @Field()
-  url!: string;
-
-  @Field(() => [SelectorConfig])
-  selectors!: SelectorConfig[];
-
-  @Field(() => PaginationConfig, { nullable: true })
-  pagination?: PaginationConfig;
+  @Field({ nullable: true })
+  label?: string;
 
   @Field({ nullable: true })
-  outputTemplate?: string;
+  url?: string;
+
+  @Field(() => [String], { nullable: true })
+  urls?: string[];
+
+  @Field(() => [SelectorConfig], { nullable: true })
+  selectors?: SelectorConfig[];
+
+  @Field(() => BatchConfig, { nullable: true })
+  batchConfig?: BatchConfig;
+
+  @Field({ nullable: true })
+  template?: string;
 }
 
 @ObjectType()
@@ -73,32 +61,65 @@ export class ScrapingNode {
     return this.config;
   }
 
-  @Field(() => ScrapingResult)
-  async execute(context: Record<string, any>): Promise<ScrapingResult> {
+  async execute(): Promise<ScrapingResult> {
     try {
-      const allResults = [];
-      
-      for (const selectorConfig of this.config.selectors) {
-        const results = await this.service.scrapeUrl(
-          this.config.url,
-          selectorConfig.selector,
-          selectorConfig.selectorType,
-          selectorConfig.attributes
-        );
-        allResults.push(...results);
+      if (!this.config.url && !this.config.urls) {
+        throw new Error('Either url or urls must be provided');
       }
 
-      // Format results if template is provided
-      const formattedResults = this.config.outputTemplate 
-        ? this.service.formatResults(allResults, this.config.outputTemplate)
-        : allResults.map(r => JSON.stringify(r));
+      if (!this.config.selectors || this.config.selectors.length === 0) {
+        throw new Error('At least one selector must be provided');
+      }
 
-      return {
-        success: true,
-        results: formattedResults
-      };
+      // Handle single URL case
+      if (this.config.url) {
+        const allResults = [];
+        
+        for (const selector of this.config.selectors) {
+          const results = await this.service.scrapeUrl(
+            this.config.url,
+            selector.selector,
+            selector.selectorType as 'css' | 'xpath',
+            selector.attributes
+          );
+          allResults.push(...results);
+        }
+
+        // Format results if template is provided
+        const formattedResults = this.config.template 
+          ? this.service.formatResults(allResults, this.config.template)
+          : allResults.map(r => JSON.stringify(r));
+
+        return {
+          success: true,
+          results: formattedResults
+        };
+      }
+
+      // Handle multiple URLs case
+      if (this.config.urls && this.config.selectors[0]) {
+        const selector = this.config.selectors[0];
+        const results = await this.service.scrapeUrls(
+          this.config.urls,
+          selector.selector,
+          selector.selectorType as 'css' | 'xpath',
+          selector.attributes,
+          this.config.batchConfig
+        );
+
+        // Format results if template is provided
+        const formattedResults = this.config.template 
+          ? this.service.formatBatchResults(results, this.config.template)
+          : results.map(r => JSON.stringify(r));
+
+        return {
+          success: true,
+          results: formattedResults
+        };
+      }
+
+      throw new Error('Invalid configuration');
     } catch (error) {
-      console.error('Failed to execute scraping node:', error);
       return {
         success: false,
         results: [],

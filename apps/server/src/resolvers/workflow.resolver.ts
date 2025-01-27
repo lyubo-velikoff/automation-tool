@@ -816,56 +816,79 @@ export class WorkflowResolver {
 
   private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
     try {
-      const nodeContext = {
-        nodeResults: context.nodeResults || {},
-        userId: context.user?.id
-      };
+      let results: string[] = [];
 
-      let result;
       switch (node.type) {
-        case 'START':
-          result = { results: ['Workflow started'] };
+        case "GMAIL_TRIGGER":
+          results = await this.executeGmailTrigger(node, context.token);
           break;
-        case 'GMAIL_TRIGGER':
-          result = await this.executeGmailTrigger(node, context.token);
+        case "GMAIL_ACTION":
+          results = await this.executeGmailAction(node, context.token, context);
           break;
-        case 'GMAIL_ACTION':
-          result = await this.executeGmailAction(node, context.token, nodeContext);
+        case "SCRAPING":
+          results = await this.executeScrapingNode(node);
           break;
-        case 'SCRAPING':
-          result = await this.executeScrapingNode(node);
+        case "MULTI_URL_SCRAPING":
+          results = await this.executeMultiURLScrapingNode(node);
           break;
-        case 'OPENAI':
-          result = await this.executeOpenAINode(node, nodeContext);
+        case "OPENAI":
+          results = await this.executeOpenAINode(node, context);
           break;
         default:
           throw new Error(`Unsupported node type: ${node.type}`);
       }
 
-      const nodeResult = {
-        nodeId: node.id,
-        status: 'success',
-        results: this.getNodeResults(node.type, result)
-      };
-
-      // Store results in context for next nodes
-      context.nodeResults = {
-        ...context.nodeResults,
-        [node.id]: {
-          label: node.data?.label || node.type,
-          data: node.data,
-          results: Array.isArray(result.results) ? result.results : [result.results]
-        }
-      };
-
-      return nodeResult;
-    } catch (error) {
       return {
         nodeId: node.id,
-        status: 'error',
-        results: [error instanceof Error ? error.message : 'Unknown error']
+        status: "success",
+        results
+      };
+    } catch (error) {
+      console.error(`Error executing node ${node.id}:`, error);
+      return {
+        nodeId: node.id,
+        status: "error",
+        results: [error instanceof Error ? error.message : "Unknown error occurred"]
       };
     }
+  }
+
+  private async executeMultiURLScrapingNode(node: WorkflowNode): Promise<string[]> {
+    const scrapingService = new ScrapingService();
+    
+    if (!node.data) {
+      throw new Error("Node data is missing");
+    }
+
+    const urls = node.data.urls || [];
+    if (urls.length === 0) {
+      throw new Error("No URLs provided for scraping");
+    }
+
+    const firstSelector = node.data.selectors?.[0];
+    if (!firstSelector) {
+      throw new Error("No selector configuration found");
+    }
+
+    const { selector, selectorType, attributes } = firstSelector;
+    if (!selector || !selectorType || !attributes) {
+      throw new Error("Invalid selector configuration");
+    }
+
+    const batchConfig = {
+      batchSize: node.data.batchConfig?.batchSize || 5,
+      rateLimit: node.data.batchConfig?.rateLimit || 10
+    };
+
+    const results = await scrapingService.scrapeUrls(
+      urls,
+      selector,
+      selectorType as 'css' | 'xpath',
+      attributes,
+      batchConfig
+    );
+
+    return scrapingService.formatBatchResults(results, node.data.template);
   }
 
   private async executeOpenAINode(

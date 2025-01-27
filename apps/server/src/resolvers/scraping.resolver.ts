@@ -1,7 +1,8 @@
-import { Resolver, Query, Mutation, Arg, Ctx } from 'type-graphql';
+import { Resolver, Query, Mutation, Arg, Ctx, ObjectType, Field } from 'type-graphql';
 import { ScrapingService } from '../services/scraping.service';
-import { ScrapingNode, ScrapingNodeData, SelectorConfig, ScrapingResult } from '../integrations/scraping/nodes/ScrapingNode';
+import { ScrapingNode, ScrapingNodeData, ScrapingResult } from '../integrations/scraping/nodes/ScrapingNode';
 import { Context } from '../types/context';
+import { BatchConfigInput, SelectorConfigInput, ScrapingNodeDataInput } from '../schema/workflow';
 
 @Resolver()
 export class ScrapingResolver {
@@ -12,9 +13,55 @@ export class ScrapingResolver {
   }
 
   @Query(() => ScrapingResult)
+  async scrapeMultipleUrls(
+    @Arg('urls', () => [String]) urls: string[],
+    @Arg('selector', () => SelectorConfigInput) selector: SelectorConfigInput,
+    @Arg('batchConfig', () => BatchConfigInput, { nullable: true }) batchConfig?: BatchConfigInput,
+    @Arg('template', { nullable: true }) template?: string
+  ): Promise<ScrapingResult> {
+    try {
+      console.log('Starting scrapeMultipleUrls query with:', {
+        urls,
+        selector: JSON.stringify(selector, null, 2),
+        batchConfig,
+        template
+      });
+
+      const results = await this.scrapingService.scrapeUrls(
+        urls,
+        selector.selector,
+        selector.selectorType as 'css' | 'xpath',
+        selector.attributes,
+        batchConfig
+      );
+
+      console.log('Raw results:', JSON.stringify(results, null, 2));
+
+      // Format results if template is provided
+      const formattedResults = template 
+        ? this.scrapingService.formatBatchResults(results, template)
+        : results.map(r => JSON.stringify(r));
+
+      console.log('Formatted results:', formattedResults);
+
+      return {
+        success: true,
+        results: formattedResults
+      };
+    } catch (error) {
+      console.error('Failed to scrape URLs:', error);
+      return {
+        success: false,
+        results: [],
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  @Query(() => ScrapingResult)
   async scrapeUrl(
     @Arg('url') url: string,
-    @Arg('selectors', () => [SelectorConfig]) selectors: SelectorConfig[],
+    @Arg('selectors', () => [SelectorConfigInput]) selectors: SelectorConfigInput[],
     @Arg('outputTemplate', { nullable: true }) outputTemplate?: string
   ): Promise<ScrapingResult> {
     try {
@@ -31,7 +78,7 @@ export class ScrapingResolver {
         const results = await this.scrapingService.scrapeUrl(
           url,
           selector.selector,
-          selector.selectorType,
+          selector.selectorType as 'css' | 'xpath',
           selector.attributes
         );
         console.log('Raw results:', JSON.stringify(results, null, 2));
@@ -63,7 +110,7 @@ export class ScrapingResolver {
 
   @Mutation(() => ScrapingNode)
   async createScrapingNode(
-    @Arg('data') data: ScrapingNodeData,
+    @Arg('data') data: ScrapingNodeDataInput,
     @Ctx() ctx: Context
   ): Promise<ScrapingNode> {
     if (!ctx.user) {

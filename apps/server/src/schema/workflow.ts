@@ -1,4 +1,4 @@
-import { Field, ID, ObjectType, Float } from 'type-graphql';
+import { Field, ID, ObjectType, Float, Int, InputType } from 'type-graphql';
 import { NodeResult } from "../resolvers/workflow.resolver";
 import { WorkflowNodeInput, WorkflowEdgeInput, CreateWorkflowInput, UpdateWorkflowInput } from './workflow-inputs';
 
@@ -12,60 +12,146 @@ export class Position {
 }
 
 @ObjectType()
+export class BatchConfig {
+  @Field()
+  batchSize!: number;
+
+  @Field()
+  rateLimit!: number;
+}
+
+@InputType()
+export class BatchConfigInput {
+  @Field()
+  batchSize!: number;
+
+  @Field()
+  rateLimit!: number;
+}
+
+@ObjectType()
+export class SelectorConfig {
+  @Field()
+  selector!: string;
+
+  @Field()
+  selectorType!: string;
+
+  @Field(() => [String])
+  attributes!: string[];
+
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  description?: string;
+}
+
+@InputType()
+export class SelectorConfigInput {
+  @Field()
+  selector!: string;
+
+  @Field()
+  selectorType!: string;
+
+  @Field(() => [String])
+  attributes!: string[];
+
+  @Field({ nullable: true })
+  name?: string;
+
+  @Field({ nullable: true })
+  description?: string;
+}
+
+@InputType()
+export class ScrapingNodeDataInput {
+  @Field({ nullable: true })
+  label?: string;
+
+  @Field({ nullable: true })
+  url?: string;
+
+  @Field(() => [String], { nullable: true })
+  urls?: string[];
+
+  @Field(() => [SelectorConfigInput], { nullable: true })
+  selectors?: SelectorConfigInput[];
+
+  @Field(() => BatchConfigInput, { nullable: true })
+  batchConfig?: BatchConfigInput;
+
+  @Field({ nullable: true })
+  template?: string;
+}
+
+@ObjectType()
 export class NodeData {
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   label?: string;
 
   // Gmail fields
-  @Field(() => String, { nullable: true })
-  to?: string;
-
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   subject?: string;
 
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   body?: string;
 
-  @Field(() => String, { nullable: true })
-  fromFilter?: string;
-
-  @Field(() => String, { nullable: true })
-  subjectFilter?: string;
-
-  @Field(() => Number, { nullable: true })
-  pollingInterval?: number;
+  @Field({ nullable: true })
+  to?: string;
 
   // Scraping fields
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   url?: string;
 
-  @Field(() => String, { nullable: true })
+  @Field(() => [String], { nullable: true })
+  urls?: string[];
+
+  @Field({ nullable: true })
   selector?: string;
 
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   selectorType?: string;
-
-  @Field(() => String, { nullable: true })
-  attribute?: string;
 
   @Field(() => [String], { nullable: true })
   attributes?: string[];
 
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   template?: string;
 
+  // Multi-URL scraping fields
+  @Field(() => [SelectorConfig], { nullable: true })
+  selectors?: SelectorConfig[];
+
+  @Field(() => BatchConfig, { nullable: true })
+  batchConfig?: BatchConfig;
+
   // OpenAI fields
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   prompt?: string;
 
-  @Field(() => String, { nullable: true })
+  @Field({ nullable: true })
   model?: string;
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   temperature?: number;
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Int, { nullable: true })
   maxTokens?: number;
+
+  // Common fields
+  @Field({ nullable: true })
+  fromFilter?: string;
+
+  @Field({ nullable: true })
+  subjectFilter?: string;
+
+  @Field(() => Int, { nullable: true })
+  pollingInterval?: number;
+
+  @Field({ nullable: true })
+  attribute?: string;
 }
 
 @ObjectType()
