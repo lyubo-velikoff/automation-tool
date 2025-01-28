@@ -145,14 +145,17 @@ async function testForumScraperWorkflow() {
   const workflowInput = {
     input: {
       name: 'Forum Content Scraper',
-      description: 'Scrapes forum topics and their content using two connected nodes',
+      description: 'Scrapes multiple forum topics and their content using multi-URL scraping',
       nodes: [
         {
           id: 'node1',
-          type: 'SCRAPING',
-          label: 'Forum Post Content Scraper',
+          type: 'MULTI_URL_SCRAPING',
+          label: 'Forum Posts Content Scraper',
           data: {
-            url: 'https://forum.cursor.com/t/cursor-deepseek/43261',
+            urls: [
+              'https://forum.cursor.com/t/cursor-deepseek/43261',
+              'https://forum.cursor.com/t/cursor-is-down-january-24-2025/44116'
+            ],
             selectors: [
               {
                 selector: '#post_1 .post[itemprop="text"]',
@@ -164,8 +167,8 @@ async function testForumScraperWorkflow() {
             ],
             template: '{{Post Content}}',
             batchConfig: {
-              batchSize: 5,
-              rateLimit: 20
+              batchSize: 2, // Process 2 URLs at a time
+              rateLimit: 10 // 10 requests per minute to be gentle
             }
           },
           position: { x: 100, y: 100 }

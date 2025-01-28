@@ -556,13 +556,23 @@ export class WorkflowResolver {
     console.log('Node results:', nodeResults);
 
     if (node.type === 'MULTI_URL_SCRAPING') {
-      // For multi-URL scraping, get URLs from previous node's results
-      const sourceNodeId = this.getSourceNodeId(node.id);
-      if (!sourceNodeId || !nodeResults[sourceNodeId]?.results) {
-        throw new Error('No URLs provided for multi-URL scraping');
+      // First check if URLs are provided directly in the node data
+      let urls: string[] = node.data?.urls || [];
+      
+      // If no direct URLs, try to get them from previous node's results
+      if (urls.length === 0) {
+        const sourceNodeId = this.getSourceNodeId(node.id);
+        if (!sourceNodeId || !nodeResults[sourceNodeId]?.results) {
+          throw new Error('No URLs provided for multi-URL scraping');
+        }
+        urls = nodeResults[sourceNodeId].results;
       }
-      const urls = nodeResults[sourceNodeId].results;
-      console.log('Using URLs from previous node:', urls);
+      
+      if (!urls || urls.length === 0) {
+        throw new Error('No valid URLs found for scraping');
+      }
+      
+      console.log('Using URLs:', urls);
 
       if (!node.data?.selectors?.[0]) {
         throw new Error('Missing required selector configuration');
@@ -586,7 +596,7 @@ export class WorkflowResolver {
             selector: firstSelector.selector,
             selectorType: firstSelector.selectorType as 'css' | 'xpath',
             attributes: firstSelector.attributes,
-            name: 'Post Content'
+            name: firstSelector.name || 'Post Content'
           },
           firstSelector.selectorType as 'css' | 'xpath',
           firstSelector.attributes,
