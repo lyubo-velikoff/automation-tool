@@ -649,17 +649,17 @@ function MultiURLScrapingNode({
                         handleConfigChange("template", e.target.value)
                       }
                       placeholder='Example:
-Title: {{title}}
+Title: {{Title}}
 URL: {{url}}
-Content: {{content}}'
+Content: {{Content}}'
                       rows={4}
                       className='font-mono text-sm'
                     />
                     <p className='text-xs text-muted-foreground mt-1'>
-                      Use double curly braces and selector name (e.g.,{" "}
-                      {"{{title}}"}) to reference selector outputs. Available
-                      variables: {"{{url}}"}, {"{{index}}"}, and any selector
-                      names.
+                      Use double curly braces and exact selector name (e.g.,{" "}
+                      {"{{Content}}"}) to reference selector outputs. Available
+                      variables: {"{{url}}"}, {"{{index}}"}, and your selector
+                      names (case-sensitive).
                     </p>
                   </div>
                 </div>
