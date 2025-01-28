@@ -102,13 +102,6 @@ export function useWorkflowHandlers() {
 
       // Transform scraping node data to match GraphQL schema
       if (node.type === 'SCRAPING' || node.type === 'MULTI_URL_SCRAPING') {
-        const selectors = cleanData.selectors || [{
-          selector: cleanData.selector || "",
-          selectorType: cleanData.selectorType || "css",
-          attributes: cleanData.attributes || ["text"],
-          name: cleanData.label || "Content"
-        }];
-        
         return {
           id: node.id,
           type: node.type,
@@ -119,21 +112,14 @@ export function useWorkflowHandlers() {
           },
           data: {
             ...baseNodeData,
-            selectors
+            selectors: cleanData.selectors || [{
+              selector: "",
+              selectorType: "css",
+              attributes: ["text"],
+              name: label || "Content"
+            }]
           }
         };
-      }
-
-      // Remove scraping-specific fields for non-scraping nodes
-      delete baseNodeData.template;
-      if (node.type === 'OPENAI') {
-        delete baseNodeData.url;
-      } else if (node.type === 'GMAIL_ACTION' || node.type === 'GMAIL_TRIGGER') {
-        delete baseNodeData.url;
-        delete baseNodeData.prompt;
-        delete baseNodeData.model;
-        delete baseNodeData.temperature;
-        delete baseNodeData.maxTokens;
       }
 
       // For other node types, return cleaned data
