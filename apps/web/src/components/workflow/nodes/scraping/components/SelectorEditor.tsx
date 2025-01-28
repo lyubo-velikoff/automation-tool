@@ -1,4 +1,3 @@
-import { SelectorConfig } from "@automation-tool/shared-types";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
 import { Badge } from "@/components/ui/data-display/badge";
 import { Button } from "@/components/ui/inputs/button";

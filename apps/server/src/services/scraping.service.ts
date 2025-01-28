@@ -2,7 +2,7 @@ import * as cheerio from 'cheerio';
 import fetch from 'node-fetch';
 import { RateLimiter } from 'limiter';
 import pLimit from 'p-limit';
-import { SelectorConfig, ScrapedItem, BatchConfig, ScrapingResult } from '@automation-tool/shared-types';
+import { SelectorConfig, ScrapedItem, BatchConfig, ScrapingResult } from '../types/scraping';
 
 export class ScrapingService {
   private limiter: RateLimiter;

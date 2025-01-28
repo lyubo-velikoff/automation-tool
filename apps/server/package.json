@@ -28,7 +28,6 @@
   "license": "ISC",
   "dependencies": {
     "@apollo/server": "^4.10.0",
-    "@automation-tool/shared-types": "workspace:*",
     "@supabase/supabase-js": "^2.39.3",
     "@temporalio/activity": "^1.11.6",
     "@temporalio/client": "^1.8.6",
@@ -53,7 +52,6 @@
     "limiter": "^2.1.0",
     "node-fetch": "^2.7.0",
     "openai": "^4.79.1",
-    "puppeteer": "^24.1.1",
     "rate-limiter-flexible": "^5.0.5",
     "reactflow": "^11.11.4",
     "reflect-metadata": "^0.2.1",

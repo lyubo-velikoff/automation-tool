@@ -17,10 +17,6 @@ import { Textarea } from "@/components/ui/inputs/textarea";
 import { cn } from "@/lib/utils";
 import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
 import {
-  SelectorConfig,
-  PaginationConfig
-} from "@automation-tool/shared-types";
-import {
   Tabs,
   TabsList,
   TabsTrigger,

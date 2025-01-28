@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../../integrations/gmail/config';
 import { ScrapingService } from '../../services/scraping.service';
-import { SelectorConfig, SelectorResult, ScrapingResult } from '@automation-tool/shared-types';
+import { SelectorConfig, SelectorResult, ScrapingResult } from '../../scraping';
 
 const scrapingService = new ScrapingService();
 

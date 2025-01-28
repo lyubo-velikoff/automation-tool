@@ -35,7 +35,6 @@ import {
   TabsTrigger,
   TabsContent
 } from "@/components/ui/data-display/tabs";
-import { SelectorConfig, BatchConfig } from "@automation-tool/shared-types";
 import {
   Table,
   TableHeader,
