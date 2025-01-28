@@ -46,6 +46,9 @@ import {
 } from "@/components/ui/data-display/table";
 import { Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/data-display/separator";
+import { Badge } from "@/components/ui/data-display/badge";
+import { Card as SelectorCard } from "@/components/ui/layout/card";
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {
@@ -108,6 +111,7 @@ function MultiURLScrapingNode({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [editingSelector, setEditingSelector] = useState<number | null>(null);
   const [testingSelector, setTestingSelector] = useState<number | null>(null);
+  const [testResults, setTestResults] = useState<Record<number, any>>({});
 
   const handleConfigChange = useCallback(
     (key: keyof MultiURLNodeData, value: unknown) => {
@@ -281,13 +285,19 @@ function MultiURLScrapingNode({
       const result = await response.json();
 
       if (result.success) {
+        setTestResults((prev) => ({
+          ...prev,
+          [index]: result.results[0]
+        }));
         toast({
           title: "Test Successful",
-          description: `Found ${
-            result.count
-          } matches. First result: ${JSON.stringify(result.results[0])}`
+          description: `Found ${result.count} matches`
         });
       } else {
+        setTestResults((prev) => ({
+          ...prev,
+          [index]: null
+        }));
         toast({
           title: "Test Failed",
           description: result.error || "Failed to test selector",
@@ -295,6 +305,10 @@ function MultiURLScrapingNode({
         });
       }
     } catch (error) {
+      setTestResults((prev) => ({
+        ...prev,
+        [index]: null
+      }));
       toast({
         title: "Test Failed",
         description:
@@ -306,47 +320,55 @@ function MultiURLScrapingNode({
     }
   };
 
-  const renderSelectorRow = (selector: SelectorConfig, index: number) => {
+  const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
       return (
-        <TableRow key={index}>
-          <TableCell>
-            <Input
-              value={selector.name || ""}
-              onChange={(e) =>
-                handleSelectorChange(index, "name", e.target.value)
-              }
-              placeholder='e.g., Title, Content, Link'
-            />
-          </TableCell>
-          <TableCell>
-            <Select
-              value={selector.selectorType}
-              onValueChange={(value) =>
-                handleSelectorChange(index, "selectorType", value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='css'>CSS Selector</SelectItem>
-                <SelectItem value='xpath'>XPath</SelectItem>
-              </SelectContent>
-            </Select>
-          </TableCell>
-          <TableCell>
+        <SelectorCard key={index} className='p-4 space-y-4'>
+          <div className='grid grid-cols-2 gap-4'>
+            <div>
+              <Label>Name</Label>
+              <Input
+                value={selector.name || ""}
+                onChange={(e) =>
+                  handleSelectorChange(index, "name", e.target.value)
+                }
+                placeholder='e.g., Title, Content, Link'
+              />
+            </div>
+            <div>
+              <Label>Type</Label>
+              <Select
+                value={selector.selectorType}
+                onValueChange={(value) =>
+                  handleSelectorChange(index, "selectorType", value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='css'>CSS</SelectItem>
+                  <SelectItem value='xpath'>XPath</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label>Selector</Label>
             <Input
               value={selector.selector}
               onChange={(e) =>
                 handleSelectorChange(index, "selector", e.target.value)
               }
               placeholder={
-                selector.selectorType === "css" ? ".article h1" : "//h1"
+                selector.selectorType === "css"
+                  ? "#topic-title h1 a"
+                  : "//div[@id='topic-title']//h1/a"
               }
             />
-          </TableCell>
-          <TableCell>
+          </div>
+          <div>
+            <Label>Attributes</Label>
             <Select
               value={selector.attributes[0]}
               onValueChange={(value) =>
@@ -363,51 +385,81 @@ function MultiURLScrapingNode({
                 <SelectItem value='html'>HTML Content</SelectItem>
               </SelectContent>
             </Select>
-          </TableCell>
-          <TableCell className='text-right'>
+          </div>
+          <div className='flex justify-end'>
             <Button variant='ghost' size='sm' onClick={handleSaveSelector}>
               Save
             </Button>
-          </TableCell>
-        </TableRow>
+          </div>
+        </SelectorCard>
       );
     }
 
     return (
-      <TableRow key={index}>
-        <TableCell>{selector.name || `Selector ${index + 1}`}</TableCell>
-        <TableCell>{selector.selectorType}</TableCell>
-        <TableCell className='font-mono text-xs'>{selector.selector}</TableCell>
-        <TableCell>{selector.attributes.join(", ")}</TableCell>
-        <TableCell className='text-right space-x-2'>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => handleTestSelector(index)}
-            disabled={testingSelector === index}
-          >
-            {testingSelector === index ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
-              "Test"
-            )}
-          </Button>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => handleEditSelector(index)}
-          >
-            <Edit2 className='h-4 w-4' />
-          </Button>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => handleRemoveSelector(index)}
-          >
-            <Trash2 className='h-4 w-4' />
-          </Button>
-        </TableCell>
-      </TableRow>
+      <SelectorCard key={index} className='relative'>
+        <div className='p-4 space-y-2'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <div className='font-medium'>
+                {selector.name || `Selector ${index + 1}`}
+              </div>
+              <Badge
+                variant={
+                  selector.selectorType === "css" ? "default" : "secondary"
+                }
+              >
+                {selector.selectorType}
+              </Badge>
+            </div>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => handleTestSelector(index)}
+                disabled={testingSelector === index}
+              >
+                {testingSelector === index ? (
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                ) : (
+                  "Test"
+                )}
+              </Button>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => handleEditSelector(index)}
+              >
+                <Edit2 className='h-4 w-4' />
+              </Button>
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => handleRemoveSelector(index)}
+              >
+                <Trash2 className='h-4 w-4' />
+              </Button>
+            </div>
+          </div>
+          <code className='block px-2 py-1 bg-muted rounded text-xs overflow-x-auto'>
+            {selector.selector}
+          </code>
+          <div className='flex items-center gap-2'>
+            {selector.attributes.map((attr) => (
+              <Badge key={attr} variant='outline'>
+                {attr}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        {testResults[index] && (
+          <div className='border-t bg-muted/50 p-2 text-xs'>
+            <div className='font-medium mb-1'>Test Result:</div>
+            <code className='block'>
+              {JSON.stringify(testResults[index], null, 2)}
+            </code>
+          </div>
+        )}
+      </SelectorCard>
     );
   };
 
@@ -575,38 +627,47 @@ function MultiURLScrapingNode({
               </TabsContent>
 
               <TabsContent value='selectors' className='space-y-4 mt-4'>
-                <div className='rounded-md border'>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Selector</TableHead>
-                        <TableHead>Attributes</TableHead>
-                        <TableHead className='text-right'>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(data.selectors || []).map((selector, index) =>
-                        renderSelectorRow(selector, index)
-                      )}
-                      {(!data.selectors || data.selectors.length === 0) && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={5}
-                            className='text-center text-muted-foreground h-24'
-                          >
-                            No selectors configured
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                <div className='space-y-2'>
+                  {(data.selectors || []).map((selector, index) =>
+                    renderSelector(selector, index)
+                  )}
+                  {(!data.selectors || data.selectors.length === 0) && (
+                    <div className='text-center text-muted-foreground py-8 border rounded-md'>
+                      No selectors configured
+                    </div>
+                  )}
                 </div>
+
+                <Separator className='my-4' />
+
+                <div className='space-y-4'>
+                  <div>
+                    <Label>Output Template</Label>
+                    <Textarea
+                      value={data.template || ""}
+                      onChange={(e) =>
+                        handleConfigChange("template", e.target.value)
+                      }
+                      placeholder='Example:
+Title: {{title}}
+URL: {{url}}
+Content: {{content}}'
+                      rows={4}
+                      className='font-mono text-sm'
+                    />
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      Use double curly braces and selector name (e.g.,{" "}
+                      {"{{title}}"}) to reference selector outputs. Available
+                      variables: {"{{url}}"}, {"{{index}}"}, and any selector
+                      names.
+                    </p>
+                  </div>
+                </div>
+
                 <Button
                   onClick={handleAddSelector}
                   variant='outline'
-                  className='w-full mt-4'
+                  className='w-full'
                 >
                   <Plus className='h-4 w-4 mr-2' />
                   Add Selector
@@ -651,17 +712,6 @@ function MultiURLScrapingNode({
                   <p className='text-xs text-muted-foreground mt-1'>
                     Limit requests to avoid overloading servers
                   </p>
-                </div>
-                <div>
-                  <Label>Output Template</Label>
-                  <Textarea
-                    value={data.template || ""}
-                    onChange={(e) =>
-                      handleConfigChange("template", e.target.value)
-                    }
-                    placeholder='{{text}}\nURL: {{href}}'
-                    rows={3}
-                  />
                 </div>
               </TabsContent>
             </Tabs>
