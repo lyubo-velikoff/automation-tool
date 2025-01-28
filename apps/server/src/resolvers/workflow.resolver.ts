@@ -582,7 +582,12 @@ export class WorkflowResolver {
 
         const results = await scrapingService.scrapeUrls(
           urls,
-          firstSelector.selector,
+          {
+            selector: firstSelector.selector,
+            selectorType: firstSelector.selectorType as 'css' | 'xpath',
+            attributes: firstSelector.attributes,
+            name: 'Post Content'
+          },
           firstSelector.selectorType as 'css' | 'xpath',
           firstSelector.attributes,
           batchConfig
@@ -597,7 +602,7 @@ export class WorkflowResolver {
         // Format results using the template
         const formattedResults = node.data.template 
           ? scrapingService.formatBatchResults(results, node.data.template)
-          : results.flatMap(r => r.success ? r.results.map(item => JSON.stringify(item)) : [`Error: ${r.error}`]);
+          : results.flatMap(r => r.success && r.results ? r.results.map(item => JSON.stringify(item)) : [`Error: ${r.error}`]);
 
         console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
 
@@ -606,47 +611,47 @@ export class WorkflowResolver {
         console.error('Error in scraping service:', error);
         throw error;
       }
-    } else {
-      // Regular single-URL scraping
-      if (!node.data?.url || !node.data?.selectors?.[0]) {
-        throw new Error('Missing required scraping data (url or selector)');
+    }
+    // Regular single-URL scraping
+    if (!node.data?.url || !node.data?.selectors?.[0]) {
+      throw new Error('Missing required scraping data (url or selector)');
+    }
+
+    const scrapingService = new ScrapingService();
+    const firstSelector = node.data.selectors[0];
+    console.log('Starting single-URL scraping with config:', {
+      url: node.data.url,
+      selector: firstSelector.selector,
+      selectorType: firstSelector.selectorType,
+      attributes: firstSelector.attributes
+    });
+
+    try {
+      const results = await scrapingService.scrapeUrl(
+        node.data.url,
+        firstSelector.selector,
+        firstSelector.selectorType as 'css' | 'xpath',
+        firstSelector.attributes,
+        'Post Content' // Pass the selector name that matches the template
+      );
+
+      console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+
+      if (!results || results.length === 0) {
+        console.log('Warning: No results found from scraping');
       }
 
-      const scrapingService = new ScrapingService();
-      const firstSelector = node.data.selectors[0];
-      console.log('Starting single-URL scraping with config:', {
-        url: node.data.url,
-        selector: firstSelector.selector,
-        selectorType: firstSelector.selectorType,
-        attributes: firstSelector.attributes
-      });
+      // Format results using the template
+      const formattedResults = node.data.template 
+        ? scrapingService.formatResults(results, node.data.template)
+        : results.map(r => JSON.stringify(r));
 
-      try {
-        const results = await scrapingService.scrapeUrl(
-          node.data.url,
-          firstSelector.selector,
-          firstSelector.selectorType as 'css' | 'xpath',
-          firstSelector.attributes
-        );
+      console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
 
-        console.log('Raw scraping results:', JSON.stringify(results, null, 2));
-
-        if (!results || results.length === 0) {
-          console.log('Warning: No results found from scraping');
-        }
-
-        // Format results using the template
-        const formattedResults = node.data.template 
-          ? scrapingService.formatResults(results, node.data.template)
-          : results.map(r => JSON.stringify(r));
-
-        console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
-
-        return { results: formattedResults };
-      } catch (error) {
-        console.error('Error in scraping service:', error);
-        throw error;
-      }
+      return { results: formattedResults };
+    } catch (error) {
+      console.error('Error in scraping service:', error);
+      throw error;
     }
   }
 
@@ -923,7 +928,12 @@ export class WorkflowResolver {
 
     const results = await scrapingService.scrapeUrls(
       urls,
-      selector,
+      {
+        selector: selector,
+        selectorType: selectorType as 'css' | 'xpath',
+        attributes: attributes,
+        name: 'Post Content'
+      },
       selectorType as 'css' | 'xpath',
       attributes,
       batchConfig

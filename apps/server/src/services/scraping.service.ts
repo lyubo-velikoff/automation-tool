@@ -3,6 +3,13 @@ import fetch from 'node-fetch';
 import { RateLimiter } from 'limiter';
 import pLimit from 'p-limit';
 
+interface SelectorConfig {
+  selector: string;
+  selectorType: 'css' | 'xpath';
+  attributes: string[];
+  name: string;
+}
+
 interface ScrapedItem {
   [key: string]: string;
 }
@@ -16,6 +23,7 @@ interface ScrapingResult {
   success: boolean;
   data?: { [key: string]: string };
   error?: string;
+  results?: ScrapedItem[];
 }
 
 export class ScrapingService {
@@ -31,9 +39,9 @@ export class ScrapingService {
 
   async scrapeUrls(
     urls: string[],
-    selectors: { selector: string; selectorType: 'css' | 'xpath'; attributes: string[]; name: string }[],
-    _selectorType?: 'css' | 'xpath',
-    _attributes?: string[],
+    selector: SelectorConfig,
+    selectorType: 'css' | 'xpath',
+    attributes: string[],
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
     const config = {
@@ -87,51 +95,50 @@ export class ScrapingService {
 
               const data: { [key: string]: string } = {};
               
-              // Process each selector using the same Cheerio instance
-              for (const { selector, selectorType, attributes, name } of selectors) {
-                console.log(`Processing selector "${selector}" for "${name}"`);
-                let elements;
-                if (selectorType === 'xpath') {
-                  // TODO: Implement XPath support
-                  throw new Error('XPath selectors not yet supported');
-                } else {
-                  elements = $(selector);
-                }
-
-                console.log(`Found ${elements.length} elements matching selector: ${selector}`);
-                if (elements.length === 0) {
-                  console.log(`No elements found for selector "${selector}"`);
-                  console.log('Available elements with similar classes:', 
-                    $('[itemprop]').length ? $('[itemprop]').get().map(el => $(el).attr('itemprop')).join(', ') : 'None');
-                  continue;
-                }
-
-                // Take only the first element's data
-                const firstElement = elements.first();
-                attributes.forEach(attr => {
-                  if (attr === 'text') {
-                    const text = firstElement.text().trim();
-                    console.log(`Extracted text for ${name}:`, text);
-                    data[name] = text;
-                  } else if (attr === 'html') {
-                    const html = firstElement.html() || '';
-                    console.log(`Extracted HTML for ${name}:`, html);
-                    data[name] = html;
-                  } else {
-                    const value = firstElement.attr(attr);
-                    console.log(`Extracted ${attr} for ${name}:`, value);
-                    if (value) {
-                      data[name] = value;
-                    }
-                  }
-                });
+              // Process the selector using the same Cheerio instance
+              console.log(`Processing selector "${selector.selector}" for "${selector.name}"`);
+              let elements;
+              if (selector.selectorType === 'xpath') {
+                // TODO: Implement XPath support
+                throw new Error('XPath selectors not yet supported');
+              } else {
+                elements = $(selector.selector);
               }
+
+              console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
+              if (elements.length === 0) {
+                console.log(`No elements found for selector "${selector.selector}"`);
+                console.log('Available elements with similar classes:', 
+                  $('[itemprop]').length ? $('[itemprop]').get().map(el => $(el).attr('itemprop')).join(', ') : 'None');
+                continue;
+              }
+
+              // Take only the first element's data
+              const firstElement = elements.first();
+              selector.attributes.forEach(attr => {
+                if (attr === 'text') {
+                  const text = firstElement.text().trim();
+                  console.log(`Extracted text for ${selector.name}:`, text);
+                  data[selector.name] = text;
+                } else if (attr === 'html') {
+                  const html = firstElement.html() || '';
+                  console.log(`Extracted HTML for ${selector.name}:`, html);
+                  data[selector.name] = html;
+                } else {
+                  const value = firstElement.attr(attr);
+                  console.log(`Extracted ${attr} for ${selector.name}:`, value);
+                  if (value) {
+                    data[selector.name] = value;
+                  }
+                }
+              });
 
               console.log('Final data object:', data);
 
               return {
                 success: true,
-                data
+                data,
+                results: [data]
               };
             } catch (error) {
               if (retryCount < maxRetries - 1) {
@@ -163,12 +170,14 @@ export class ScrapingService {
     url: string,
     selector: string,
     selectorType: 'css' | 'xpath',
-    attributes: string[] = ['text']
+    attributes: string[] = ['text'],
+    selectorName: string = 'text'
   ): Promise<ScrapedItem[]> {
     console.log('Scraping URL:', url);
     console.log('Using selector:', selector);
     console.log('Selector type:', selectorType);
     console.log('Extracting attributes:', attributes);
+    console.log('Using selector name:', selectorName);
 
     try {
       console.log('Fetching page...');
@@ -201,16 +210,16 @@ export class ScrapingService {
           if (attr === 'text') {
             const text = $(el).text().trim();
             console.log('Extracted text:', text);
-            item[attr] = text;
+            item[selectorName] = text;
           } else if (attr === 'html') {
             const html = $(el).html() || '';
             console.log('Extracted HTML:', html);
-            item[attr] = html;
+            item[selectorName] = html;
           } else {
             const value = $(el).attr(attr);
             console.log(`Extracted ${attr}:`, value);
             if (value) {
-              item[attr] = value;
+              item[selectorName] = value;
             }
           }
         });
@@ -250,26 +259,52 @@ export class ScrapingService {
   formatResults(results: ScrapedItem[], template: string): string[] {
     return results.map(item => {
       let formatted = template;
+      console.log('Formatting item:', item); // Debug log
       Object.entries(item).forEach(([key, value]) => {
-        formatted = formatted.replace(new RegExp(`{{${key}}}`, 'g'), value);
+        const placeholder = `{{${key}}}`;
+        console.log(`Replacing ${placeholder} with:`, value); // Debug log
+        formatted = formatted.replace(new RegExp(placeholder, 'g'), value);
       });
       return formatted;
     });
   }
 
   formatBatchResults(results: ScrapingResult[], template?: string): string[] {
+    console.log('Formatting batch results:', results); // Debug log
+    
     if (!template) {
-      // If no template, return JSON stringified results
-      return results.map(result => 
-        result.success && result.data ? JSON.stringify(result.data) : `Error: ${result.error || 'Unknown error'}`
-      );
+      // If no template, return the raw text directly from the data
+      return results.flatMap(result => {
+        console.log('Processing result:', result); // Debug log
+        if (result.success && result.results) {
+          return result.results.map(item => {
+            console.log('Processing item:', item); // Debug log
+            // Get the first value from the item
+            const value = Object.values(item)[0];
+            console.log('Extracted value:', value); // Debug log
+            return value || '';
+          });
+        }
+        return [];
+      });
     }
 
+    // If template is provided, format each result
     return results.flatMap(result => {
-      if (!result.success || !result.data) {
-        return [`Error: ${result.error || 'Unknown error'}`];
+      console.log('Processing result with template:', result); // Debug log
+      if (result.success && result.results) {
+        return result.results.map(item => {
+          let formatted = template;
+          console.log('Formatting item:', item); // Debug log
+          Object.entries(item).forEach(([key, value]) => {
+            const placeholder = `{{${key}}}`;
+            console.log(`Replacing ${placeholder} with:`, value); // Debug log
+            formatted = formatted.replace(new RegExp(placeholder, 'g'), value);
+          });
+          return formatted;
+        });
       }
-      return this.formatResults([result.data], template);
+      return [];
     });
   }
 } 
