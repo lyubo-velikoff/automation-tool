@@ -1,6 +1,6 @@
-import { Resolver, Query, Mutation, Arg, Ctx, ObjectType, Field } from 'type-graphql';
+import { Resolver, Query, Mutation, Arg, Ctx } from 'type-graphql';
 import { ScrapingService } from '../services/scraping.service';
-import { ScrapingNode, ScrapingNodeData, ScrapingResult } from '../integrations/scraping/nodes/ScrapingNode';
+import { ScrapingNode, ScrapingResult } from '../integrations/scraping/nodes/ScrapingNode';
 import { Context } from '../types/context';
 import { BatchConfigInput, SelectorConfigInput, ScrapingNodeDataInput } from '../schema/workflow';
 

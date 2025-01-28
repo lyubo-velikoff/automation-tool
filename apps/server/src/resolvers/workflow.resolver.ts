@@ -16,31 +16,12 @@ import {
   SaveAsTemplateInput
 } from "../schema/workflow-inputs";
 import { ObjectType, Field } from 'type-graphql';
-import { google } from 'googleapis';
-import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../integrations/gmail/config';
 import { ScrapingService } from '../services/scraping.service';
 import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
 import { supabase } from '../lib/supabase';
 import { OpenAIService } from '../services/openai.service';
-
-interface GmailTriggerResult {
-  emails: Array<{
-    id?: string;
-    threadId?: string;
-    labelIds?: string[];
-    snippet?: string | null;
-  }>;
-}
-
-interface GmailActionResult {
-  sent: boolean;
-}
-
-interface ScrapingResult {
-  results: string[];
-}
 
 @ObjectType()
 class ExecutionResult {
