@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, useMemo } from "react";
 import { Handle, Position } from "reactflow";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardHeader,
@@ -14,32 +15,51 @@ import { Label } from "@/components/ui/inputs/label";
 import { Button } from "@/components/ui/inputs/button";
 import { Textarea } from "@/components/ui/inputs/textarea";
 import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/overlays/popover";
 import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
 import {
   SelectorConfig,
   PaginationConfig
 } from "@automation-tool/shared-types";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from "@/components/ui/data-display/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/inputs/select";
+import { Card as SelectorCard } from "@/components/ui/layout/card";
+import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/data-display/separator";
+import { Badge } from "@/components/ui/data-display/badge";
+import { SelectorEditor } from "./components/SelectorEditor";
 
-interface NodeData extends GlobalNodeData {
+interface NodeData {
+  label: string;
+  url: string;
   selectors: SelectorConfig[];
-  pagination?: PaginationConfig;
-  template?: string;
-  [key: string]: unknown;
+  template: string;
+  pollingInterval?: number | null;
+  fromFilter?: string | null;
+  subjectFilter?: string | null;
+  to?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  prompt?: string | null;
+  model?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
+  onConfigChange?: (data: NodeData) => void;
 }
 
-interface GraphQLNodeData {
-  url?: string;
-  selector?: string;
-  selectorType?: "css" | "xpath";
-  attributes?: string[];
-  template?: string;
-  label?: string;
-  [key: string]: unknown;
+interface GraphQLNodeData extends Omit<NodeData, "onConfigChange"> {
+  __typename?: string;
+  [key: string]: any;
 }
 
 interface WebScrapingNodeProps {
@@ -53,8 +73,8 @@ interface WebScrapingNodeProps {
 const WebScrapingIcon = memo(() => (
   <svg
     xmlns='http://www.w3.org/2000/svg'
-    width='32'
-    height='32'
+    width='24'
+    height='24'
     viewBox='0 0 24 24'
     fill='none'
     stroke='currentColor'
@@ -63,36 +83,53 @@ const WebScrapingIcon = memo(() => (
     strokeLinejoin='round'
     className='text-blue-500'
   >
-    <path d='M14 7h6.172a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 1 23 9.828V19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6.172a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 1 12 5v2h2z' />
-    <path d='M3 15h18' />
+    <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71' />
+    <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' />
   </svg>
 ));
 WebScrapingIcon.displayName = "WebScrapingIcon";
 
 // Convert incoming GraphQL data to our UI format
 function convertIncomingData(data: GraphQLNodeData): NodeData {
-  // Extract only the fields we need for NodeData
-  const { url, selector, selectorType, attributes, template, label, ...rest } =
-    data;
-
-  // Create the node data with all fields
-  const nodeData: NodeData = {
-    url,
-    label,
-    template, // Don't apply default value
-    ...rest,
-    selectors: [
+  return {
+    ...data,
+    selectors: data.selectors || [
       {
-        selector: selector || "",
-        selectorType: selectorType || "css",
-        attributes: attributes || ["text", "href"],
-        name: "Main Content"
+        selector: "",
+        selectorType: "css" as const,
+        attributes: ["text"],
+        name: data.label || "Content"
       }
-    ]
+    ],
+    template: data.template || "{{text}}"
   };
-
-  return nodeData;
 }
+
+// Dynamically import Popover components
+const Popover = dynamic(
+  () => import("@/components/ui/overlays/popover").then((mod) => mod.Popover),
+  {
+    ssr: false
+  }
+);
+const PopoverContent = dynamic(
+  () =>
+    import("@/components/ui/overlays/popover").then(
+      (mod) => mod.PopoverContent
+    ),
+  {
+    ssr: false
+  }
+);
+const PopoverTrigger = dynamic(
+  () =>
+    import("@/components/ui/overlays/popover").then(
+      (mod) => mod.PopoverTrigger
+    ),
+  {
+    ssr: false
+  }
+);
 
 function WebScrapingNode({
   id,
@@ -104,37 +141,52 @@ function WebScrapingNode({
   const [testResults, setTestResults] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Convert incoming data to our format
-  const nodeData = convertIncomingData(data);
-
   const handleConfigChange = useCallback(
-    (key: keyof NodeData, value: unknown) => {
-      const { onConfigChange } = data;
-      if (!onConfigChange) return;
+    (key: string, value: any) => {
+      if (!data.onConfigChange) return;
 
-      // Create new data preserving existing fields
-      const newData = {
-        ...data,
-        [key]: value
-      };
-
-      // For selectors, we need to flatten the structure back for GraphQL
+      const newData = { ...data };
       if (key === "selectors") {
-        const firstSelector = (Array.isArray(value) && value[0]) || {};
-        const graphqlData = newData as GraphQLNodeData;
-        graphqlData.selector = firstSelector.selector || "";
-        graphqlData.selectorType = firstSelector.selectorType || "css";
-        graphqlData.attributes = firstSelector.attributes || ["text"];
+        newData.selectors = value;
+      } else {
+        (newData as any)[key] = value;
       }
 
-      onConfigChange(id || "", newData);
+      data.onConfigChange(newData);
     },
-    [data, id]
+    [data]
   );
 
-  const handleSelectorTest = async () => {
+  // Convert incoming data for UI only when needed
+  const nodeData = useMemo(
+    () => convertIncomingData(data as GraphQLNodeData),
+    [data]
+  );
+
+  const handleAddSelector = useCallback(() => {
+    const selectors = [...(nodeData.selectors || [])];
+    selectors.push({
+      selector: "",
+      selectorType: "css",
+      attributes: ["text"],
+      name: `Selector ${selectors.length + 1}`
+    });
+    handleConfigChange("selectors", selectors);
+  }, [nodeData.selectors, handleConfigChange]);
+
+  const handleRemoveSelector = useCallback(
+    (index: number) => {
+      const selectors = [...(nodeData.selectors || [])];
+      selectors.splice(index, 1);
+      handleConfigChange("selectors", selectors);
+    },
+    [nodeData.selectors, handleConfigChange]
+  );
+
+  const handleSelectorTest = async (index: number) => {
     setIsLoading(true);
     try {
+      const selector = nodeData.selectors[index];
       const response = await fetch("http://localhost:4000/api/test-selector", {
         method: "POST",
         headers: {
@@ -142,9 +194,9 @@ function WebScrapingNode({
         },
         body: JSON.stringify({
           url: nodeData.url,
-          selector: nodeData.selectors[0]?.selector,
-          selectorType: nodeData.selectors[0]?.selectorType,
-          attributes: nodeData.selectors[0]?.attributes
+          selector: selector.selector,
+          selectorType: selector.selectorType,
+          attributes: selector.attributes
         })
       });
 
@@ -190,15 +242,15 @@ function WebScrapingNode({
               className={cn(
                 "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
                 "hover:bg-muted/80 active:bg-muted/70",
-                data.url &&
-                  data.selectors?.length > 0 &&
+                nodeData.url &&
+                  nodeData.selectors?.length > 0 &&
                   "ring-2 ring-blue-500/50"
               )}
             >
               <WebScrapingIcon />
-              {data.label && (
+              {nodeData.label && (
                 <div className='absolute -bottom-6 text-xs text-gray-600 font-medium'>
-                  {data.label}
+                  {nodeData.label}
                 </div>
               )}
             </Card>
@@ -209,100 +261,78 @@ function WebScrapingNode({
           align='start'
           alignOffset={-240}
           sideOffset={12}
-          className='w-[300px]'
+          className='w-[400px]'
         >
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <WebScrapingIcon />
-              Web Scraping
-            </CardTitle>
-            <CardDescription>
-              Extract data from websites using CSS or XPath selectors
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='flex flex-col gap-4'>
-            <div>
-              <Label>Node Label</Label>
-              <Input
-                value={nodeData.label || ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleConfigChange("label", e.target.value)
-                }
-                placeholder='Node Label'
-              />
-            </div>
-
-            <div>
-              <Label>URL</Label>
-              <Input
-                value={nodeData.url || ""}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  handleConfigChange("url", e.target.value)
-                }
-                placeholder='https://example.com'
-              />
-            </div>
-
-            <div>
-              <Label>CSS Selector</Label>
-              <div className='flex gap-2'>
-                <Input
-                  value={nodeData.selectors?.[0]?.selector ?? ""}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    handleConfigChange("selectors", [
-                      {
-                        ...(nodeData.selectors?.[0] ?? {}),
-                        selector: e.target.value,
-                        selectorType: "css",
-                        attributes: ["text", "href"]
-                      }
-                    ])
-                  }
-                  placeholder='h1, .post-title, etc'
-                />
-                <Button
-                  variant='outline'
-                  onClick={handleSelectorTest}
-                  disabled={
-                    isLoading ||
-                    !nodeData.url ||
-                    !nodeData.selectors?.[0]?.selector
-                  }
-                >
-                  {isLoading ? "Testing..." : "Test"}
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <Label>Output Template</Label>
-              <Textarea
-                value={nodeData.template ?? ""}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  handleConfigChange("template", e.target.value || undefined)
-                }
-                placeholder='{{text}}\nURL: {{href}}'
-                rows={3}
-              />
-            </div>
-
-            {testResults.length > 0 && (
-              <div>
-                <Label>Test Results</Label>
-                <div className='mt-2 p-2 bg-muted rounded-md'>
-                  <pre className='whitespace-pre-wrap text-sm'>
-                    {testResults.slice(0, 5).join("\n\n")}
-                    {testResults.length > 5 &&
-                      "\n\n...and " +
-                        (testResults.length - 5) +
-                        " more results"}
-                  </pre>
-                </div>
-              </div>
+          <Card
+            className={cn(
+              "border-none shadow-none",
+              selected && "border-blue-500"
             )}
-          </CardContent>
+          >
+            <CardHeader className='flex flex-row items-center gap-2'>
+              <WebScrapingIcon />
+              <div>
+                <CardTitle>Web Scraping</CardTitle>
+                <CardDescription>
+                  Extract data from a website using CSS or XPath selectors
+                </CardDescription>
+              </div>
+            </CardHeader>
+
+            <CardContent className='space-y-4'>
+              <Tabs defaultValue='general'>
+                <TabsList className='grid w-full grid-cols-2'>
+                  <TabsTrigger value='general'>General</TabsTrigger>
+                  <TabsTrigger value='selectors'>Selectors</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value='general'>
+                  <div className='space-y-4'>
+                    <div>
+                      <Label>Node Label</Label>
+                      <Input
+                        value={nodeData.label || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          handleConfigChange("label", e.target.value)
+                        }
+                        placeholder='Node Label'
+                      />
+                    </div>
+
+                    <div>
+                      <Label>URL</Label>
+                      <Input
+                        value={nodeData.url || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          handleConfigChange("url", e.target.value)
+                        }
+                        placeholder='https://example.com'
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value='selectors' className='space-y-4'>
+                  <SelectorEditor
+                    selectors={nodeData.selectors}
+                    template={nodeData.template}
+                    testResults={testResults}
+                    isLoading={isLoading}
+                    onUpdateSelectors={(selectors) =>
+                      handleConfigChange("selectors", selectors)
+                    }
+                    onUpdateTemplate={(template) =>
+                      handleConfigChange("template", template)
+                    }
+                    onTestSelector={handleSelectorTest}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </PopoverContent>
       </Popover>
+
       <Handle
         type='target'
         position={Position.Left}
