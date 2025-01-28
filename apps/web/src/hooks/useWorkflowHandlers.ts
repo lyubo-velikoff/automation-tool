@@ -83,29 +83,32 @@ export function useWorkflowHandlers() {
       // Keep label in both places for backward compatibility
       const label = cleanData.label || node.data?.label;
 
+      // Base node data structure with common fields
+      const baseNodeData = {
+        label,
+        pollingInterval: cleanData.pollingInterval || null,
+        fromFilter: cleanData.fromFilter || null,
+        subjectFilter: cleanData.subjectFilter || null,
+        to: cleanData.to || null,
+        subject: cleanData.subject || null,
+        body: cleanData.body || null,
+        url: cleanData.url || null,
+        template: cleanData.template || null,
+        prompt: cleanData.prompt || null,
+        model: cleanData.model || null,
+        temperature: cleanData.temperature || null,
+        maxTokens: cleanData.maxTokens || null
+      };
+
       // Transform scraping node data to match GraphQL schema
-      if (node.type === 'SCRAPING') {
-        // First get the selector data to ensure it exists
-        const selectorData = cleanData.selectors?.[0] || {
+      if (node.type === 'SCRAPING' || node.type === 'MULTI_URL_SCRAPING') {
+        const selectors = cleanData.selectors || [{
           selector: cleanData.selector || "",
           selectorType: cleanData.selectorType || "css",
-          attributes: cleanData.attributes || ["text"]
-        };
+          attributes: cleanData.attributes || ["text"],
+          name: cleanData.label || "Content"
+        }];
         
-        const scrapingData = {
-          label,
-          url: cleanData.url || "",
-          selector: selectorData.selector,
-          selectorType: selectorData.selectorType,
-          attributes: selectorData.attributes,
-          template: cleanData.template || "",
-          pollingInterval: null,
-          fromFilter: null,
-          subjectFilter: null,
-          to: null,
-          subject: null,
-          body: null
-        };
         return {
           id: node.id,
           type: node.type,
@@ -114,11 +117,26 @@ export function useWorkflowHandlers() {
             x: node.position.x,
             y: node.position.y
           },
-          data: scrapingData
+          data: {
+            ...baseNodeData,
+            selectors
+          }
         };
       }
 
-      // For other node types, keep the data as is
+      // Remove scraping-specific fields for non-scraping nodes
+      delete baseNodeData.template;
+      if (node.type === 'OPENAI') {
+        delete baseNodeData.url;
+      } else if (node.type === 'GMAIL_ACTION' || node.type === 'GMAIL_TRIGGER') {
+        delete baseNodeData.url;
+        delete baseNodeData.prompt;
+        delete baseNodeData.model;
+        delete baseNodeData.temperature;
+        delete baseNodeData.maxTokens;
+      }
+
+      // For other node types, return cleaned data
       return {
         id: node.id,
         type: node.type,
@@ -127,10 +145,7 @@ export function useWorkflowHandlers() {
           x: node.position.x,
           y: node.position.y
         },
-        data: {
-          ...cleanData,
-          label
-        }
+        data: baseNodeData
       };
     });
 
