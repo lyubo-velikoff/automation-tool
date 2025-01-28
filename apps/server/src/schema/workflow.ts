@@ -108,21 +108,11 @@ export class NodeData {
   @Field(() => [String], { nullable: true })
   urls?: string[];
 
-  @Field({ nullable: true })
-  selector?: string;
-
-  @Field({ nullable: true })
-  selectorType?: string;
-
-  @Field(() => [String], { nullable: true })
-  attributes?: string[];
+  @Field(() => [SelectorConfig], { nullable: true })
+  selectors?: SelectorConfig[];
 
   @Field({ nullable: true })
   template?: string;
-
-  // Multi-URL scraping fields
-  @Field(() => [SelectorConfig], { nullable: true })
-  selectors?: SelectorConfig[];
 
   @Field(() => BatchConfig, { nullable: true })
   batchConfig?: BatchConfig;
@@ -149,9 +139,6 @@ export class NodeData {
 
   @Field(() => Int, { nullable: true })
   pollingInterval?: number;
-
-  @Field({ nullable: true })
-  attribute?: string;
 }
 
 @ObjectType()

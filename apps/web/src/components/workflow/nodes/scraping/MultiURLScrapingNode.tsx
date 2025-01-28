@@ -50,6 +50,7 @@ import { Separator } from "@/components/ui/data-display/separator";
 import { Badge } from "@/components/ui/data-display/badge";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
 import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
+import { SelectorEditor } from "./components/SelectorEditor";
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {
@@ -95,6 +96,12 @@ function MultiURLScrapingNode({
   const [editingSelector, setEditingSelector] = useState<number | null>(null);
   const [testingSelector, setTestingSelector] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, any>>({});
+
+  // Convert test results from record to array for the selector editor
+  const currentTestResults =
+    testingSelector !== null && testResults[testingSelector]
+      ? [JSON.stringify(testResults[testingSelector], null, 2)]
+      : [];
 
   const handleConfigChange = useCallback(
     (key: keyof MultiURLNodeData, value: unknown) => {
@@ -620,51 +627,19 @@ function MultiURLScrapingNode({
                 </TabsContent>
 
                 <TabsContent value='selectors' className='space-y-4'>
-                  <div className='space-y-2'>
-                    {(data.selectors || []).map((selector, index) =>
-                      renderSelector(selector, index)
-                    )}
-                    {(!data.selectors || data.selectors.length === 0) && (
-                      <div className='text-center text-muted-foreground py-8 border rounded-md'>
-                        No selectors configured
-                      </div>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={handleAddSelector}
-                    variant='outline'
-                    className='w-full'
-                  >
-                    <Plus className='h-4 w-4 mr-2' />
-                    Add Selector
-                  </Button>
-
-                  <Separator className='my-4' />
-
-                  <div className='space-y-4'>
-                    <div>
-                      <Label>Output Template</Label>
-                      <Textarea
-                        value={data.template || ""}
-                        onChange={(e) =>
-                          handleConfigChange("template", e.target.value)
-                        }
-                        placeholder='Example:
-Title: {{Title}}
-URL: {{url}}
-Content: {{Content}}'
-                        rows={4}
-                        className='font-mono text-sm'
-                      />
-                      <p className='text-xs text-muted-foreground mt-1'>
-                        Use double curly braces and exact selector name (e.g.,{" "}
-                        {"{{Content}}"}) to reference selector outputs.
-                        Available variables: {"{{url}}"}, {"{{index}}"}, and
-                        your selector names (case-sensitive).
-                      </p>
-                    </div>
-                  </div>
+                  <SelectorEditor
+                    selectors={data.selectors || []}
+                    template={data.template}
+                    testResults={currentTestResults}
+                    isLoading={testingSelector !== null}
+                    onUpdateSelectors={(selectors) =>
+                      handleConfigChange("selectors", selectors)
+                    }
+                    onUpdateTemplate={(template) =>
+                      handleConfigChange("template", template)
+                    }
+                    onTestSelector={handleTestSelector}
+                  />
                 </TabsContent>
 
                 <TabsContent value='settings' className='space-y-4'>
