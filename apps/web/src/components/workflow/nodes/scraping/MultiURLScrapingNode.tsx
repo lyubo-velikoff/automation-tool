@@ -28,7 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
 import { ScrollArea } from "@/components/ui/layout/scroll-area";
-import { X } from "lucide-react";
+import { X, Globe2 } from "lucide-react";
 import {
   Tabs,
   TabsList,
@@ -49,6 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/data-display/separator";
 import { Badge } from "@/components/ui/data-display/badge";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
+import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {
@@ -67,27 +68,9 @@ interface MultiURLScrapingNodeProps {
   isConnectable: boolean;
 }
 
-const MultiURLScrapingIcon = memo(() => (
-  <svg
-    xmlns='http://www.w3.org/2000/svg'
-    width='32'
-    height='32'
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth='2'
-    strokeLinecap='round'
-    strokeLinejoin='round'
-    className='text-blue-500'
-  >
-    <path d='M3 7V5c0-1.1.9-2 2-2h2' />
-    <path d='M17 3h2c1.1 0 2 .9 2 2v2' />
-    <path d='M21 17v2c0 1.1-.9 2-2 2h-2' />
-    <path d='M7 21H5c-1.1 0-2-.9-2-2v-2' />
-    <rect x='7' y='7' width='10' height='10' rx='1' />
-  </svg>
-));
-MultiURLScrapingIcon.displayName = "MultiURLScrapingIcon";
+const MultiURLScrapingIcon = () => {
+  return <Globe2 className='h-8 w-8 text-muted-foreground' />;
+};
 
 const validateURL = (url: string): boolean => {
   try {
@@ -221,10 +204,18 @@ function MultiURLScrapingNode({
     const urlList = bulkUrls
       .split("\n")
       .map((url) => url.trim())
-      .filter((url) => url && validateURL(url));
+      .filter((url) => {
+        // Handle variable format {{NodeName.results}}
+        if (url.match(/{{.*?}}/)) {
+          // For now, accept variables as valid entries
+          return true;
+        }
+        // Otherwise validate as URL
+        return url && validateURL(url);
+      });
 
     if (urlList.length === 0) {
-      setUrlError("No valid URLs found");
+      setUrlError("No valid URLs or variables found");
       return;
     }
 
@@ -471,12 +462,6 @@ function MultiURLScrapingNode({
       )}
       data-testid={`node-${type?.toLowerCase()}`}
     >
-      <Handle
-        type='target'
-        position={Position.Left}
-        isConnectable={isConnectable}
-      />
-
       <Popover>
         <PopoverTrigger asChild>
           <div className='p-2 flex items-center justify-center'>
@@ -503,227 +488,249 @@ function MultiURLScrapingNode({
           align='start'
           alignOffset={-240}
           sideOffset={12}
-          className='w-[600px]'
+          className='w-[400px]'
         >
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
+          <Card
+            className={cn(
+              "border-none shadow-none",
+              selected && "border-blue-500"
+            )}
+          >
+            <CardHeader className='flex flex-row items-center gap-2'>
               <MultiURLScrapingIcon />
-              Multi-URL Scraping
-            </CardTitle>
-            <CardDescription>
-              Extract data from multiple websites using CSS or XPath selectors
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue='general' className='w-full'>
-              <TabsList className='w-full'>
-                <TabsTrigger value='general' className='flex-1'>
-                  General
-                </TabsTrigger>
-                <TabsTrigger value='urls' className='flex-1'>
-                  URLs
-                </TabsTrigger>
-                <TabsTrigger value='selectors' className='flex-1'>
-                  Selectors
-                </TabsTrigger>
-                <TabsTrigger value='settings' className='flex-1'>
-                  Settings
-                </TabsTrigger>
-              </TabsList>
+              <div>
+                <CardTitle>Multi-URL Scraping</CardTitle>
+                <CardDescription>
+                  Extract data from multiple websites using CSS or XPath
+                  selectors
+                </CardDescription>
+              </div>
+            </CardHeader>
 
-              <TabsContent value='general' className='space-y-4 mt-4'>
-                <div>
-                  <Label>Node Label</Label>
-                  <Input
-                    value={data.label || ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      handleConfigChange("label", e.target.value)
-                    }
-                    placeholder='Node Label'
-                  />
-                </div>
-              </TabsContent>
+            <CardContent className='space-y-4'>
+              <Tabs defaultValue='general'>
+                <TabsList className='grid w-full grid-cols-4'>
+                  <TabsTrigger value='general'>General</TabsTrigger>
+                  <TabsTrigger value='urls'>URLs</TabsTrigger>
+                  <TabsTrigger value='selectors'>Selectors</TabsTrigger>
+                  <TabsTrigger value='settings'>Settings</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value='urls' className='space-y-4 mt-4'>
-                <div>
-                  <Label>Add URL</Label>
-                  <div className='flex gap-2'>
+                <TabsContent value='general'>
+                  <div>
+                    <Label>Node Label</Label>
                     <Input
-                      value={newUrl}
-                      onChange={(e) => {
-                        setNewUrl(e.target.value);
-                        setUrlError(null);
-                      }}
-                      placeholder='https://example.com'
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddUrl();
-                        }
-                      }}
+                      value={data.label || ""}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleConfigChange("label", e.target.value)
+                      }
+                      placeholder='Node Label'
                     />
-                    <Button
-                      onClick={handleAddUrl}
-                      className='whitespace-nowrap'
-                      variant='secondary'
-                    >
-                      Add URL
-                    </Button>
                   </div>
-                </div>
+                </TabsContent>
 
-                <div>
-                  <Label>Bulk Add URLs</Label>
-                  <Textarea
-                    value={bulkUrls}
-                    onChange={(e) => {
-                      setBulkUrls(e.target.value);
-                      setUrlError(null);
-                    }}
-                    placeholder='Enter multiple URLs (one per line)'
-                    className='min-h-[100px]'
-                  />
-                  <Button
-                    onClick={handleBulkAdd}
-                    variant='secondary'
-                    className='mt-2'
-                  >
-                    Add URLs
-                  </Button>
-                </div>
-
-                {urlError && (
-                  <div className='text-sm text-red-500 mt-1'>{urlError}</div>
-                )}
-
-                <div>
-                  <Label>URL List ({data.urls?.length || 0})</Label>
-                  <ScrollArea className='h-[200px] w-full border rounded-md'>
-                    <div className='p-4 space-y-2'>
-                      {data.urls?.map((url, index) => (
-                        <div
-                          key={index}
-                          className='flex items-center justify-between gap-2 p-2 bg-muted rounded-md'
-                        >
-                          <span className='text-sm truncate flex-1'>{url}</span>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() => handleRemoveUrl(url)}
-                            className='h-6 w-6 p-0'
-                          >
-                            <X className='h-4 w-4' />
-                          </Button>
-                        </div>
-                      ))}
-                      {(!data.urls || data.urls.length === 0) && (
-                        <div className='text-sm text-muted-foreground'>
-                          No URLs added yet
-                        </div>
+                <TabsContent value='urls' className='space-y-4'>
+                  <div className='space-y-4'>
+                    <div className='space-y-2'>
+                      <Label>Add URL</Label>
+                      <div className='flex gap-2'>
+                        <Input
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          placeholder='https://example.com'
+                          className='flex-grow'
+                        />
+                        <Button onClick={handleAddUrl}>Add URL</Button>
+                      </div>
+                      {urlError && (
+                        <p className='text-sm text-red-500'>{urlError}</p>
                       )}
                     </div>
-                  </ScrollArea>
-                </div>
-              </TabsContent>
 
-              <TabsContent value='selectors' className='space-y-4 mt-4'>
-                <div className='space-y-2'>
-                  {(data.selectors || []).map((selector, index) =>
-                    renderSelector(selector, index)
-                  )}
-                  {(!data.selectors || data.selectors.length === 0) && (
-                    <div className='text-center text-muted-foreground py-8 border rounded-md'>
-                      No selectors configured
+                    <div className='space-y-2'>
+                      <Label>Bulk Add URLs</Label>
+                      <div className='flex flex-col gap-2'>
+                        <Textarea
+                          value={bulkUrls}
+                          onChange={(e) => setBulkUrls(e.target.value)}
+                          placeholder='Enter multiple URLs (one per line) or use variables from other nodes (e.g. {{Node Name.results}})'
+                          className='min-h-[100px]'
+                        />
+                        <div className='flex justify-between items-center'>
+                          <Button onClick={handleBulkAdd}>Add URLs</Button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant='outline' size='sm'>
+                                Insert Variable
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className='w-64' align='end'>
+                              <VariablePicker
+                                nodeId={id || ""}
+                                onInsertVariable={(variable: string) => {
+                                  const currentText = bulkUrls;
+                                  setBulkUrls(
+                                    currentText +
+                                      (currentText ? "\n" : "") +
+                                      variable
+                                  );
+                                }}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <Separator className='my-4' />
+                    <div className='space-y-2'>
+                      <Label>URL List ({data.urls?.length || 0})</Label>
+                      <ScrollArea className='h-[200px] w-full rounded-md border'>
+                        {data.urls?.length ? (
+                          <div className='p-4 space-y-2'>
+                            {data.urls.map((url, index) => (
+                              <div
+                                key={index}
+                                className='flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50'
+                              >
+                                <span className='text-sm truncate flex-grow'>
+                                  {url}
+                                </span>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() => {
+                                    const newUrls = [...(data.urls || [])];
+                                    newUrls.splice(index, 1);
+                                    handleConfigChange("urls", newUrls);
+                                  }}
+                                >
+                                  <X className='h-4 w-4' />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className='p-4 text-sm text-muted-foreground text-center'>
+                            No URLs added yet
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </div>
+                  </div>
+                </TabsContent>
 
-                <div className='space-y-4'>
-                  <div>
-                    <Label>Output Template</Label>
-                    <Textarea
-                      value={data.template || ""}
-                      onChange={(e) =>
-                        handleConfigChange("template", e.target.value)
-                      }
-                      placeholder='Example:
+                <TabsContent value='selectors' className='space-y-4'>
+                  <div className='space-y-2'>
+                    {(data.selectors || []).map((selector, index) =>
+                      renderSelector(selector, index)
+                    )}
+                    {(!data.selectors || data.selectors.length === 0) && (
+                      <div className='text-center text-muted-foreground py-8 border rounded-md'>
+                        No selectors configured
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleAddSelector}
+                    variant='outline'
+                    className='w-full'
+                  >
+                    <Plus className='h-4 w-4 mr-2' />
+                    Add Selector
+                  </Button>
+
+                  <Separator className='my-4' />
+
+                  <div className='space-y-4'>
+                    <div>
+                      <Label>Output Template</Label>
+                      <Textarea
+                        value={data.template || ""}
+                        onChange={(e) =>
+                          handleConfigChange("template", e.target.value)
+                        }
+                        placeholder='Example:
 Title: {{Title}}
 URL: {{url}}
 Content: {{Content}}'
-                      rows={4}
-                      className='font-mono text-sm'
+                        rows={4}
+                        className='font-mono text-sm'
+                      />
+                      <p className='text-xs text-muted-foreground mt-1'>
+                        Use double curly braces and exact selector name (e.g.,{" "}
+                        {"{{Content}}"}) to reference selector outputs.
+                        Available variables: {"{{url}}"}, {"{{index}}"}, and
+                        your selector names (case-sensitive).
+                      </p>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value='settings' className='space-y-4'>
+                  <div>
+                    <Label>Batch Size</Label>
+                    <Input
+                      type='number'
+                      min={1}
+                      max={50}
+                      value={data.batchConfig?.batchSize || 5}
+                      onChange={(e) =>
+                        handleBatchConfigChange(
+                          "batchSize",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      placeholder='Number of URLs to process at once'
                     />
                     <p className='text-xs text-muted-foreground mt-1'>
-                      Use double curly braces and exact selector name (e.g.,{" "}
-                      {"{{Content}}"}) to reference selector outputs. Available
-                      variables: {"{{url}}"}, {"{{index}}"}, and your selector
-                      names (case-sensitive).
+                      Process 1-50 URLs simultaneously
                     </p>
                   </div>
-                </div>
-
-                <Button
-                  onClick={handleAddSelector}
-                  variant='outline'
-                  className='w-full'
-                >
-                  <Plus className='h-4 w-4 mr-2' />
-                  Add Selector
-                </Button>
-              </TabsContent>
-
-              <TabsContent value='settings' className='space-y-4 mt-4'>
-                <div>
-                  <Label>Batch Size</Label>
-                  <Input
-                    type='number'
-                    min={1}
-                    max={50}
-                    value={data.batchConfig?.batchSize || 5}
-                    onChange={(e) =>
-                      handleBatchConfigChange(
-                        "batchSize",
-                        parseInt(e.target.value)
-                      )
-                    }
-                    placeholder='Number of URLs to process at once'
-                  />
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    Process 1-50 URLs simultaneously
-                  </p>
-                </div>
-                <div>
-                  <Label>Rate Limit (requests per minute)</Label>
-                  <Input
-                    type='number'
-                    min={1}
-                    max={60}
-                    value={data.batchConfig?.rateLimit || 10}
-                    onChange={(e) =>
-                      handleBatchConfigChange(
-                        "rateLimit",
-                        parseInt(e.target.value)
-                      )
-                    }
-                    placeholder='Maximum requests per minute'
-                  />
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    Limit requests to avoid overloading servers
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
+                  <div>
+                    <Label>Rate Limit (requests per minute)</Label>
+                    <Input
+                      type='number'
+                      min={1}
+                      max={60}
+                      value={data.batchConfig?.rateLimit || 10}
+                      onChange={(e) =>
+                        handleBatchConfigChange(
+                          "rateLimit",
+                          parseInt(e.target.value)
+                        )
+                      }
+                      placeholder='Maximum requests per minute'
+                    />
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      Limit requests to avoid overloading servers
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </PopoverContent>
       </Popover>
 
+      <Handle
+        type='target'
+        position={Position.Left}
+        isConnectable={isConnectable}
+      />
       <Handle
         type='source'
         position={Position.Right}
         isConnectable={isConnectable}
       />
+    </div>
+  );
+}
+
+export function MultiURLScrapingDisplay() {
+  return (
+    <div className='flex items-center justify-center w-[100px] h-[60px] rounded-lg bg-background border shadow-sm'>
+      <Globe2 className='h-6 w-6 text-muted-foreground' />
     </div>
   );
 }
