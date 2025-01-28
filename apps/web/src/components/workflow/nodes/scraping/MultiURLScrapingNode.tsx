@@ -30,11 +30,11 @@ import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTyp
 import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { X } from "lucide-react";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger
-} from "@/components/ui/data-display/accordion";
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
+} from "@/components/ui/data-display/tabs";
 import { SelectorConfig, BatchConfig } from "@automation-tool/shared-types";
 
 // Extended node data for multi-URL scraping
@@ -270,261 +270,259 @@ function MultiURLScrapingNode({
               Extract data from multiple websites using CSS or XPath selectors
             </CardDescription>
           </CardHeader>
-          <CardContent className='flex flex-col gap-4'>
-            <Accordion type='single' collapsible className='w-full'>
-              <AccordionItem value='general'>
-                <AccordionTrigger>General Settings</AccordionTrigger>
-                <AccordionContent>
-                  <div className='space-y-4'>
-                    <div>
-                      <Label>Node Label</Label>
-                      <Input
-                        value={data.label || ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          handleConfigChange("label", e.target.value)
+          <CardContent>
+            <Tabs defaultValue='general' className='w-full'>
+              <TabsList className='w-full'>
+                <TabsTrigger value='general' className='flex-1'>
+                  General
+                </TabsTrigger>
+                <TabsTrigger value='urls' className='flex-1'>
+                  URLs
+                </TabsTrigger>
+                <TabsTrigger value='selectors' className='flex-1'>
+                  Selectors
+                </TabsTrigger>
+                <TabsTrigger value='settings' className='flex-1'>
+                  Settings
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value='general' className='space-y-4 mt-4'>
+                <div>
+                  <Label>Node Label</Label>
+                  <Input
+                    value={data.label || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleConfigChange("label", e.target.value)
+                    }
+                    placeholder='Node Label'
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value='urls' className='space-y-4 mt-4'>
+                <div>
+                  <Label>Add URL</Label>
+                  <div className='flex gap-2'>
+                    <Input
+                      value={newUrl}
+                      onChange={(e) => {
+                        setNewUrl(e.target.value);
+                        setUrlError(null);
+                      }}
+                      placeholder='https://example.com'
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddUrl();
                         }
-                        placeholder='Node Label'
-                      />
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value='urls'>
-                <AccordionTrigger>URL Management</AccordionTrigger>
-                <AccordionContent>
-                  <div className='space-y-4'>
-                    <div>
-                      <Label>Add URL</Label>
-                      <div className='flex gap-2'>
-                        <Input
-                          value={newUrl}
-                          onChange={(e) => {
-                            setNewUrl(e.target.value);
-                            setUrlError(null);
-                          }}
-                          placeholder='https://example.com'
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddUrl();
-                            }
-                          }}
-                        />
-                        <Button
-                          onClick={handleAddUrl}
-                          className='whitespace-nowrap'
-                          variant='secondary'
-                        >
-                          Add URL
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Bulk Add URLs</Label>
-                      <Textarea
-                        value={bulkUrls}
-                        onChange={(e) => {
-                          setBulkUrls(e.target.value);
-                          setUrlError(null);
-                        }}
-                        placeholder='Enter multiple URLs (one per line)'
-                        className='min-h-[100px]'
-                      />
-                      <Button
-                        onClick={handleBulkAdd}
-                        variant='secondary'
-                        className='mt-2'
-                      >
-                        Add URLs
-                      </Button>
-                    </div>
-
-                    {urlError && (
-                      <div className='text-sm text-red-500 mt-1'>
-                        {urlError}
-                      </div>
-                    )}
-
-                    <div>
-                      <Label>URL List ({data.urls?.length || 0})</Label>
-                      <ScrollArea className='h-[200px] w-full border rounded-md'>
-                        <div className='p-4 space-y-2'>
-                          {data.urls?.map((url, index) => (
-                            <div
-                              key={index}
-                              className='flex items-center justify-between gap-2 p-2 bg-muted rounded-md'
-                            >
-                              <span className='text-sm truncate flex-1'>
-                                {url}
-                              </span>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                onClick={() => handleRemoveUrl(url)}
-                                className='h-6 w-6 p-0'
-                              >
-                                <X className='h-4 w-4' />
-                              </Button>
-                            </div>
-                          ))}
-                          {(!data.urls || data.urls.length === 0) && (
-                            <div className='text-sm text-muted-foreground'>
-                              No URLs added yet
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value='selectors'>
-                <AccordionTrigger>Selector Configuration</AccordionTrigger>
-                <AccordionContent>
-                  <div className='space-y-4'>
-                    {(data.selectors || []).map((selector, index) => (
-                      <div
-                        key={index}
-                        className='p-4 border rounded-md space-y-3 relative'
-                      >
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => handleRemoveSelector(index)}
-                          className='absolute right-2 top-2 h-6 w-6 p-0'
-                        >
-                          <X className='h-4 w-4' />
-                        </Button>
-                        <div>
-                          <Label>Selector Name</Label>
-                          <Input
-                            value={selector.name || ""}
-                            onChange={(e) =>
-                              handleSelectorChange(
-                                index,
-                                "name",
-                                e.target.value
-                              )
-                            }
-                            placeholder='e.g., Title, Content, Link'
-                          />
-                        </div>
-                        <div>
-                          <Label>Selector Type</Label>
-                          <Select
-                            value={selector.selectorType}
-                            onValueChange={(value) =>
-                              handleSelectorChange(index, "selectorType", value)
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value='css'>CSS Selector</SelectItem>
-                              <SelectItem value='xpath'>XPath</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Selector</Label>
-                          <Input
-                            value={selector.selector}
-                            onChange={(e) =>
-                              handleSelectorChange(
-                                index,
-                                "selector",
-                                e.target.value
-                              )
-                            }
-                            placeholder={
-                              selector.selectorType === "css"
-                                ? ".article h1"
-                                : "//h1"
-                            }
-                          />
-                        </div>
-                        <div>
-                          <Label>Attributes</Label>
-                          <Select
-                            value={selector.attributes[0]}
-                            onValueChange={(value) =>
-                              handleSelectorChange(index, "attributes", [value])
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value='text'>Text Content</SelectItem>
-                              <SelectItem value='href'>Link URL</SelectItem>
-                              <SelectItem value='src'>Image Source</SelectItem>
-                              <SelectItem value='html'>HTML Content</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    ))}
+                      }}
+                    />
                     <Button
-                      onClick={handleAddSelector}
-                      variant='outline'
-                      className='w-full'
+                      onClick={handleAddUrl}
+                      className='whitespace-nowrap'
+                      variant='secondary'
                     >
-                      Add Selector
+                      Add URL
                     </Button>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </div>
 
-              <AccordionItem value='batch'>
-                <AccordionTrigger>Batch Settings</AccordionTrigger>
-                <AccordionContent>
-                  <div className='space-y-4'>
+                <div>
+                  <Label>Bulk Add URLs</Label>
+                  <Textarea
+                    value={bulkUrls}
+                    onChange={(e) => {
+                      setBulkUrls(e.target.value);
+                      setUrlError(null);
+                    }}
+                    placeholder='Enter multiple URLs (one per line)'
+                    className='min-h-[100px]'
+                  />
+                  <Button
+                    onClick={handleBulkAdd}
+                    variant='secondary'
+                    className='mt-2'
+                  >
+                    Add URLs
+                  </Button>
+                </div>
+
+                {urlError && (
+                  <div className='text-sm text-red-500 mt-1'>{urlError}</div>
+                )}
+
+                <div>
+                  <Label>URL List ({data.urls?.length || 0})</Label>
+                  <ScrollArea className='h-[200px] w-full border rounded-md'>
+                    <div className='p-4 space-y-2'>
+                      {data.urls?.map((url, index) => (
+                        <div
+                          key={index}
+                          className='flex items-center justify-between gap-2 p-2 bg-muted rounded-md'
+                        >
+                          <span className='text-sm truncate flex-1'>{url}</span>
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={() => handleRemoveUrl(url)}
+                            className='h-6 w-6 p-0'
+                          >
+                            <X className='h-4 w-4' />
+                          </Button>
+                        </div>
+                      ))}
+                      {(!data.urls || data.urls.length === 0) && (
+                        <div className='text-sm text-muted-foreground'>
+                          No URLs added yet
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </TabsContent>
+
+              <TabsContent value='selectors' className='space-y-4 mt-4'>
+                {(data.selectors || []).map((selector, index) => (
+                  <div
+                    key={index}
+                    className='p-4 border rounded-md space-y-3 relative'
+                  >
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => handleRemoveSelector(index)}
+                      className='absolute right-2 top-2 h-6 w-6 p-0'
+                    >
+                      <X className='h-4 w-4' />
+                    </Button>
                     <div>
-                      <Label>Batch Size</Label>
+                      <Label>Selector Name</Label>
                       <Input
-                        type='number'
-                        min={1}
-                        max={50}
-                        value={data.batchConfig?.batchSize || 5}
+                        value={selector.name || ""}
                         onChange={(e) =>
-                          handleBatchConfigChange(
-                            "batchSize",
-                            parseInt(e.target.value)
-                          )
+                          handleSelectorChange(index, "name", e.target.value)
                         }
-                        placeholder='Number of URLs to process at once'
+                        placeholder='e.g., Title, Content, Link'
                       />
-                      <p className='text-xs text-muted-foreground mt-1'>
-                        Process 1-50 URLs simultaneously
-                      </p>
                     </div>
                     <div>
-                      <Label>Rate Limit (requests per minute)</Label>
+                      <Label>Selector Type</Label>
+                      <Select
+                        value={selector.selectorType}
+                        onValueChange={(value) =>
+                          handleSelectorChange(index, "selectorType", value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='css'>CSS Selector</SelectItem>
+                          <SelectItem value='xpath'>XPath</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Selector</Label>
                       <Input
-                        type='number'
-                        min={1}
-                        max={60}
-                        value={data.batchConfig?.rateLimit || 10}
+                        value={selector.selector}
                         onChange={(e) =>
-                          handleBatchConfigChange(
-                            "rateLimit",
-                            parseInt(e.target.value)
+                          handleSelectorChange(
+                            index,
+                            "selector",
+                            e.target.value
                           )
                         }
-                        placeholder='Maximum requests per minute'
+                        placeholder={
+                          selector.selectorType === "css"
+                            ? ".article h1"
+                            : "//h1"
+                        }
                       />
-                      <p className='text-xs text-muted-foreground mt-1'>
-                        Limit requests to avoid overloading servers
-                      </p>
+                    </div>
+                    <div>
+                      <Label>Attributes</Label>
+                      <Select
+                        value={selector.attributes[0]}
+                        onValueChange={(value) =>
+                          handleSelectorChange(index, "attributes", [value])
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='text'>Text Content</SelectItem>
+                          <SelectItem value='href'>Link URL</SelectItem>
+                          <SelectItem value='src'>Image Source</SelectItem>
+                          <SelectItem value='html'>HTML Content</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                ))}
+                <Button
+                  onClick={handleAddSelector}
+                  variant='outline'
+                  className='w-full'
+                >
+                  Add Selector
+                </Button>
+              </TabsContent>
+
+              <TabsContent value='settings' className='space-y-4 mt-4'>
+                <div>
+                  <Label>Batch Size</Label>
+                  <Input
+                    type='number'
+                    min={1}
+                    max={50}
+                    value={data.batchConfig?.batchSize || 5}
+                    onChange={(e) =>
+                      handleBatchConfigChange(
+                        "batchSize",
+                        parseInt(e.target.value)
+                      )
+                    }
+                    placeholder='Number of URLs to process at once'
+                  />
+                  <p className='text-xs text-muted-foreground mt-1'>
+                    Process 1-50 URLs simultaneously
+                  </p>
+                </div>
+                <div>
+                  <Label>Rate Limit (requests per minute)</Label>
+                  <Input
+                    type='number'
+                    min={1}
+                    max={60}
+                    value={data.batchConfig?.rateLimit || 10}
+                    onChange={(e) =>
+                      handleBatchConfigChange(
+                        "rateLimit",
+                        parseInt(e.target.value)
+                      )
+                    }
+                    placeholder='Maximum requests per minute'
+                  />
+                  <p className='text-xs text-muted-foreground mt-1'>
+                    Limit requests to avoid overloading servers
+                  </p>
+                </div>
+                <div>
+                  <Label>Output Template</Label>
+                  <Textarea
+                    value={data.template || ""}
+                    onChange={(e) =>
+                      handleConfigChange("template", e.target.value)
+                    }
+                    placeholder='{{text}}\nURL: {{href}}'
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </PopoverContent>
       </Popover>
