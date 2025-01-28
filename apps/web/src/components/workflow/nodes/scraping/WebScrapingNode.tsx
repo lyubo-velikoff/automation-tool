@@ -20,19 +20,10 @@ import {
   PopoverTrigger
 } from "@/components/ui/overlays/popover";
 import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
-
-interface SelectorConfig {
-  selector: string;
-  selectorType: "css" | "xpath";
-  attributes: string[];
-  name?: string;
-  description?: string;
-}
-
-interface PaginationConfig {
-  selector?: string;
-  maxPages?: number;
-}
+import {
+  SelectorConfig,
+  PaginationConfig
+} from "@automation-tool/shared-types";
 
 interface NodeData extends GlobalNodeData {
   selectors: SelectorConfig[];

@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { createGmailClient } from '../../integrations/gmail/config';
 import { ScrapingService } from '../../services/scraping.service';
+import { SelectorConfig, SelectorResult, ScrapingResult } from '@automation-tool/shared-types';
 
 const scrapingService = new ScrapingService();
 
@@ -14,24 +15,6 @@ interface WorkflowEdge {
 
 interface WorkflowContext {
   nodeResults: Record<string, any>;
-}
-
-interface SelectorResult {
-  [key: string]: string;
-}
-
-interface ScrapingResult {
-  success: boolean;
-  error?: string;
-  data?: SelectorResult;
-}
-
-interface SelectorConfig {
-  selector: string;
-  selectorType: 'css' | 'xpath';
-  attributes: string[];
-  name: string;
-  description?: string;
 }
 
 export async function executeNode(
@@ -155,11 +138,20 @@ async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
 
   try {
     console.log(`Scraping ${url} with selectors:`, selectors);
+    
+    // Ensure proper selector config
+    const selectorConfig: SelectorConfig = {
+      selector: selectors[0].selector,
+      selectorType: selectors[0].selectorType || 'css',
+      attributes: selectors[0].attributes || ['text'],
+      name: selectors[0].name || 'content'
+    };
+
     const results = await scrapingService.scrapeUrls(
       [url],
-      selectors,
-      undefined,
-      undefined,
+      selectorConfig,
+      selectorConfig.selectorType,
+      selectorConfig.attributes,
       node.data.batchConfig
     );
     
@@ -236,16 +228,16 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
   }
 
   // Handle both single selector and array of selectors
-  const selectors = Array.isArray(node.data.selectors) 
-    ? node.data.selectors 
-    : [{
+  const selectorConfig: SelectorConfig = Array.isArray(node.data.selectors) 
+    ? node.data.selectors[0]
+    : {
       selector: node.data.selector,
       selectorType: node.data.selectorType || 'css',
       attributes: node.data.attributes || ['text'],
       name: 'content'
-    }];
+    };
 
-  if (!selectors || selectors.length === 0) {
+  if (!selectorConfig) {
     throw new Error('No selectors provided for multi-URL scraping');
   }
 
@@ -258,18 +250,22 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
     throw new Error('No URLs found from source node');
   }
 
-  console.log('Using selectors:', selectors);
-  const results = await scrapingService.scrapeUrls(urls, selectors, undefined, undefined, node.data.batchConfig);
+  console.log('Using selector:', selectorConfig);
+  const results = await scrapingService.scrapeUrls(
+    urls, 
+    selectorConfig,
+    selectorConfig.selectorType,
+    selectorConfig.attributes,
+    node.data.batchConfig
+  );
   console.log('Scraping results:', results);
 
   // Format results using template if provided
   if (template) {
     return results.map((result: ScrapingResult) => {
       let formattedResult = template;
-      selectors.forEach(selector => {
-        const value = cleanHtmlContent(result.data?.[selector.name] || '');
-        formattedResult = formattedResult.replace(`{{${selector.name}}}`, value);
-      });
+      const value = cleanHtmlContent(result.data?.[selectorConfig.name] || '');
+      formattedResult = formattedResult.replace(`{{${selectorConfig.name}}}`, value);
       return formattedResult;
     });
   }

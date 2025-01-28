@@ -35,21 +35,7 @@ import {
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/data-display/accordion";
-
-// Reuse existing selector config
-interface SelectorConfig {
-  selector: string;
-  selectorType: "css" | "xpath";
-  attributes: string[];
-  name?: string;
-  description?: string;
-}
-
-// Batch processing configuration
-interface BatchConfig {
-  batchSize: number;
-  rateLimit: number; // requests per minute
-}
+import { SelectorConfig, BatchConfig } from "@automation-tool/shared-types";
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {

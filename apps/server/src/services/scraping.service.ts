@@ -2,29 +2,7 @@ import * as cheerio from 'cheerio';
 import fetch from 'node-fetch';
 import { RateLimiter } from 'limiter';
 import pLimit from 'p-limit';
-
-interface SelectorConfig {
-  selector: string;
-  selectorType: 'css' | 'xpath';
-  attributes: string[];
-  name: string;
-}
-
-interface ScrapedItem {
-  [key: string]: string;
-}
-
-interface BatchConfig {
-  batchSize: number;
-  rateLimit: number;
-}
-
-interface ScrapingResult {
-  success: boolean;
-  data?: { [key: string]: string };
-  error?: string;
-  results?: ScrapedItem[];
-}
+import { SelectorConfig, ScrapedItem, BatchConfig, ScrapingResult } from '@automation-tool/shared-types';
 
 export class ScrapingService {
   private limiter: RateLimiter;
