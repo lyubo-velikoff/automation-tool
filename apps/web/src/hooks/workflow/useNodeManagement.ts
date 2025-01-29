@@ -163,13 +163,13 @@ export function useNodeManagement() {
     return (nodeId: string, newData: NodeData) => {
       const updatedNodes = nodesRef.current.map((n) => {
         if (n.id === initialNodeId) {
-          return { 
+          return {
             ...n,
-            label: newData.label,
-            data: { 
+            label: newData.label || n.data.label || "Untitled Node",
+            data: {
               ...newData,
-              onConfigChange: n.data.onConfigChange 
-            } 
+              onConfigChange: n.data.onConfigChange
+            }
           };
         }
         return n;
@@ -183,20 +183,32 @@ export function useNodeManagement() {
     (type: string) => {
       const nodeId = `${type}-${Date.now()}`;
       const handler = createConfigChangeHandler(nodeId);
+      const label = `${type} Node`;
       
       const newNode = {
         id: nodeId,
         type,
+        label,
         position: { x: 100, y: 100 },
         data: { 
           onConfigChange: handler,
-          label: `${type} Node`,
+          label,
           ...(type === 'GMAIL_ACTION' && { to: '', subject: '', body: '' }),
           ...(type === 'GMAIL_TRIGGER' && { fromFilter: '', subjectFilter: '', pollingInterval: 5 }),
-          ...(type === 'SCRAPING' && { url: '', selector: '', selectorType: 'css', attribute: 'text' }),
+          ...(type === 'SCRAPING' && { 
+            url: '', 
+            selectors: [{
+              name: 'Content',
+              selector: '',
+              selectorType: 'css',
+              attributes: ['text'],
+              description: null
+            }],
+            template: '{{Content}}'
+          }),
           ...(type === 'OPENAI' && { 
             prompt: '', 
-            model: 'gpt-4o', 
+            model: 'gpt-4', 
             maxTokens: 100,
             temperature: 0.7 
           })

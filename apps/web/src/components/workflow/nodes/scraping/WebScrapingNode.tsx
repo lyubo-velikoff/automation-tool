@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/inputs/label";
 import { Button } from "@/components/ui/inputs/button";
 import { Textarea } from "@/components/ui/inputs/textarea";
 import { cn } from "@/lib/utils";
-import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
 import {
   Tabs,
   TabsList,
@@ -34,55 +33,46 @@ import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/data-display/separator";
 import { Badge } from "@/components/ui/data-display/badge";
 import { SelectorEditor } from "./components/SelectorEditor";
+import { NodeData as BaseNodeData } from "../../config/nodeTypes";
+import {
+  SelectorConfigInput,
+  NodeData as GraphQLNodeData,
+  SelectorConfigType
+} from "@/gql/graphql";
 
-interface NodeData {
-  label: string;
-  url: string;
-  selectors: SelectorConfig[];
+interface NodeData extends Omit<GraphQLNodeData, "__typename"> {
+  selectors: SelectorConfigType[];
   template: string;
-  pollingInterval?: number | null;
-  fromFilter?: string | null;
-  subjectFilter?: string | null;
-  to?: string | null;
-  subject?: string | null;
-  body?: string | null;
-  prompt?: string | null;
-  model?: string | null;
-  temperature?: number | null;
-  maxTokens?: number | null;
   onConfigChange?: (data: NodeData) => void;
 }
 
-interface GraphQLNodeData extends Omit<NodeData, "onConfigChange"> {
-  __typename?: string;
-  [key: string]: any;
-}
-
 interface WebScrapingNodeProps {
-  id?: string;
-  data: NodeData;
-  selected?: boolean;
-  type?: string;
+  id: string;
+  data: BaseNodeData;
+  selected: boolean;
+  type: string;
   isConnectable: boolean;
 }
 
-const WebScrapingIcon = memo(() => (
-  <svg
-    xmlns='http://www.w3.org/2000/svg'
-    width='24'
-    height='24'
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth='2'
-    strokeLinecap='round'
-    strokeLinejoin='round'
-    className='text-blue-500'
-  >
-    <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71' />
-    <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' />
-  </svg>
-));
+const WebScrapingIcon: React.FC = memo(() => {
+  return (
+    <svg
+      xmlns='http://www.w3.org/2000/svg'
+      width='24'
+      height='24'
+      viewBox='0 0 24 24'
+      fill='none'
+      stroke='currentColor'
+      strokeWidth='2'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      className='text-blue-500'
+    >
+      <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71' />
+      <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' />
+    </svg>
+  );
+});
 WebScrapingIcon.displayName = "WebScrapingIcon";
 
 // Convert incoming GraphQL data to our UI format
@@ -91,14 +81,15 @@ function convertIncomingData(data: GraphQLNodeData): NodeData {
     ...data,
     selectors: data.selectors || [
       {
+        name: data.label || "Content",
         selector: "",
-        selectorType: "css" as const,
+        selectorType: "css",
         attributes: ["text"],
-        name: data.label || "Content"
+        description: "Default selector"
       }
     ],
-    template: data.template || "{{text}}"
-  };
+    template: data.template || "{{Content}}"
+  } as NodeData;
 }
 
 // Dynamically import Popover components
@@ -198,19 +189,12 @@ function WebScrapingNode({
 
       const result = (await response.json()) as {
         success: boolean;
-        results: Array<{ text?: string; href?: string }>;
+        results: string[];
         error?: string;
       };
+
       if (result.success) {
-        setTestResults(
-          result.results.map((r) =>
-            nodeData.template
-              ? nodeData.template
-                  .replace(/{{text}}/g, r.text || "")
-                  .replace(/{{href}}/g, r.href || "")
-              : JSON.stringify(r)
-          )
-        );
+        setTestResults(result.results);
       } else {
         setTestResults([`Error: ${result.error}`]);
       }

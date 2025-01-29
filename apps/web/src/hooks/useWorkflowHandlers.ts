@@ -26,44 +26,6 @@ import type {
 } from '@/gql/graphql';
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 
-// Convert ReactFlow nodes to GraphQL input
-const convertNodesToInput = (nodes: Node<NodeData>[]): WorkflowNodeInput[] => {
-  return nodes.map(node => {
-    // Ensure we have required fields
-    if (!node.type) {
-      throw new Error(`Node ${node.id} is missing required type field`);
-    }
-
-    // Convert node data to input format, removing UI-specific fields
-    const nodeData = node.data ? {
-      ...node.data,
-      onConfigChange: undefined // Remove UI-specific field
-    } : undefined;
-
-    return {
-      id: node.id,
-      type: node.type,
-      label: node.data?.label,
-      position: {
-        x: node.position.x,
-        y: node.position.y
-      },
-      data: nodeData as NodeDataInput | undefined
-    };
-  });
-};
-
-// Convert ReactFlow edges to GraphQL input
-const convertEdgesToInput = (edges: Edge[]): WorkflowEdgeInput[] => {
-  return edges.map(edge => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    sourceHandle: edge.sourceHandle ?? undefined,
-    targetHandle: edge.targetHandle ?? undefined
-  }));
-};
-
 export function useWorkflowHandlers() {
   const { toast } = useToast();
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW, {
