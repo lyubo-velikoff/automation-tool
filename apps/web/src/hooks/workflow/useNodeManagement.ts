@@ -163,14 +163,17 @@ export function useNodeManagement() {
     return (nodeId: string, newData: NodeData) => {
       const updatedNodes = nodesRef.current.map((n) => {
         if (n.id === initialNodeId) {
-          return {
+          // Update both node label and data label
+          const updatedNode = {
             ...n,
-            label: newData.label || n.data.label || "Untitled Node",
+            label: newData.label,
             data: {
               ...newData,
+              label: newData.label,
               onConfigChange: n.data.onConfigChange
             }
           };
+          return updatedNode;
         }
         return n;
       });
