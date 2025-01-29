@@ -82,10 +82,10 @@ function convertIncomingData(data: GraphQLNodeData): NodeData {
     selectors: data.selectors || [
       {
         name: data.label || "Content",
-        selector: "",
+        selector: "a.title.raw-link.raw-topic-link",
         selectorType: "css",
-        attributes: ["text"],
-        description: "Default selector"
+        attributes: ["text", "href"],
+        description: "Cursor forum topic links"
       }
     ],
     template: data.template || "{{Content}}"
@@ -134,14 +134,28 @@ function WebScrapingNode({
 
       const newData = { ...data };
       if (key === "selectors") {
-        newData.selectors = value;
+        newData.selectors = value.map((selector: any) => ({
+          selector: selector.selector,
+          selectorType: selector.selectorType,
+          attributes: selector.attributes,
+          name: selector.name,
+          description: selector.description
+        }));
+      } else if (key === "label") {
+        newData.label = value;
+        // Ensure the label is updated in both places
+        data.onConfigChange(id, {
+          ...newData,
+          label: value
+        });
+        return;
       } else {
         (newData as any)[key] = value;
       }
 
-      data.onConfigChange(newData);
+      data.onConfigChange(id, newData);
     },
-    [data]
+    [data, id]
   );
 
   // Convert incoming data for UI only when needed
