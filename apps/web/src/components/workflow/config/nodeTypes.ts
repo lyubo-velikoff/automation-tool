@@ -4,36 +4,12 @@ import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
 import WebScrapingNode from "../nodes/scraping/WebScrapingNode";
 import MultiURLScrapingNode from "../nodes/scraping/MultiURLScrapingNode";
 import OpenAINode from "../nodes/openai/OpenAINode";
+import { NodeData as BaseNodeData } from '@/gql/graphql';
 
-export interface NodeData {
-  id?: string;
-  label?: string;
-  // Gmail fields
-  subject?: string;
-  body?: string;
-  to?: string;
-  // Scraping fields
-  url?: string;
-  urls?: string[];
-  selector?: string;
-  selectorType?: string;
-  attributes?: string[];
-  template?: string;
-  // Multi-URL scraping fields
-  batchSize?: number;
-  rateLimit?: number;
-  // OpenAI fields
-  prompt?: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  // Common fields
+// Extend the base NodeData type with our UI-specific fields
+export interface NodeData extends BaseNodeData {
   onConfigChange?: (nodeId: string, data: NodeData) => void;
-  fromFilter?: string;
-  subjectFilter?: string;
-  pollingInterval?: string | number;
-  attribute?: string;
-} 
+}
 
 // Memoized node components
 export const NODE_TYPES = {

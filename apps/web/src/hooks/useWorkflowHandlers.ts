@@ -15,32 +15,61 @@ import {
 import { GET_WORKFLOWS } from "@/graphql/queries";
 import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
+import type { 
+  CreateWorkflowInput,
+  CreateWorkflowTagInput,
+  SaveAsTemplateInput,
+  UpdateWorkflowInput,
+  WorkflowNodeInput,
+  WorkflowEdgeInput,
+  NodeDataInput
+} from '@/gql/graphql';
+import { NodeData } from "@/components/workflow/config/nodeTypes";
 
-interface CreateWorkflowInput {
-  name: string;
-  description?: string;
-  nodes: Node[];
-  edges: Edge[];
-  tag_ids?: string[];
-}
+// Convert ReactFlow nodes to GraphQL input
+const convertNodesToInput = (nodes: Node<NodeData>[]): WorkflowNodeInput[] => {
+  return nodes.map(node => {
+    // Ensure we have required fields
+    if (!node.type) {
+      throw new Error(`Node ${node.id} is missing required type field`);
+    }
 
-interface CreateWorkflowTagInput {
-  name: string;
-  color: string;
-}
+    // Convert node data to input format, removing UI-specific fields
+    const nodeData = node.data ? {
+      ...node.data,
+      onConfigChange: undefined // Remove UI-specific field
+    } : undefined;
 
-interface SaveAsTemplateInput {
-  workflow_id: string;
-  name?: string;
-  description?: string;
-}
+    return {
+      id: node.id,
+      type: node.type,
+      label: node.data?.label,
+      position: {
+        x: node.position.x,
+        y: node.position.y
+      },
+      data: nodeData as NodeDataInput | undefined
+    };
+  });
+};
+
+// Convert ReactFlow edges to GraphQL input
+const convertEdgesToInput = (edges: Edge[]): WorkflowEdgeInput[] => {
+  return edges.map(edge => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle ?? undefined,
+    targetHandle: edge.targetHandle ?? undefined
+  }));
+};
 
 export function useWorkflowHandlers() {
   const { toast } = useToast();
-  const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW, {
     refetchQueries: ['GetWorkflowExecutions']
   });
+  const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
     refetchQueries: ['GetWorkflows']
   });
@@ -57,7 +86,7 @@ export function useWorkflowHandlers() {
   const [saveAsTemplate] = useMutation(SAVE_AS_TEMPLATE, {
     refetchQueries: ["GetWorkflowTemplates"]
   });
-  const [deleteTemplate] = useMutation(DELETE_WORKFLOW_TEMPLATE, {
+  const [deleteWorkflowTemplate] = useMutation(DELETE_WORKFLOW_TEMPLATE, {
     refetchQueries: ["GetWorkflowTemplates"]
   });
 
@@ -362,7 +391,7 @@ export function useWorkflowHandlers() {
 
   const handleDeleteTemplate = async (id: string) => {
     try {
-      await deleteTemplate({
+      await deleteWorkflowTemplate({
         variables: { id }
       });
 

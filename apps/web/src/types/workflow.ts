@@ -1,34 +1,17 @@
 import { Node, Edge } from 'reactflow';
+import { NodeData as NodeDataType, PositionType, WorkflowNode as WorkflowNodeType, WorkflowEdge as WorkflowEdgeType } from '@/gql/graphql';
 
-export interface Position {
-  x: number;
-  y: number;
-}
+export type { NodeDataType as NodeData, PositionType as Position };
+export type WorkflowNode = Node<NodeDataType>;
+export type WorkflowEdge = Edge;
 
-export interface NodeData {
-  label?: string;
-  // Gmail fields
-  to?: string;
-  subject?: string;
-  body?: string;
-  fromFilter?: string;
-  subjectFilter?: string;
-  pollingInterval?: string | number;
-  
-  // OpenAI fields
-  prompt?: string;
-  model?: string;
-  maxTokens?: string | number;
-  
-  // Scraping fields
-  url?: string;
-  selector?: string;
-  selectorType?: 'css' | 'xpath';
-  attribute?: string;
-  
-  // Common fields
-  onConfigChange?: (nodeId: string, data: NodeData) => void;
-}
-
-export type WorkflowNode = Node<NodeData>;
-export type WorkflowEdge = Edge; 
+// Re-export common types from graphql
+export type { 
+  Workflow,
+  WorkflowTag,
+  WorkflowTemplate,
+  WorkflowExecution,
+  BatchConfigType,
+  SelectorConfigType,
+  ScrapingResultType
+} from '@/gql/graphql'; 

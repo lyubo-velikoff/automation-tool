@@ -12,10 +12,19 @@ export const WORKFLOW_NODE_DATA_FIELDS = gql`
     body
     # Scraping fields
     url
-    selector
-    selectorType
-    attributes
+    urls
+    selectors {
+      selector
+      selectorType
+      attributes
+      name
+      description
+    }
     template
+    batchConfig {
+      batchSize
+      rateLimit
+    }
     # OpenAI fields
     prompt
     model
