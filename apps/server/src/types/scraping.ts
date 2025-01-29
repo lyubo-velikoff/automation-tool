@@ -1,13 +1,15 @@
+// Base types for scraping functionality
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export interface SelectorConfig {
   selector: string;
   selectorType: 'css' | 'xpath';
   attributes: string[];
   name: string;
   description?: string;
-}
-
-export interface ScrapedItem {
-  [key: string]: string;
 }
 
 export interface BatchConfig {
@@ -21,11 +23,24 @@ export interface PaginationConfig {
   maxPages?: number;
 }
 
+export interface ScrapingNodeData {
+  label?: string;
+  url?: string;
+  urls?: string[];
+  selectors?: SelectorConfig[];
+  batchConfig?: BatchConfig;
+  template?: string;
+}
+
+export interface ScrapedItem {
+  [key: string]: string;
+}
+
 export interface ScrapingResult {
   success: boolean;
-  data?: { [key: string]: string };
+  results: string[];
   error?: string;
-  results?: ScrapedItem[];
+  data?: { [key: string]: string };
 }
 
 export interface SelectorResult {
@@ -34,6 +49,7 @@ export interface SelectorResult {
   error?: string;
 }
 
+// Additional types for specific integrations
 export interface GmailTriggerResult {
   emails: Array<{
     id?: string;

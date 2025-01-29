@@ -1,9 +1,10 @@
 import { Field, ID, ObjectType, Float, Int, InputType } from 'type-graphql';
 import { NodeResult } from "./node-result";
 import { WorkflowNodeInput, WorkflowEdgeInput, CreateWorkflowInput, UpdateWorkflowInput } from './workflow-inputs';
+import { Position, BatchConfig, SelectorConfig, ScrapingNodeData, ScrapingResult } from '../types/scraping';
 
 @ObjectType()
-export class Position {
+export class PositionType implements Position {
   @Field(() => Float)
   x!: number;
 
@@ -12,7 +13,7 @@ export class Position {
 }
 
 @ObjectType()
-export class BatchConfig {
+export class BatchConfigType implements BatchConfig {
   @Field()
   batchSize!: number;
 
@@ -21,7 +22,7 @@ export class BatchConfig {
 }
 
 @InputType()
-export class BatchConfigInput {
+export class BatchConfigInput implements BatchConfig {
   @Field()
   batchSize!: number;
 
@@ -30,43 +31,43 @@ export class BatchConfigInput {
 }
 
 @ObjectType()
-export class SelectorConfig {
+export class SelectorConfigType implements SelectorConfig {
   @Field()
   selector!: string;
 
   @Field()
-  selectorType!: string;
+  selectorType!: 'css' | 'xpath';
 
   @Field(() => [String])
   attributes!: string[];
 
-  @Field({ nullable: true })
-  name?: string;
+  @Field()
+  name!: string;
 
   @Field({ nullable: true })
   description?: string;
 }
 
 @InputType()
-export class SelectorConfigInput {
+export class SelectorConfigInput implements SelectorConfig {
   @Field()
   selector!: string;
 
   @Field()
-  selectorType!: string;
+  selectorType!: 'css' | 'xpath';
 
   @Field(() => [String])
   attributes!: string[];
 
-  @Field({ nullable: true })
-  name?: string;
+  @Field()
+  name!: string;
 
   @Field({ nullable: true })
   description?: string;
 }
 
 @InputType()
-export class ScrapingNodeDataInput {
+export class ScrapingNodeDataInput implements ScrapingNodeData {
   @Field({ nullable: true })
   label?: string;
 
@@ -81,6 +82,67 @@ export class ScrapingNodeDataInput {
 
   @Field(() => BatchConfigInput, { nullable: true })
   batchConfig?: BatchConfigInput;
+
+  @Field({ nullable: true })
+  template?: string;
+}
+
+@ObjectType()
+export class ScrapingDataType {
+  @Field(() => [String])
+  keys!: string[];
+
+  @Field(() => [String])
+  values!: string[];
+}
+
+@ObjectType()
+export class ScrapingResultType implements ScrapingResult {
+  @Field()
+  success!: boolean;
+
+  @Field(() => [String])
+  results!: string[];
+
+  @Field({ nullable: true })
+  error?: string;
+
+  @Field(() => ScrapingDataType, { nullable: true })
+  data?: { [key: string]: string };
+
+  constructor(result: ScrapingResult) {
+    this.success = result.success;
+    this.results = result.results;
+    this.error = result.error;
+    this.data = result.data;
+  }
+
+  @Field(() => ScrapingDataType, { nullable: true })
+  get scrapedData(): ScrapingDataType | undefined {
+    if (!this.data) return undefined;
+    return {
+      keys: Object.keys(this.data),
+      values: Object.values(this.data)
+    };
+  }
+}
+
+@ObjectType()
+export class ScrapingNodeDataType implements ScrapingNodeData {
+  @Field({ nullable: true })
+  label?: string;
+
+  @Field({ nullable: true })
+  url?: string;
+
+  @Field(() => [String], { nullable: true })
+  urls?: string[];
+
+  @Field(() => [SelectorConfigType], { nullable: true })
+  selectors?: SelectorConfig[];
+
+  @Field(() => BatchConfigType, { nullable: true })
+  batchConfig?: BatchConfig;
 
   @Field({ nullable: true })
   template?: string;
@@ -108,14 +170,14 @@ export class NodeData {
   @Field(() => [String], { nullable: true })
   urls?: string[];
 
-  @Field(() => [SelectorConfig], { nullable: true })
-  selectors?: SelectorConfig[];
+  @Field(() => [SelectorConfigType], { nullable: true })
+  selectors?: SelectorConfigType[];
 
   @Field({ nullable: true })
   template?: string;
 
-  @Field(() => BatchConfig, { nullable: true })
-  batchConfig?: BatchConfig;
+  @Field(() => BatchConfigType, { nullable: true })
+  batchConfig?: BatchConfigType;
 
   // OpenAI fields
   @Field({ nullable: true })
@@ -152,8 +214,8 @@ export class WorkflowNode {
   @Field(() => String, { nullable: true })
   label?: string;
 
-  @Field(() => Position)
-  position!: Position;
+  @Field(() => PositionType)
+  position!: PositionType;
 
   @Field(() => NodeData, { nullable: true })
   data?: NodeData;

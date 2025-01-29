@@ -1,50 +1,7 @@
-import { Field, ObjectType, InputType } from 'type-graphql';
+import { Field, ObjectType } from 'type-graphql';
 import { ScrapingService } from '../../../services/scraping.service';
-import { SelectorConfig, BatchConfig } from '../../../schema/workflow';
-
-@ObjectType()
-@InputType('PaginationConfigInput')
-export class PaginationConfig {
-  @Field()
-  selector!: string;
-
-  @Field({ nullable: true })
-  maxPages?: number;
-}
-
-@ObjectType()
-@InputType('ScrapingNodeDataInput')
-export class ScrapingNodeData {
-  @Field({ nullable: true })
-  label?: string;
-
-  @Field({ nullable: true })
-  url?: string;
-
-  @Field(() => [String], { nullable: true })
-  urls?: string[];
-
-  @Field(() => [SelectorConfig], { nullable: true })
-  selectors?: SelectorConfig[];
-
-  @Field(() => BatchConfig, { nullable: true })
-  batchConfig?: BatchConfig;
-
-  @Field({ nullable: true })
-  template?: string;
-}
-
-@ObjectType()
-export class ScrapingResult {
-  @Field()
-  success!: boolean;
-
-  @Field(() => [String])
-  results!: string[];
-
-  @Field(() => String, { nullable: true })
-  error?: string;
-}
+import { ScrapingNodeData, ScrapingResult } from '../../../types/scraping';
+import { ScrapingNodeDataType, ScrapingResultType } from '../../../schema/workflow';
 
 @ObjectType()
 export class ScrapingNode {
@@ -56,12 +13,12 @@ export class ScrapingNode {
     this.config = config;
   }
 
-  @Field(() => ScrapingNodeData)
+  @Field(() => ScrapingNodeDataType)
   getData(): ScrapingNodeData {
     return this.config;
   }
 
-  async execute(): Promise<ScrapingResult> {
+  async execute(): Promise<ScrapingResultType> {
     try {
       if (!this.config.url && !this.config.urls) {
         throw new Error('Either url or urls must be provided');
@@ -79,7 +36,7 @@ export class ScrapingNode {
           const results = await this.service.scrapeUrl(
             this.config.url,
             selector.selector,
-            selector.selectorType as 'css' | 'xpath',
+            selector.selectorType,
             selector.attributes
           );
           allResults.push(...results);
@@ -90,10 +47,11 @@ export class ScrapingNode {
           ? this.service.formatResults(allResults, this.config.template)
           : allResults.map(r => JSON.stringify(r));
 
-        return {
+        return new ScrapingResultType({
           success: true,
-          results: formattedResults
-        };
+          results: formattedResults,
+          data: allResults.length > 0 ? allResults[0] : undefined
+        });
       }
 
       // Handle multiple URLs case
@@ -101,8 +59,8 @@ export class ScrapingNode {
         const selector = this.config.selectors[0];
         const results = await this.service.scrapeUrls(
           this.config.urls,
-          selector.selector,
-          selector.selectorType as 'css' | 'xpath',
+          selector,
+          selector.selectorType,
           selector.attributes,
           this.config.batchConfig
         );
@@ -112,19 +70,20 @@ export class ScrapingNode {
           ? this.service.formatBatchResults(results, this.config.template)
           : results.map(r => JSON.stringify(r));
 
-        return {
+        return new ScrapingResultType({
           success: true,
-          results: formattedResults
-        };
+          results: formattedResults,
+          data: results.length > 0 && results[0].data ? results[0].data : undefined
+        });
       }
 
       throw new Error('Invalid configuration');
     } catch (error) {
-      return {
+      return new ScrapingResultType({
         success: false,
         results: [],
         error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
+      });
     }
   }
 } 

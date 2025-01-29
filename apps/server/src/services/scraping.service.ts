@@ -2,17 +2,19 @@ import * as cheerio from 'cheerio';
 import fetch from 'node-fetch';
 import { RateLimiter } from 'limiter';
 import pLimit from 'p-limit';
-import { SelectorConfig, ScrapedItem, BatchConfig, ScrapingResult } from '../types/scraping';
+import { 
+  SelectorConfig, 
+  ScrapedItem, 
+  BatchConfig, 
+  ScrapingResult 
+} from '../types/scraping';
 
 export class ScrapingService {
   private limiter: RateLimiter;
 
   constructor() {
-    // Global rate limiter: 200 requests per 15 minutes (reduced from 250)
-    this.limiter = new RateLimiter({
-      tokensPerInterval: 200,
-      interval: 15 * 60 * 1000 // 15 minutes
-    });
+    // Global rate limiter: 10 requests per second
+    this.limiter = new RateLimiter({ tokensPerInterval: 10, interval: 'second' });
   }
 
   async scrapeUrls(
@@ -22,21 +24,18 @@ export class ScrapingService {
     attributes: string[],
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
-    const config = {
-      batchSize: batchConfig?.batchSize || 5,
-      rateLimit: batchConfig?.rateLimit || 20
-    };
+    console.log('Scraping multiple URLs:', urls);
+    console.log('Using selector:', selector);
+    console.log('Batch config:', batchConfig);
 
-    // Create a rate limiter for this batch
-    const batchLimiter = new RateLimiter({
-      tokensPerInterval: config.rateLimit,
-      interval: 60 * 1000 // 1 minute
-    });
+    // Default batch configuration
+    const batchSize = batchConfig?.batchSize || 5;
+    const rateLimit = batchConfig?.rateLimit || 2;
 
-    // Create a concurrency limiter
-    const concurrencyLimit = pLimit(config.batchSize);
+    // Create a batch-specific rate limiter
+    const batchLimiter = new RateLimiter({ tokensPerInterval: rateLimit, interval: 'second' });
+    const concurrencyLimit = pLimit(batchSize);
 
-    // Process URLs in batches with rate limiting and retries
     const results = await Promise.all(
       urls.map(url =>
         concurrencyLimit(async () => {
@@ -116,7 +115,7 @@ export class ScrapingService {
               return {
                 success: true,
                 data,
-                results: [data]
+                results: [JSON.stringify(data)]
               };
             } catch (error) {
               if (retryCount < maxRetries - 1) {
@@ -128,6 +127,7 @@ export class ScrapingService {
               console.error(`Error scraping ${url} after ${maxRetries} attempts:`, error);
               return {
                 success: false,
+                results: [],
                 error: error instanceof Error ? error.message : 'Unknown error occurred'
               };
             }
@@ -135,6 +135,7 @@ export class ScrapingService {
 
           return {
             success: false,
+            results: [],
             error: `Failed after ${maxRetries} retries`
           };
         })
@@ -216,73 +217,40 @@ export class ScrapingService {
   }
 
   private async fetchPage(url: string): Promise<string> {
-    try {
-      console.log('Sending request to:', url);
-      // Add a small delay before each request
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const response = await fetch(url);
-      console.log('Response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
-      const text = await response.text();
-      console.log('Response length:', text.length);
-      return text;
-    } catch (error) {
-      console.error('Error fetching page:', error);
-      throw error;
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch page: ${response.status} ${response.statusText}`);
     }
+
+    return response.text();
   }
 
   formatResults(results: ScrapedItem[], template: string): string[] {
-    return results.map(item => {
+    return results.map(result => {
       let formatted = template;
-      console.log('Formatting item:', item); // Debug log
-      Object.entries(item).forEach(([key, value]) => {
-        const placeholder = `{{${key}}}`;
-        console.log(`Replacing ${placeholder} with:`, value); // Debug log
-        formatted = formatted.replace(new RegExp(placeholder, 'g'), value);
+      Object.entries(result).forEach(([key, value]) => {
+        formatted = formatted.replace(`{${key}}`, value || '');
       });
       return formatted;
     });
   }
 
-  formatBatchResults(results: ScrapingResult[], template?: string): string[] {
-    console.log('Formatting batch results:', results); // Debug log
-    
-    if (!template) {
-      // If no template, return the raw text directly from the data
-      return results.flatMap(result => {
-        console.log('Processing result:', result); // Debug log
-        if (result.success && result.results) {
-          return result.results.map(item => {
-            console.log('Processing item:', item); // Debug log
-            // Get the first value from the item
-            const value = Object.values(item)[0];
-            console.log('Extracted value:', value); // Debug log
-            return value || '';
+  formatBatchResults(results: ScrapingResult[], template: string): string[] {
+    return results
+      .filter(r => r.success && r.data)
+      .map(result => {
+        let formatted = template;
+        if (result.data) {
+          Object.entries(result.data).forEach(([key, value]) => {
+            formatted = formatted.replace(`{${key}}`, value || '');
           });
         }
-        return [];
+        return formatted;
       });
-    }
-
-    // If template is provided, format each result
-    return results.flatMap(result => {
-      console.log('Processing result with template:', result); // Debug log
-      if (result.success && result.results) {
-        return result.results.map(item => {
-          let formatted = template;
-          console.log('Formatting item:', item); // Debug log
-          Object.entries(item).forEach(([key, value]) => {
-            const placeholder = `{{${key}}}`;
-            console.log(`Replacing ${placeholder} with:`, value); // Debug log
-            formatted = formatted.replace(new RegExp(placeholder, 'g'), value);
-          });
-          return formatted;
-        });
-      }
-      return [];
-    });
   }
 } 
