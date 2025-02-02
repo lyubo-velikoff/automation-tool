@@ -28,16 +28,28 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/inputs/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/data-display/table";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
 import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/data-display/separator";
 import { Badge } from "@/components/ui/data-display/badge";
 import { SelectorEditor } from "./components/SelectorEditor";
 import { NodeData as BaseNodeData } from "../../config/nodeTypes";
+import { useMutation } from "@apollo/client";
+import { TEST_SCRAPING } from "@/graphql/scraping";
 import {
   SelectorConfigInput,
   NodeData as GraphQLNodeData,
-  SelectorConfigType
+  SelectorConfigType,
+  TestScrapingMutation,
+  TestScrapingMutationVariables
 } from "@/gql/graphql";
 
 interface NodeData extends Omit<GraphQLNodeData, "__typename"> {
@@ -125,8 +137,11 @@ function WebScrapingNode({
   type,
   isConnectable
 }: WebScrapingNodeProps) {
-  const [testResults, setTestResults] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [testResults, setTestResults] = useState<string[][] | null>(null);
+  const [testScraping, { loading: isLoading }] = useMutation<
+    TestScrapingMutation,
+    TestScrapingMutationVariables
+  >(TEST_SCRAPING);
 
   const handleConfigChange = useCallback(
     (key: string, value: any) => {
@@ -185,39 +200,34 @@ function WebScrapingNode({
   );
 
   const handleSelectorTest = async (index: number) => {
-    setIsLoading(true);
     try {
       const selector = nodeData.selectors[index];
-      const response = await fetch("http://localhost:4000/api/test-selector", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          url: nodeData.url,
-          selector: selector.selector,
-          selectorType: selector.selectorType,
-          attributes: selector.attributes
-        })
+      const { data } = await testScraping({
+        variables: {
+          url: nodeData.url || "",
+          selectors: [
+            {
+              selector: selector.selector,
+              selectorType: selector.selectorType,
+              attributes: selector.attributes,
+              name: selector.name,
+              description: selector.description
+            }
+          ]
+        }
       });
 
-      const result = (await response.json()) as {
-        success: boolean;
-        results: string[];
-        error?: string;
-      };
-
-      if (result.success) {
-        setTestResults(result.results);
+      if (data?.testScraping.success) {
+        setTestResults(data.testScraping.results);
       } else {
-        setTestResults([`Error: ${result.error}`]);
+        setTestResults([
+          ["Error: " + (data?.testScraping.error || "Unknown error")]
+        ]);
       }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      setTestResults([`Error: ${errorMessage}`]);
-    } finally {
-      setIsLoading(false);
+      setTestResults([["Error: " + errorMessage]]);
     }
   };
 
@@ -252,10 +262,7 @@ function WebScrapingNode({
         </PopoverTrigger>
         <PopoverContent
           side='right'
-          align='start'
-          alignOffset={-240}
-          sideOffset={12}
-          className='w-[400px]'
+          className='w-[600px] max-h-[80vh] overflow-y-auto'
         >
           <Card
             className={cn(
@@ -322,6 +329,32 @@ function WebScrapingNode({
                   />
                 </TabsContent>
               </Tabs>
+
+              {testResults && (
+                <div className='space-y-4 mt-4'>
+                  <h2 className='text-xl font-semibold'>Results</h2>
+                  <div className='border rounded-lg overflow-hidden'>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Value</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {testResults.map((row, rowIndex) => (
+                          <TableRow key={rowIndex}>
+                            <TableCell>{rowIndex + 1}</TableCell>
+                            {row.map((value, colIndex) => (
+                              <TableCell key={colIndex}>{value}</TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </PopoverContent>
@@ -329,12 +362,12 @@ function WebScrapingNode({
 
       <Handle
         type='target'
-        position={Position.Left}
+        position={Position.Top}
         isConnectable={isConnectable}
       />
       <Handle
         type='source'
-        position={Position.Right}
+        position={Position.Bottom}
         isConnectable={isConnectable}
       />
     </div>
