@@ -2,6 +2,7 @@ import { Field, ID, ObjectType, Float, Int, InputType } from 'type-graphql';
 import { NodeResult } from "./node-result";
 import { WorkflowNodeInput, WorkflowEdgeInput, CreateWorkflowInput, UpdateWorkflowInput } from './workflow-inputs';
 import { Position, BatchConfig, SelectorConfig, ScrapingNodeData, ScrapingResult } from '../types/scraping';
+import { ResultType } from "../types/workflow";
 
 @ObjectType()
 export class PositionType implements Position {
@@ -312,4 +313,28 @@ export class WorkflowExecution {
 
   @Field()
   created_at!: Date;
+}
+
+@ObjectType()
+export class VariablePreview {
+  @Field()
+  reference!: string;
+
+  @Field()
+  preview!: string;
+
+  @Field()
+  type!: string;
+}
+
+@ObjectType()
+export class NodeVariables {
+  @Field()
+  nodeId!: string;
+
+  @Field()
+  nodeName!: string;
+
+  @Field(() => [VariablePreview])
+  variables!: VariablePreview[];
 } 
