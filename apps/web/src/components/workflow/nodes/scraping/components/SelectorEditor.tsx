@@ -13,13 +13,22 @@ import {
 import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/data-display/separator";
 import { Textarea } from "@/components/ui/inputs/textarea";
+import { SelectorConfigType } from "@/gql/graphql";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/data-display/table";
 
 interface SelectorEditorProps {
-  selectors: SelectorConfig[];
+  selectors: SelectorConfigType[];
   template?: string;
-  testResults?: string[];
+  testResults?: string[][] | null;
   isLoading?: boolean;
-  onUpdateSelectors: (selectors: SelectorConfig[]) => void;
+  onUpdateSelectors: (selectors: SelectorConfigType[]) => void;
   onUpdateTemplate: (template: string) => void;
   onTestSelector: (index: number) => void;
 }
@@ -52,7 +61,7 @@ export function SelectorEditor({
 
   const handleUpdateSelector = (
     index: number,
-    updates: Partial<SelectorConfig>
+    updates: Partial<SelectorConfigType>
   ) => {
     const newSelectors = [...selectors];
     newSelectors[index] = {
@@ -205,15 +214,25 @@ Content: {{Content}}'
         </div>
 
         {testResults && testResults.length > 0 && (
-          <div>
-            <Label>Test Results</Label>
-            <div className='mt-2 p-2 bg-muted rounded-md'>
-              <pre className='whitespace-pre-wrap text-sm'>
-                {testResults.slice(0, 5).join("\n\n")}
-                {testResults.length > 5 &&
-                  "\n\n...and " + (testResults.length - 5) + " more results"}
-              </pre>
-            </div>
+          <div className='border rounded-lg overflow-hidden'>
+            <Table>
+              <TableHeader className='sticky top-0 bg-background z-10'>
+                <TableRow>
+                  <TableHead className='bg-background'>#</TableHead>
+                  <TableHead className='bg-background'>Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {testResults.map((row, rowIndex) => (
+                  <TableRow key={rowIndex}>
+                    <TableCell>{rowIndex + 1}</TableCell>
+                    {row.map((value, colIndex) => (
+                      <TableCell key={colIndex}>{value}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

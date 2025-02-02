@@ -329,32 +329,6 @@ function WebScrapingNode({
                   />
                 </TabsContent>
               </Tabs>
-
-              {testResults && (
-                <div className='space-y-4 mt-4'>
-                  <h2 className='text-xl font-semibold'>Results</h2>
-                  <div className='border rounded-lg overflow-hidden'>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {testResults.map((row, rowIndex) => (
-                          <TableRow key={rowIndex}>
-                            <TableCell>{rowIndex + 1}</TableCell>
-                            {row.map((value, colIndex) => (
-                              <TableCell key={colIndex}>{value}</TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </PopoverContent>
