@@ -308,7 +308,7 @@ automation-tool/
 ```
 
 ## Key Technologies & Versions
-- Next.js: 15.1.5
+- Next.js: 15.1.6
 - React: 19.0.0
 - TypeScript: 5.x
 - Node.js: 20.x
