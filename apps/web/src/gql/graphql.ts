@@ -15,7 +15,7 @@ export type Scalars = {
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
   /** A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.This scalar is serialized to a string in ISO 8601 format and parsed from a string in ISO 8601 format. */
-  DateTimeISO: { input: string; output: string; }
+  DateTimeISO: { input: any; output: any; }
 };
 
 export type BatchConfigInput = {
@@ -63,6 +63,7 @@ export type Mutation = {
   saveWorkflowAsTemplate: WorkflowTemplate;
   startTimedWorkflow: Scalars['Boolean']['output'];
   stopTimedWorkflow: Scalars['Boolean']['output'];
+  testScraping: ScrapingResult;
   updateWorkflow: Workflow;
 };
 
@@ -122,6 +123,12 @@ export type MutationStartTimedWorkflowArgs = {
 
 export type MutationStopTimedWorkflowArgs = {
   workflowId: Scalars['String']['input'];
+};
+
+
+export type MutationTestScrapingArgs = {
+  selectors: Array<SelectorConfigInput>;
+  url: Scalars['String']['input'];
 };
 
 
@@ -256,6 +263,13 @@ export type ScrapingNodeDataType = {
   urls?: Maybe<Array<Scalars['String']['output']>>;
 };
 
+export type ScrapingResult = {
+  __typename?: 'ScrapingResult';
+  error?: Maybe<Scalars['String']['output']>;
+  results: Array<Array<Scalars['String']['output']>>;
+  success: Scalars['Boolean']['output'];
+};
+
 export type ScrapingResultType = {
   __typename?: 'ScrapingResultType';
   data?: Maybe<ScrapingDataType>;
@@ -376,37 +390,22 @@ export type WorkflowTemplate = {
   updated_at: Scalars['DateTimeISO']['output'];
 };
 
-export type WorkflowNodeDataFieldsFragment = { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } & { ' $fragmentName'?: 'WorkflowNodeDataFieldsFragment' };
+export type WorkflowNodeDataFieldsFragment = { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null };
 
-export type WorkflowNodeFieldsFragment = { __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: (
-    { __typename?: 'NodeData' }
-    & { ' $fragmentRefs'?: { 'WorkflowNodeDataFieldsFragment': WorkflowNodeDataFieldsFragment } }
-  ) | null } & { ' $fragmentName'?: 'WorkflowNodeFieldsFragment' };
+export type WorkflowNodeFieldsFragment = { __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null };
 
-export type WorkflowEdgeFieldsFragment = { __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null } & { ' $fragmentName'?: 'WorkflowEdgeFieldsFragment' };
+export type WorkflowEdgeFieldsFragment = { __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null };
 
-export type WorkflowTagFieldsFragment = { __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: string, updated_at: string } & { ' $fragmentName'?: 'WorkflowTagFieldsFragment' };
+export type WorkflowTagFieldsFragment = { __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any };
 
-export type WorkflowFieldsFragment = { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: string, updated_at: string, nodes: Array<(
-    { __typename?: 'WorkflowNode' }
-    & { ' $fragmentRefs'?: { 'WorkflowNodeFieldsFragment': WorkflowNodeFieldsFragment } }
-  )>, edges: Array<(
-    { __typename?: 'WorkflowEdge' }
-    & { ' $fragmentRefs'?: { 'WorkflowEdgeFieldsFragment': WorkflowEdgeFieldsFragment } }
-  )>, tags?: Array<(
-    { __typename?: 'WorkflowTag' }
-    & { ' $fragmentRefs'?: { 'WorkflowTagFieldsFragment': WorkflowTagFieldsFragment } }
-  )> | null } & { ' $fragmentName'?: 'WorkflowFieldsFragment' };
+export type WorkflowFieldsFragment = { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null };
 
 export type CreateWorkflowMutationVariables = Exact<{
   input: CreateWorkflowInput;
 }>;
 
 
-export type CreateWorkflowMutation = { __typename?: 'Mutation', createWorkflow: (
-    { __typename?: 'Workflow' }
-    & { ' $fragmentRefs'?: { 'WorkflowFieldsFragment': WorkflowFieldsFragment } }
-  ) };
+export type CreateWorkflowMutation = { __typename?: 'Mutation', createWorkflow: { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null } };
 
 export type ExecuteWorkflowMutationVariables = Exact<{
   workflowId: Scalars['String']['input'];
@@ -420,10 +419,7 @@ export type UpdateWorkflowMutationVariables = Exact<{
 }>;
 
 
-export type UpdateWorkflowMutation = { __typename?: 'Mutation', updateWorkflow: (
-    { __typename?: 'Workflow' }
-    & { ' $fragmentRefs'?: { 'WorkflowFieldsFragment': WorkflowFieldsFragment } }
-  ) };
+export type UpdateWorkflowMutation = { __typename?: 'Mutation', updateWorkflow: { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null } };
 
 export type StartTimedWorkflowMutationVariables = Exact<{
   workflowId: Scalars['String']['input'];
@@ -454,20 +450,14 @@ export type DuplicateWorkflowMutationVariables = Exact<{
 }>;
 
 
-export type DuplicateWorkflowMutation = { __typename?: 'Mutation', duplicateWorkflow: (
-    { __typename?: 'Workflow' }
-    & { ' $fragmentRefs'?: { 'WorkflowFieldsFragment': WorkflowFieldsFragment } }
-  ) };
+export type DuplicateWorkflowMutation = { __typename?: 'Mutation', duplicateWorkflow: { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null } };
 
 export type CreateWorkflowTagMutationVariables = Exact<{
   input: CreateWorkflowTagInput;
 }>;
 
 
-export type CreateWorkflowTagMutation = { __typename?: 'Mutation', createWorkflowTag: (
-    { __typename?: 'WorkflowTag' }
-    & { ' $fragmentRefs'?: { 'WorkflowTagFieldsFragment': WorkflowTagFieldsFragment } }
-  ) };
+export type CreateWorkflowTagMutation = { __typename?: 'Mutation', createWorkflowTag: { __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any } };
 
 export type DeleteWorkflowTagMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -481,13 +471,7 @@ export type SaveWorkflowAsTemplateMutationVariables = Exact<{
 }>;
 
 
-export type SaveWorkflowAsTemplateMutation = { __typename?: 'Mutation', saveWorkflowAsTemplate: { __typename?: 'WorkflowTemplate', id: string, name: string, description?: string | null, created_at: string, updated_at: string, nodes: Array<(
-      { __typename?: 'WorkflowNode' }
-      & { ' $fragmentRefs'?: { 'WorkflowNodeFieldsFragment': WorkflowNodeFieldsFragment } }
-    )>, edges: Array<(
-      { __typename?: 'WorkflowEdge' }
-      & { ' $fragmentRefs'?: { 'WorkflowEdgeFieldsFragment': WorkflowEdgeFieldsFragment } }
-    )> } };
+export type SaveWorkflowAsTemplateMutation = { __typename?: 'Mutation', saveWorkflowAsTemplate: { __typename?: 'WorkflowTemplate', id: string, name: string, description?: string | null, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }> } };
 
 export type DeleteWorkflowTemplateMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -499,46 +483,31 @@ export type DeleteWorkflowTemplateMutation = { __typename?: 'Mutation', deleteWo
 export type GetWorkflowsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetWorkflowsQuery = { __typename?: 'Query', workflows: Array<(
-    { __typename?: 'Workflow' }
-    & { ' $fragmentRefs'?: { 'WorkflowFieldsFragment': WorkflowFieldsFragment } }
-  )> };
+export type GetWorkflowsQuery = { __typename?: 'Query', workflows: Array<{ __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null }> };
 
 export type GetWorkflowQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetWorkflowQuery = { __typename?: 'Query', workflow: (
-    { __typename?: 'Workflow' }
-    & { ' $fragmentRefs'?: { 'WorkflowFieldsFragment': WorkflowFieldsFragment } }
-  ) };
+export type GetWorkflowQuery = { __typename?: 'Query', workflow: { __typename?: 'Workflow', id: string, name: string, description?: string | null, is_active: boolean, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }>, tags?: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> | null } };
 
 export type GetWorkflowTemplatesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetWorkflowTemplatesQuery = { __typename?: 'Query', workflowTemplates: Array<{ __typename?: 'WorkflowTemplate', id: string, name: string, description?: string | null, created_at: string, updated_at: string, nodes: Array<(
-      { __typename?: 'WorkflowNode' }
-      & { ' $fragmentRefs'?: { 'WorkflowNodeFieldsFragment': WorkflowNodeFieldsFragment } }
-    )>, edges: Array<(
-      { __typename?: 'WorkflowEdge' }
-      & { ' $fragmentRefs'?: { 'WorkflowEdgeFieldsFragment': WorkflowEdgeFieldsFragment } }
-    )> }> };
+export type GetWorkflowTemplatesQuery = { __typename?: 'Query', workflowTemplates: Array<{ __typename?: 'WorkflowTemplate', id: string, name: string, description?: string | null, created_at: any, updated_at: any, nodes: Array<{ __typename?: 'WorkflowNode', id: string, type: string, label?: string | null, position: { __typename?: 'PositionType', x: number, y: number }, data?: { __typename?: 'NodeData', label?: string | null, pollingInterval?: number | null, fromFilter?: string | null, subjectFilter?: string | null, to?: string | null, subject?: string | null, body?: string | null, url?: string | null, urls?: Array<string> | null, template?: string | null, prompt?: string | null, model?: string | null, temperature?: number | null, maxTokens?: number | null, selectors?: Array<{ __typename?: 'SelectorConfigType', selector: string, selectorType: string, attributes: Array<string>, name: string, description?: string | null }> | null, batchConfig?: { __typename?: 'BatchConfigType', batchSize: number, rateLimit: number } | null } | null }>, edges: Array<{ __typename?: 'WorkflowEdge', id: string, source: string, target: string, sourceHandle?: string | null, targetHandle?: string | null }> }> };
 
 export type GetWorkflowTagsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetWorkflowTagsQuery = { __typename?: 'Query', workflowTags: Array<(
-    { __typename?: 'WorkflowTag' }
-    & { ' $fragmentRefs'?: { 'WorkflowTagFieldsFragment': WorkflowTagFieldsFragment } }
-  )> };
+export type GetWorkflowTagsQuery = { __typename?: 'Query', workflowTags: Array<{ __typename?: 'WorkflowTag', id: string, name: string, color: string, created_at: any, updated_at: any }> };
 
 export type GetWorkflowExecutionsQueryVariables = Exact<{
   workflowId: Scalars['ID']['input'];
 }>;
 
 
-export type GetWorkflowExecutionsQuery = { __typename?: 'Query', workflowExecutions: Array<{ __typename?: 'WorkflowExecution', id: string, workflow_id: string, execution_id: string, status: string, created_at: string, results?: Array<{ __typename?: 'NodeResult', nodeId: string, status: string, results?: Array<string> | null }> | null }> };
+export type GetWorkflowExecutionsQuery = { __typename?: 'Query', workflowExecutions: Array<{ __typename?: 'WorkflowExecution', id: string, workflow_id: string, execution_id: string, status: string, created_at: any, results?: Array<{ __typename?: 'NodeResult', nodeId: string, status: string, results?: Array<string> | null }> | null }> };
 
 export type IsWorkflowScheduledQueryVariables = Exact<{
   workflowId: Scalars['ID']['input'];
@@ -546,6 +515,14 @@ export type IsWorkflowScheduledQueryVariables = Exact<{
 
 
 export type IsWorkflowScheduledQuery = { __typename?: 'Query', isWorkflowScheduled: boolean };
+
+export type TestScrapingMutationVariables = Exact<{
+  url: Scalars['String']['input'];
+  selectors: Array<SelectorConfigInput> | SelectorConfigInput;
+}>;
+
+
+export type TestScrapingMutation = { __typename?: 'Mutation', testScraping: { __typename?: 'ScrapingResult', success: boolean, error?: string | null, results: Array<Array<string>> } };
 
 export type TestQueryQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -574,4 +551,5 @@ export const GetWorkflowTemplatesDocument = {"kind":"Document","definitions":[{"
 export const GetWorkflowTagsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkflowTags"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workflowTags"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkflowTagFields"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkflowTagFields"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"WorkflowTag"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"color"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"updated_at"}}]}}]} as unknown as DocumentNode<GetWorkflowTagsQuery, GetWorkflowTagsQueryVariables>;
 export const GetWorkflowExecutionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkflowExecutions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workflowId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workflowExecutions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workflowId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workflowId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workflow_id"}},{"kind":"Field","name":{"kind":"Name","value":"execution_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"results"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"nodeId"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"results"}}]}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}}]}}]}}]} as unknown as DocumentNode<GetWorkflowExecutionsQuery, GetWorkflowExecutionsQueryVariables>;
 export const IsWorkflowScheduledDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"IsWorkflowScheduled"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workflowId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"isWorkflowScheduled"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workflowId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workflowId"}}}]}]}}]} as unknown as DocumentNode<IsWorkflowScheduledQuery, IsWorkflowScheduledQueryVariables>;
+export const TestScrapingDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"TestScraping"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"url"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"selectors"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SelectorConfigInput"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"testScraping"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"url"},"value":{"kind":"Variable","name":{"kind":"Name","value":"url"}}},{"kind":"Argument","name":{"kind":"Name","value":"selectors"},"value":{"kind":"Variable","name":{"kind":"Name","value":"selectors"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"success"}},{"kind":"Field","name":{"kind":"Name","value":"error"}},{"kind":"Field","name":{"kind":"Name","value":"results"}}]}}]}}]} as unknown as DocumentNode<TestScrapingMutation, TestScrapingMutationVariables>;
 export const TestQueryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TestQuery"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workflows"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<TestQueryQuery, TestQueryQueryVariables>;

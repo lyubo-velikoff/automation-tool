@@ -158,6 +158,9 @@ async function bootstrap() {
     }
   });
 
+  // Add new test-scraping endpoint
+  app.use('/api', require('./routes/test-scraping').default);
+
   // GraphQL setup
   const schema = await buildSchema({
     resolvers: [HealthResolver, WorkflowResolver, ScrapingResolver],

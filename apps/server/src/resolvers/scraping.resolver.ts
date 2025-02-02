@@ -8,6 +8,7 @@ import {
   ScrapingNodeDataInput,
   ScrapingResultType 
 } from '../schema/workflow';
+import { ScrapingResult } from "../schema/scraping";
 
 @Resolver()
 export class ScrapingResolver {
@@ -78,5 +79,13 @@ export class ScrapingResolver {
     }
 
     return new ScrapingNode(ctx.user.id, data);
+  }
+
+  @Mutation(() => ScrapingResult)
+  async testScraping(
+    @Arg("url") url: string,
+    @Arg("selectors", () => [SelectorConfigInput]) selectors: SelectorConfigInput[]
+  ): Promise<ScrapingResult> {
+    return this.scrapingService.testScraping(url, selectors);
   }
 } 

@@ -1,20 +1,15 @@
+import { IsString, IsEnum, IsArray, IsOptional, ValidateNested, IsUrl } from 'class-validator';
+import { Type } from 'class-transformer';
+
 // Base types for scraping functionality
 export interface Position {
   x: number;
   y: number;
 }
 
-export interface SelectorConfig {
-  selector: string;
-  selectorType: 'css' | 'xpath';
-  attributes: string[];
-  name: string;
-  description?: string;
-}
-
 export interface BatchConfig {
-  batchSize: number;
-  rateLimit: number;
+  batchSize?: number;
+  rateLimit?: number;
 }
 
 export interface PaginationConfig {
@@ -32,15 +27,13 @@ export interface ScrapingNodeData {
   template?: string;
 }
 
-export interface ScrapedItem {
-  [key: string]: string;
-}
+export type ScrapedItem = { [key: string]: string };
 
 export interface ScrapingResult {
   success: boolean;
-  results: string[];
-  error?: string;
   data?: { [key: string]: string };
+  results: string[][];
+  error?: string | null;
 }
 
 export interface SelectorResult {
@@ -67,4 +60,35 @@ export interface OpenAICompletionConfig {
   model: string;
   temperature?: number;
   maxTokens?: number;
+}
+
+// Validation classes for API endpoints
+export class SelectorConfig {
+  @IsString()
+  selector!: string;
+
+  @IsEnum(['css', 'xpath'])
+  selectorType!: 'css' | 'xpath';
+
+  @IsArray()
+  @IsString({ each: true })
+  attributes!: string[];
+
+  @IsString()
+  name!: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+export class ScrapeRequest {
+  @IsUrl()
+  url!: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SelectorConfig)
+  @IsOptional()
+  selectors?: SelectorConfig[];
 } 
