@@ -57,10 +57,7 @@ export class ScrapingService {
       const page = await browser.newPage();
       
       try {
-        // Set a reasonable viewport
         await page.setViewport({ width: 1920, height: 1080 });
-        
-        // Set longer timeouts
         page.setDefaultNavigationTimeout(30000);
         page.setDefaultTimeout(30000);
 
@@ -68,35 +65,29 @@ export class ScrapingService {
         await page.setRequestInterception(true);
         page.on('request', (request: HTTPRequest) => {
           const url = request.url();
-          // Only allow HTML documents and essential scripts
           if (
             request.resourceType() === 'document' ||
             (request.resourceType() === 'script' && url.includes('discourse')) ||
             request.resourceType() === 'xhr'
           ) {
-            console.log('Allowing request:', request.resourceType(), url);
             request.continue();
           } else {
-            console.log('Blocking request:', request.resourceType(), url);
             request.abort();
           }
         });
 
-        // Log console messages
+        // Only log critical browser errors
         page.on('console', (msg: ConsoleMessage) => {
-          if (msg.type() === 'error') {
-            console.log('Browser console error:', msg.text());
+          if (msg.type() === 'error' && !msg.text().includes('Failed to load resource')) {
+            console.error('Browser error:', msg.text());
           }
         });
         
-        // Navigate and wait for network idle
         console.log('Navigating to page:', url);
         await page.goto(url, { 
           waitUntil: ['domcontentloaded', 'networkidle2'],
           timeout: 30000 
         });
-        
-        console.log('Page loaded, waiting for content');
         
         // Wait for the main content to load
         try {
@@ -105,33 +96,20 @@ export class ScrapingService {
             const latestTopicList = document.querySelector('.latest-topic-list');
             return topicList || latestTopicList;
           }, { timeout: 10000 });
-          console.log('Found topic list element');
+          console.log('Content loaded successfully');
         } catch (error) {
-          console.log('Timeout waiting for topic list, proceeding anyway');
+          console.log('Proceeding without waiting for topic list');
         }
 
-        // Get the final HTML
         data = await page.content();
         
-        // Log some stats about the content
-        console.log('Final HTML length:', data.length);
-        
-        // Check for specific elements
+        // Log only essential element counts
         const elementCounts = await page.evaluate(() => ({
           topicList: document.querySelectorAll('.topic-list').length,
           topicListItems: document.querySelectorAll('.topic-list-item').length,
-          mainLinks: document.querySelectorAll('.main-link').length,
-          allLinks: document.querySelectorAll('a').length,
-          // Log some sample elements to help with selector debugging
-          sampleElements: Array.from(document.querySelectorAll('a')).slice(0, 5).map(a => ({
-            text: a.textContent?.trim(),
-            href: a.getAttribute('href'),
-            class: a.getAttribute('class'),
-            parentClass: a.parentElement?.getAttribute('class')
-          }))
+          mainLinks: document.querySelectorAll('.main-link').length
         }));
-        console.log('Element counts:', elementCounts);
-        console.log('Sample elements:', elementCounts.sampleElements);
+        console.log('Found elements:', elementCounts);
       } finally {
         await page.close();
       }
@@ -177,15 +155,11 @@ export class ScrapingService {
             // Fetch the page
             console.log('Fetching page:', url);
             const html = await this.getCachedPage(url);
-            console.log('Page fetched, length:', html.length);
+            console.log('Page fetched');
             const $ = cheerio.load(html);
 
             // Remove noscript tags as they can contain duplicate content
             $('noscript').remove();
-
-            // Debug: Log a sample of the HTML
-            console.log('HTML sample:', html.substring(0, 1000));
-            console.log('Body HTML sample:', $('body').html()?.substring(0, 1000));
 
             const data: { [key: string]: string } = {};
             
@@ -202,8 +176,6 @@ export class ScrapingService {
             console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
             if (elements.length === 0) {
               console.log(`No elements found for selector "${selector.selector}"`);
-              console.log('Available elements with similar classes:', 
-                $('[itemprop]').length ? $('[itemprop]').get().map(el => $(el).attr('itemprop')).join(', ') : 'None');
               throw new Error(`No elements found for selector "${selector.selector}"`);
             }
 
@@ -232,7 +204,7 @@ export class ScrapingService {
             return {
               success: true,
               data,
-              results: [JSON.stringify(data)]
+              results: [[JSON.stringify(data)]]
             };
           } catch (error) {
             console.error(`Error scraping ${url}:`, error);
@@ -384,47 +356,65 @@ export class ScrapingService {
     try {
       console.log('Testing scraping with:', { url, selectors });
       
-      // Get the page content
       const html = await this.getCachedPage(url, true);
       const $ = cheerio.load(html);
       
-      // Process each selector
       const results: string[][] = [];
       
       for (const selector of selectors) {
-        console.log(`Processing selector: ${selector.name}`, selector);
-        
-        let elements;
         if (selector.selectorType === 'xpath') {
           const doc = new DOMParser().parseFromString(html);
-          elements = xpath.select(selector.selector, doc);
-        } else {
-          elements = $(selector.selector);
-        }
-        
-        console.log(`Found ${elements.length} elements`);
-        
-        // Extract data from each element
-        elements.each((_, element) => {
-          const $el = $(element);
-          const row: string[] = [];
+          const nodes = xpath.select(selector.selector, doc);
+          if (!Array.isArray(nodes)) {
+            throw new Error('Invalid XPath selector result');
+          }
           
-          for (const attr of selector.attributes) {
-            let value = '';
-            if (attr === 'text') {
-              value = $el.text().trim();
-            } else if (attr === 'html') {
-              value = $el.html()?.trim() || '';
-            } else {
-              value = $el.attr(attr)?.trim() || '';
+          console.log(`Found ${nodes.length} elements for selector "${selector.name}"`);
+          
+          for (const node of nodes) {
+            const row: string[] = [];
+            
+            for (const attr of selector.attributes) {
+              let value = '';
+              if (attr === 'text') {
+                value = xpath.select('string(.)', node).toString().trim();
+              } else if (attr === 'html') {
+                value = ''; // HTML not supported for XPath
+              } else {
+                value = xpath.select(`string(@${attr})`, node).toString().trim();
+              }
+              row.push(value);
             }
-            row.push(value);
+            
+            if (row.some(v => v)) {
+              results.push(row);
+            }
           }
+        } else {
+          const elements = $(selector.selector);
+          console.log(`Found ${elements.length} elements for selector "${selector.name}"`);
           
-          if (row.some(v => v)) {
-            results.push(row);
-          }
-        });
+          elements.each((_, element) => {
+            const row: string[] = [];
+            const $el = $(element);
+            
+            for (const attr of selector.attributes) {
+              let value = '';
+              if (attr === 'text') {
+                value = $el.text().trim();
+              } else if (attr === 'html') {
+                value = $el.html()?.trim() || '';
+              } else {
+                value = $el.attr(attr)?.trim() || '';
+              }
+              row.push(value);
+            }
+            
+            if (row.some(v => v)) {
+              results.push(row);
+            }
+          });
+        }
       }
       
       return {
