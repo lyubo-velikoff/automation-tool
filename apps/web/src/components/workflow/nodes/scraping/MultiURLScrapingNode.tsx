@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
-import { Handle, Position } from "reactflow";
+import { memo, useCallback, useState, useEffect } from "react";
+import { Handle, Position, useEdges, useNodes } from "reactflow";
 import {
   Card,
   CardHeader,
@@ -50,6 +50,8 @@ import { Badge } from "@/components/ui/data-display/badge";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
 import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
 import { SelectorEditor } from "./components/SelectorEditor";
+import { VariableSelector } from "../components/VariableSelector";
+import { SelectorConfig, BatchConfig } from "@/types/scraping";
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {
@@ -57,6 +59,12 @@ interface MultiURLNodeData extends GlobalNodeData {
   selectors: SelectorConfig[];
   batchConfig: BatchConfig;
   template?: string;
+  sourceNode?: {
+    id: string;
+    name: string;
+    results: string;
+  };
+  onConfigChange?: (nodeId: string, data: MultiURLNodeData) => void;
   [key: string]: unknown;
 }
 
@@ -95,6 +103,8 @@ function MultiURLScrapingNode({
   const [editingSelector, setEditingSelector] = useState<number | null>(null);
   const [testingSelector, setTestingSelector] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, any>>({});
+  const edges = useEdges();
+  const nodes = useNodes();
 
   // Convert test results from record to array for the selector editor
   const currentTestResults =
@@ -317,6 +327,51 @@ function MultiURLScrapingNode({
     }
   };
 
+  const handleVariableSelect = useCallback(
+    (reference: string) => {
+      const currentUrls = data.urls || [];
+      handleConfigChange("urls", [...currentUrls, reference]);
+    },
+    [data.urls, handleConfigChange]
+  );
+
+  // Update the useEffect for handling connections
+  useEffect(() => {
+    if (!id) return;
+
+    // Find incoming edge to this node
+    const incomingEdge = edges.find(
+      (edge) => edge.target === id && edge.targetHandle === "source"
+    );
+
+    if (!incomingEdge) {
+      // Clear source node if no incoming connection
+      if (data.sourceNode) {
+        handleConfigChange("sourceNode", undefined);
+      }
+      return;
+    }
+
+    // Find source node
+    const sourceNode = nodes.find((node) => node.id === incomingEdge.source);
+    if (!sourceNode) return;
+
+    // Only update if something has changed
+    const currentSourceNode = data.sourceNode;
+    if (
+      !currentSourceNode ||
+      currentSourceNode.id !== sourceNode.id ||
+      currentSourceNode.name !== sourceNode.data?.label ||
+      currentSourceNode.results !== sourceNode.data?.results
+    ) {
+      handleConfigChange("sourceNode", {
+        id: sourceNode.id,
+        name: sourceNode.data?.label || "Unnamed Node",
+        results: sourceNode.data?.results || ""
+      });
+    }
+  }, [edges, nodes, id, data.sourceNode, handleConfigChange]);
+
   const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
       return (
@@ -461,243 +516,256 @@ function MultiURLScrapingNode({
   };
 
   return (
-    <div
-      className={cn(
-        "bg-background text-foreground relative",
-        selected && "ring-2 ring-primary"
-      )}
-      data-testid={`node-${type?.toLowerCase()}`}
-    >
-      <Popover>
-        <PopoverTrigger asChild>
-          <div className='p-2 flex items-center justify-center'>
-            <Card
-              className={cn(
-                "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
-                "hover:bg-muted/80 active:bg-muted/70",
-                data.urls?.length > 0 &&
-                  data.selectors?.length > 0 &&
-                  "ring-2 ring-blue-500/50"
-              )}
-            >
-              <MultiURLScrapingIcon />
-              {data.label && (
-                <div className='absolute -bottom-6 text-xs text-gray-600 font-medium'>
-                  {data.label}
-                </div>
-              )}
-            </Card>
-          </div>
-        </PopoverTrigger>
-        <PopoverContent
-          side='right'
-          align='start'
-          alignOffset={-240}
-          sideOffset={12}
-          className='w-[400px]'
-        >
-          <Card
-            className={cn(
-              "border-none shadow-none",
-              selected && "border-blue-500"
-            )}
-          >
-            <CardHeader className='flex flex-row items-center gap-2'>
-              <MultiURLScrapingIcon />
-              <div>
-                <CardTitle>Multi-URL Scraping</CardTitle>
-                <CardDescription>
-                  Extract data from multiple websites using CSS or XPath
-                  selectors
-                </CardDescription>
-              </div>
-            </CardHeader>
-
-            <CardContent className='space-y-4'>
-              <Tabs defaultValue='general'>
-                <TabsList className='grid w-full grid-cols-4'>
-                  <TabsTrigger value='general'>General</TabsTrigger>
-                  <TabsTrigger value='urls'>URLs</TabsTrigger>
-                  <TabsTrigger value='selectors'>Selectors</TabsTrigger>
-                  <TabsTrigger value='settings'>Settings</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value='general'>
-                  <div>
-                    <Label>Node Label</Label>
-                    <Input
-                      value={data.label || ""}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        handleConfigChange("label", e.target.value)
-                      }
-                      placeholder='Node Label'
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent value='urls' className='space-y-4'>
-                  <div className='space-y-4'>
-                    <div className='space-y-2'>
-                      <Label>Add URL</Label>
-                      <div className='flex gap-2'>
-                        <Input
-                          value={newUrl}
-                          onChange={(e) => setNewUrl(e.target.value)}
-                          placeholder='https://example.com'
-                          className='flex-grow'
-                        />
-                        <Button onClick={handleAddUrl}>Add URL</Button>
-                      </div>
-                      {urlError && (
-                        <p className='text-sm text-red-500'>{urlError}</p>
-                      )}
-                    </div>
-
-                    <div className='space-y-2'>
-                      <Label>Bulk Add URLs</Label>
-                      <div className='flex flex-col gap-2'>
-                        <Textarea
-                          value={bulkUrls}
-                          onChange={(e) => setBulkUrls(e.target.value)}
-                          placeholder='Enter multiple URLs (one per line) or use variables from other nodes (e.g. {{Node Name.results}})'
-                          className='min-h-[100px]'
-                        />
-                        <div className='flex justify-between items-center'>
-                          <Button onClick={handleBulkAdd}>Add URLs</Button>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant='outline' size='sm'>
-                                Insert Variable
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className='w-64' align='end'>
-                              <VariablePicker
-                                nodeId={id || ""}
-                                onInsertVariable={(variable: string) => {
-                                  const currentText = bulkUrls;
-                                  setBulkUrls(
-                                    currentText +
-                                      (currentText ? "\n" : "") +
-                                      variable
-                                  );
-                                }}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className='space-y-2'>
-                      <Label>URL List ({data.urls?.length || 0})</Label>
-                      <ScrollArea className='h-[200px] w-full rounded-md border'>
-                        {data.urls?.length ? (
-                          <div className='p-4 space-y-2'>
-                            {data.urls.map((url, index) => (
-                              <div
-                                key={index}
-                                className='flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50'
-                              >
-                                <span className='text-sm truncate flex-grow'>
-                                  {url}
-                                </span>
-                                <Button
-                                  variant='ghost'
-                                  size='sm'
-                                  onClick={() => {
-                                    const newUrls = [...(data.urls || [])];
-                                    newUrls.splice(index, 1);
-                                    handleConfigChange("urls", newUrls);
-                                  }}
-                                >
-                                  <X className='h-4 w-4' />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className='p-4 text-sm text-muted-foreground text-center'>
-                            No URLs added yet
-                          </div>
-                        )}
-                      </ScrollArea>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value='selectors' className='space-y-4'>
-                  <SelectorEditor
-                    selectors={data.selectors || []}
-                    template={data.template}
-                    testResults={currentTestResults}
-                    isLoading={testingSelector !== null}
-                    onUpdateSelectors={(selectors) =>
-                      handleConfigChange("selectors", selectors)
-                    }
-                    onUpdateTemplate={(template) =>
-                      handleConfigChange("template", template)
-                    }
-                    onTestSelector={handleTestSelector}
-                  />
-                </TabsContent>
-
-                <TabsContent value='settings' className='space-y-4'>
-                  <div>
-                    <Label>Batch Size</Label>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={50}
-                      value={data.batchConfig?.batchSize || 5}
-                      onChange={(e) =>
-                        handleBatchConfigChange(
-                          "batchSize",
-                          parseInt(e.target.value)
-                        )
-                      }
-                      placeholder='Number of URLs to process at once'
-                    />
-                    <p className='text-xs text-muted-foreground mt-1'>
-                      Process 1-50 URLs simultaneously
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Rate Limit (requests per minute)</Label>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={60}
-                      value={data.batchConfig?.rateLimit || 10}
-                      onChange={(e) =>
-                        handleBatchConfigChange(
-                          "rateLimit",
-                          parseInt(e.target.value)
-                        )
-                      }
-                      placeholder='Maximum requests per minute'
-                    />
-                    <p className='text-xs text-muted-foreground mt-1'>
-                      Limit requests to avoid overloading servers
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </PopoverContent>
-      </Popover>
-
+    <>
       <Handle
         type='target'
         position={Position.Left}
+        id='source'
+        style={{ background: "#555" }}
         isConnectable={isConnectable}
       />
       <Handle
         type='source'
         position={Position.Right}
+        id='output'
+        style={{ background: "#555" }}
         isConnectable={isConnectable}
       />
-    </div>
+      <div
+        className={cn(
+          "bg-background text-foreground relative",
+          selected && "ring-2 ring-primary"
+        )}
+        data-testid={`node-${type?.toLowerCase()}`}
+      >
+        <Popover>
+          <PopoverTrigger asChild>
+            <div className='p-2 flex items-center justify-center'>
+              <Card
+                className={cn(
+                  "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
+                  "hover:bg-muted/80 active:bg-muted/70",
+                  data.urls?.length > 0 &&
+                    data.selectors?.length > 0 &&
+                    "ring-2 ring-blue-500/50"
+                )}
+              >
+                <MultiURLScrapingIcon />
+                {data.label && (
+                  <div className='absolute -bottom-6 text-xs text-gray-600 font-medium'>
+                    {data.label}
+                  </div>
+                )}
+              </Card>
+            </div>
+          </PopoverTrigger>
+          <PopoverContent
+            side='right'
+            align='start'
+            alignOffset={-240}
+            sideOffset={12}
+            className='w-[400px]'
+          >
+            <Card
+              className={cn(
+                "border-none shadow-none",
+                selected && "border-blue-500"
+              )}
+            >
+              <CardHeader className='flex flex-row items-center gap-2'>
+                <MultiURLScrapingIcon />
+                <div>
+                  <CardTitle>Multi-URL Scraping</CardTitle>
+                  <CardDescription>
+                    Extract data from multiple websites using CSS or XPath
+                    selectors
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <CardContent className='space-y-4'>
+                <Tabs defaultValue='general'>
+                  <TabsList className='grid w-full grid-cols-4'>
+                    <TabsTrigger value='general'>General</TabsTrigger>
+                    <TabsTrigger value='urls'>URLs</TabsTrigger>
+                    <TabsTrigger value='selectors'>Selectors</TabsTrigger>
+                    <TabsTrigger value='settings'>Settings</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value='general'>
+                    <div>
+                      <Label>Node Label</Label>
+                      <Input
+                        value={data.label || ""}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          handleConfigChange("label", e.target.value)
+                        }
+                        placeholder='Node Label'
+                      />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value='urls' className='space-y-4'>
+                    <div className='space-y-4'>
+                      <div className='space-y-2'>
+                        <Label>Add URL</Label>
+                        <div className='flex gap-2'>
+                          <Input
+                            value={newUrl}
+                            onChange={(e) => setNewUrl(e.target.value)}
+                            placeholder='https://example.com'
+                            className='flex-grow'
+                          />
+                          <Button onClick={handleAddUrl}>Add URL</Button>
+                        </div>
+                        {data.sourceNode && (
+                          <div className='space-y-2'>
+                            <Label>Add from Source Node</Label>
+                            <VariableSelector
+                              sourceNodeId={data.sourceNode.id}
+                              sourceNodeName={data.sourceNode.name}
+                              nodeResults={data.sourceNode.results}
+                              onSelect={handleVariableSelect}
+                              className='w-full'
+                            />
+                          </div>
+                        )}
+                        {urlError && (
+                          <p className='text-sm text-red-500'>{urlError}</p>
+                        )}
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>Bulk Add URLs</Label>
+                        <div className='flex flex-col gap-2'>
+                          <Textarea
+                            value={bulkUrls}
+                            onChange={(e) => setBulkUrls(e.target.value)}
+                            placeholder='Enter multiple URLs (one per line) or use variables from other nodes (e.g. {{Node Name.results}})'
+                            className='min-h-[100px]'
+                          />
+                          <div className='flex justify-between items-center'>
+                            <Button onClick={handleBulkAdd}>Add URLs</Button>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant='outline' size='sm'>
+                                  Insert Variable
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className='w-64' align='end'>
+                                <VariablePicker
+                                  nodeId={id || ""}
+                                  onInsertVariable={(variable: string) => {
+                                    const currentText = bulkUrls;
+                                    setBulkUrls(
+                                      currentText +
+                                        (currentText ? "\n" : "") +
+                                        variable
+                                    );
+                                  }}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>URL List ({data.urls?.length || 0})</Label>
+                        <ScrollArea className='h-[200px] w-full rounded-md border'>
+                          {data.urls?.length ? (
+                            <div className='p-4 space-y-2'>
+                              {data.urls.map((url, index) => (
+                                <div
+                                  key={index}
+                                  className='flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50'
+                                >
+                                  <span className='text-sm truncate flex-grow'>
+                                    {url}
+                                  </span>
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    onClick={() => handleRemoveUrl(url)}
+                                  >
+                                    <X className='h-4 w-4' />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className='p-4 text-sm text-muted-foreground text-center'>
+                              No URLs added yet
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value='selectors' className='space-y-4'>
+                    <SelectorEditor
+                      selectors={data.selectors || []}
+                      template={data.template}
+                      testResults={currentTestResults}
+                      isLoading={testingSelector !== null}
+                      onUpdateSelectors={(selectors) =>
+                        handleConfigChange("selectors", selectors)
+                      }
+                      onUpdateTemplate={(template) =>
+                        handleConfigChange("template", template)
+                      }
+                      onTestSelector={handleTestSelector}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value='settings' className='space-y-4'>
+                    <div>
+                      <Label>Batch Size</Label>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={50}
+                        value={data.batchConfig?.batchSize || 5}
+                        onChange={(e) =>
+                          handleBatchConfigChange(
+                            "batchSize",
+                            parseInt(e.target.value)
+                          )
+                        }
+                        placeholder='Number of URLs to process at once'
+                      />
+                      <p className='text-xs text-muted-foreground mt-1'>
+                        Process 1-50 URLs simultaneously
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Rate Limit (requests per minute)</Label>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={60}
+                        value={data.batchConfig?.rateLimit || 10}
+                        onChange={(e) =>
+                          handleBatchConfigChange(
+                            "rateLimit",
+                            parseInt(e.target.value)
+                          )
+                        }
+                        placeholder='Maximum requests per minute'
+                      />
+                      <p className='text-xs text-muted-foreground mt-1'>
+                        Limit requests to avoid overloading servers
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </>
   );
 }
 

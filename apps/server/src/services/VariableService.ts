@@ -23,9 +23,9 @@ export class VariableService {
     };
   }
 
-  private inferResultType(selectorName: string): ResultType {
+  private inferResultType(selectorName: string): string {
     const lowerName = selectorName.toLowerCase();
-    if (lowerName.includes("url")) return "url";
+    if (lowerName.includes("url") || lowerName.includes("href")) return "url";
     if (lowerName.includes("price") || lowerName.includes("number")) return "number";
     if (lowerName.includes("html")) return "html";
     return "text";
@@ -48,37 +48,39 @@ export class VariableService {
     return selectorResult.values[0] || null;
   }
 
-  getAvailableVariables(results: NodeResults): VariablePreview[] {
+  getAvailableVariables(nodeName: string, results: NodeResults): VariablePreview[] {
     const variables: VariablePreview[] = [];
 
     // Add whole node reference
     variables.push({
-      reference: "{{Cursor.*}}",
+      reference: `{{${nodeName}.*}}`,
       preview: "Entire node results",
       type: "object"
     });
 
-    // Add individual selector references
-    for (const [selectorName, result] of Object.entries(results)) {
-      if (!result.values.length) continue;
+    // Add selector references
+    if (results.bySelector) {
+      Object.entries(results.bySelector).forEach(([selectorName, selectorResults]) => {
+        if (!selectorResults?.length) return;
 
-      // Basic reference
-      variables.push({
-        reference: `{{Cursor.${selectorName}}}`,
-        preview: result.values[0],
-        type: this.inferResultType(selectorName)
+        // Add basic reference
+        variables.push({
+          reference: `{{${nodeName}.${selectorName}}}`,
+          preview: selectorResults[0]?.[0] || "No results",
+          type: this.inferResultType(selectorName)
+        });
+
+        // Add indexed references if multiple results
+        selectorResults.forEach((result, index) => {
+          if (result?.[0]) {
+            variables.push({
+              reference: `{{${nodeName}.${selectorName}[${index}]}}`,
+              preview: result[0],
+              type: this.inferResultType(selectorName)
+            });
+          }
+        });
       });
-
-      // If multiple values, add indexed references
-      if (result.values.length > 1) {
-        for (let i = 0; i < result.values.length; i++) {
-          variables.push({
-            reference: `{{Cursor.${selectorName}[${i}]}}`,
-            preview: result.values[i],
-            type: this.inferResultType(selectorName)
-          });
-        }
-      }
     }
 
     return variables;

@@ -59,11 +59,17 @@ export interface SelectorResult {
 }
 
 export interface NodeResults {
-  bySelector: {
-    [selectorName: string]: SelectorResult[][];
+  bySelector?: {
+    [selectorName: string]: string[][];
   };
-  raw: SelectorResult[][];
+  raw?: string[][];
   wholeNode?: string;
+}
+
+export interface VariablePreview {
+  reference: string;
+  preview: string;
+  type: string;
 }
 
 export interface NodeConnection {
@@ -81,18 +87,6 @@ export interface NodeConnection {
 
 // GraphQL Types
 @ObjectType()
-export class SelectorResultType {
-  @Field()
-  value!: string;
-
-  @Field()
-  type!: string;
-
-  @Field(() => ResultMetadataType, { nullable: true })
-  metadata?: ResultMetadataType;
-}
-
-@ObjectType()
 class ResultMetadataType {
   @Field({ nullable: true })
   sourceUrl?: string;
@@ -102,6 +96,18 @@ class ResultMetadataType {
 
   @Field({ nullable: true })
   index?: number;
+}
+
+@ObjectType()
+export class SelectorResultType {
+  @Field()
+  value!: string;
+
+  @Field()
+  type!: string;
+
+  @Field(() => ResultMetadataType, { nullable: true })
+  metadata?: ResultMetadataType;
 }
 
 @ObjectType()
@@ -129,4 +135,28 @@ class SelectorVariable {
 
   @Field(() => [[SelectorResultType]])
   results!: SelectorResultType[][];
+}
+
+@ObjectType()
+export class VariablePreviewType {
+  @Field()
+  reference!: string;
+
+  @Field()
+  preview!: string;
+
+  @Field()
+  type!: string;
+}
+
+@ObjectType()
+export class NodeVariablesType {
+  @Field()
+  nodeId!: string;
+
+  @Field()
+  nodeName!: string;
+
+  @Field(() => [VariablePreviewType])
+  variables!: VariablePreviewType[];
 } 

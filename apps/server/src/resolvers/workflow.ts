@@ -23,12 +23,12 @@ export class WorkflowResolver {
     @Arg("results") results: string
   ): Promise<NodeVariables> {
     const nodeResults = JSON.parse(results);
-    const variables = this.variableService.getAvailableVariables(nodeResults);
+    const variables = this.variableService.getAvailableVariables(nodeName, nodeResults);
     
     return {
       nodeId,
       nodeName,
-      variables: variables.map((v: VariableResult) => ({
+      variables: variables.map(v => ({
         reference: v.reference,
         preview: v.preview,
         type: v.type

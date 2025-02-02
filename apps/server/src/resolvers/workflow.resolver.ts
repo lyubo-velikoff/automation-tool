@@ -22,6 +22,11 @@ import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
 import { supabase } from '../lib/supabase';
 import { OpenAIService } from '../services/openai.service';
+import { VariableService } from "../services/VariableService";
+import { 
+  NodeVariablesType,
+  VariablePreviewType
+} from "../types/workflow";
 
 @ObjectType()
 class ExecutionResult {
@@ -65,6 +70,11 @@ class WorkflowTemplate {
 @Resolver(Workflow)
 export class WorkflowResolver {
   private currentWorkflow: Workflow | null = null;
+  private variableService: VariableService;
+
+  constructor() {
+    this.variableService = new VariableService();
+  }
 
   @Query(() => [Workflow])
   @Authorized()
@@ -1264,5 +1274,25 @@ export class WorkflowResolver {
 
     if (error) throw error;
     return executions || [];
+  }
+
+  @Query(() => NodeVariablesType)
+  async getNodeVariables(
+    @Arg("nodeId") nodeId: string,
+    @Arg("nodeName") nodeName: string,
+    @Arg("results") results: string
+  ): Promise<NodeVariablesType> {
+    const nodeResults = JSON.parse(results);
+    const variables = this.variableService.getAvailableVariables(nodeName, nodeResults);
+    
+    return {
+      nodeId,
+      nodeName,
+      variables: variables.map(v => ({
+        reference: v.reference,
+        preview: v.preview,
+        type: v.type
+      }))
+    };
   }
 }

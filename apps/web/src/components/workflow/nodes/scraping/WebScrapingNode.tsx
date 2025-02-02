@@ -51,6 +51,7 @@ import {
   TestScrapingMutation,
   TestScrapingMutationVariables
 } from "@/gql/graphql";
+import { useToast } from "@/hooks/use-toast";
 
 interface NodeData extends Omit<GraphQLNodeData, "__typename"> {
   selectors: SelectorConfigType[];
@@ -130,6 +131,10 @@ const PopoverTrigger = dynamic(
   }
 );
 
+interface TestResults {
+  [key: number]: string[][];
+}
+
 function WebScrapingNode({
   id,
   data,
@@ -137,7 +142,8 @@ function WebScrapingNode({
   type,
   isConnectable
 }: WebScrapingNodeProps) {
-  const [testResults, setTestResults] = useState<string[][] | null>(null);
+  const { toast } = useToast();
+  const [testResults, setTestResults] = useState<TestResults>({});
   const [testScraping, { loading: isLoading }] = useMutation<
     TestScrapingMutation,
     TestScrapingMutationVariables
@@ -231,6 +237,78 @@ function WebScrapingNode({
     }
   };
 
+  const handleTestSelector = async (index: number) => {
+    try {
+      const selector = nodeData.selectors[index];
+      const { data: mutationData } = await testScraping({
+        variables: {
+          url: nodeData.url || "",
+          selectors: [
+            {
+              selector: selector.selector,
+              selectorType: selector.selectorType,
+              attributes: selector.attributes,
+              name: selector.name,
+              description: selector.description
+            }
+          ]
+        }
+      });
+
+      if (mutationData?.testScraping.success) {
+        setTestResults((prev) => ({
+          ...prev,
+          [index]: mutationData.testScraping.results
+        }));
+
+        // Store results in node data
+        handleConfigChange(
+          "results",
+          JSON.stringify({
+            bySelector: {
+              [selector.name]: mutationData.testScraping.results
+            }
+          })
+        );
+
+        toast({
+          title: "Test Successful",
+          description: `Found ${mutationData.testScraping.results.length} matches`
+        });
+      } else {
+        setTestResults((prev) => ({
+          ...prev,
+          [index]: [
+            ["Error: " + (mutationData?.testScraping.error || "Unknown error")]
+          ]
+        }));
+
+        toast({
+          title: "Test Failed",
+          description: mutationData?.testScraping.error || "Unknown error",
+          variant: "destructive"
+        });
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      setTestResults((prev) => ({
+        ...prev,
+        [index]: [["Error: " + errorMessage]]
+      }));
+
+      toast({
+        title: "Test Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Convert test results for the selector editor
+  const currentTestResults =
+    nodeData.selectors.length > 0 ? testResults[0] || [] : [];
+
   return (
     <div
       className={cn(
@@ -317,7 +395,7 @@ function WebScrapingNode({
                   <SelectorEditor
                     selectors={nodeData.selectors}
                     template={nodeData.template}
-                    testResults={testResults}
+                    testResults={currentTestResults}
                     isLoading={isLoading}
                     onUpdateSelectors={(selectors) =>
                       handleConfigChange("selectors", selectors)
@@ -325,7 +403,7 @@ function WebScrapingNode({
                     onUpdateTemplate={(template) =>
                       handleConfigChange("template", template)
                     }
-                    onTestSelector={handleSelectorTest}
+                    onTestSelector={handleTestSelector}
                   />
                 </TabsContent>
               </Tabs>
@@ -336,12 +414,12 @@ function WebScrapingNode({
 
       <Handle
         type='target'
-        position={Position.Top}
+        position={Position.Left}
         isConnectable={isConnectable}
       />
       <Handle
         type='source'
-        position={Position.Bottom}
+        position={Position.Right}
         isConnectable={isConnectable}
       />
     </div>
