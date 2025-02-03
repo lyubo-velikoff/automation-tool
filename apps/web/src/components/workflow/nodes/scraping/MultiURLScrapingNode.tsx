@@ -265,22 +265,98 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
-  const handleTestSelector = async (selector: SelectorConfig) => {
+  const handleTestSelector = async (index: number) => {
     try {
+      // Validate URLs
+      if (!data.urls || data.urls.length === 0) {
+        toast({
+          title: "Test Failed",
+          description: "Please add at least one URL in the URLs tab before testing",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Get the selector at the specified index
+      const selector = data.selectors?.[index];
+      if (!selector) {
+        toast({
+          title: "Test Failed",
+          description: "Selector not found",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       // Use the URL template if provided
-      const testUrl = data.urlTemplate
+      const testUrl = data.urlTemplate && data.urlTemplate.trim()
         ? data.urlTemplate.replace(/\{\{([^}]+)\}\}/g, data.urls[0])
         : data.urls[0];
+
+      if (!testUrl || !testUrl.trim()) {
+        toast({
+          title: "Test Failed",
+          description: "Invalid URL. Please check your URL or template",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Ensure selector has all required fields with defaults
+      const normalizedSelector = {
+        selector: selector.selector || "",
+        selectorType: selector.selectorType || "css",
+        attributes: selector.attributes || ["text"],
+        name: selector.name || "Test Selector",
+        description: selector.description || ""
+      };
+
+      // Validate selector
+      if (!normalizedSelector.selector) {
+        toast({
+          title: "Test Failed",
+          description: "Please enter a selector value",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      // Map UI attribute values to actual attributes
+      const attributeMap: { [key: string]: string[] } = {
+        "Text Content": ["text"],
+        "Link URL": ["href"],
+        "Source URL": ["src"],
+        "HTML Content": ["html"],
+        "Text + Link URL": ["text", "href"],
+        "Text + Source URL": ["text", "src"],
+        "Text + Link URL + Title": ["text", "href", "title"],
+        "Text + HTML Content": ["text", "html"]
+      };
+
+      // Get the actual attributes array
+      const mappedAttributes = normalizedSelector.attributes && normalizedSelector.attributes.length > 0
+        ? attributeMap[normalizedSelector.attributes[0]] || ["text"]
+        : ["text"];
+
+      console.log("Testing selector with config:", {
+        url: testUrl,
+        selector: normalizedSelector.selector,
+        selectorType: normalizedSelector.selectorType,
+        attributes: mappedAttributes,
+        name: normalizedSelector.name
+      });
+
+      setTestingSelector(index);
 
       const response = await testScraping({
         variables: {
           url: testUrl,
           selectors: [{
-            selector: selector.selector,
-            selectorType: selector.selectorType,
-            attributes: selector.attributes,
-            name: selector.name || 'Test Selector',
-            description: selector.description
+            selector: normalizedSelector.selector,
+            selectorType: normalizedSelector.selectorType.toLowerCase() as "css" | "xpath",
+            attributes: mappedAttributes,
+            name: normalizedSelector.name,
+            description: normalizedSelector.description
           }]
         }
       });
@@ -290,6 +366,10 @@ function MultiURLScrapingNode({
           title: "Test Successful",
           description: `Found ${response.data.testScraping.results.length} matches`
         });
+        setTestResults(prev => ({
+          ...prev,
+          [index]: response.data.testScraping.results
+        }));
         return response.data.testScraping.results;
       } else {
         toast({
@@ -307,6 +387,8 @@ function MultiURLScrapingNode({
         variant: "destructive"
       });
       return null;
+    } finally {
+      setTestingSelector(null);
     }
   };
 
@@ -460,7 +542,7 @@ function MultiURLScrapingNode({
               <Button
                 variant='ghost'
                 size='sm'
-                onClick={() => handleTestSelector(selector)}
+                onClick={() => handleTestSelector(index)}
                 disabled={testingSelector === index}
               >
                 {testingSelector === index ? (
