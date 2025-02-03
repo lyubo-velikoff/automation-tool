@@ -447,9 +447,14 @@ function MultiURLScrapingNode({
       };
 
       // Get the actual attributes array
-      const mappedAttributes = normalizedSelector.attributes && normalizedSelector.attributes.length > 0
-        ? attributeMap[normalizedSelector.attributes[0]] || ["text"]
-        : ["text"];
+      const mappedAttributes = selector.attributes.map(attr => {
+        // If the attribute is already a raw value (text, href, etc), use it
+        if (["text", "href", "src", "html", "title"].includes(attr)) {
+          return attr;
+        }
+        // Otherwise, look up in the map
+        return attributeMap[attr]?.[0] || "text";
+      });
 
       console.log("Testing selector with config:", {
         url: testUrl,
