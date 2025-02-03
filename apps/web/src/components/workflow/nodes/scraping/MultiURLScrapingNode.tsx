@@ -115,6 +115,7 @@ function MultiURLScrapingNode({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [editingSelector, setEditingSelector] = useState<number | null>(null);
   const [testingSelector, setTestingSelector] = useState<number | null>(null);
+  const [lastTestedSelector, setLastTestedSelector] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, any>>({});
   const edges = useEdges();
   const nodes = useNodes();
@@ -122,8 +123,11 @@ function MultiURLScrapingNode({
 
   // Convert test results from record to array for the selector editor
   const currentTestResults =
-    testingSelector !== null && testResults[testingSelector]
-      ? [JSON.stringify(testResults[testingSelector], null, 2)]
+    lastTestedSelector !== null && testResults[lastTestedSelector]
+      ? testResults[lastTestedSelector].map((result: any) => 
+          // If result is an array, use it directly, otherwise wrap it in an array
+          Array.isArray(result) ? result : [result]
+        )
       : [];
 
   const handleConfigChange = useCallback(
@@ -267,6 +271,9 @@ function MultiURLScrapingNode({
 
   const handleTestSelector = async (index: number) => {
     try {
+      setTestingSelector(index);
+      setLastTestedSelector(index);  // Set the last tested selector
+
       // Validate URLs
       if (!data.urls || data.urls.length === 0) {
         toast({
@@ -346,8 +353,6 @@ function MultiURLScrapingNode({
         name: normalizedSelector.name
       });
 
-      setTestingSelector(index);
-
       const response = await testScraping({
         variables: {
           url: testUrl,
@@ -377,6 +382,7 @@ function MultiURLScrapingNode({
           description: response.data.testScraping.error || "Unknown error",
           variant: "destructive"
         });
+        setLastTestedSelector(null);  // Clear last tested selector on failure
         return null;
       }
     } catch (error) {
@@ -386,6 +392,7 @@ function MultiURLScrapingNode({
         description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive"
       });
+      setLastTestedSelector(null);  // Clear last tested selector on error
       return null;
     } finally {
       setTestingSelector(null);
@@ -579,11 +586,22 @@ function MultiURLScrapingNode({
           </div>
         </div>
         {testResults[index] && (
-          <div className='border-t bg-muted/50 p-2 text-xs'>
-            <div className='font-medium mb-1'>Test Result:</div>
-            <code className='block'>
-              {JSON.stringify(testResults[index], null, 2)}
-            </code>
+          <div className='border-t bg-muted/50 p-4'>
+            <div className='font-medium text-sm mb-2'>Found {testResults[index].length} matches:</div>
+            <ScrollArea className='h-[200px]'>
+              <div className='space-y-2'>
+                {testResults[index].slice(0, 10).map((result: any, idx: number) => (
+                  <div key={idx} className='font-mono text-xs bg-background p-2 rounded'>
+                    {JSON.stringify(result, null, 2)}
+                  </div>
+                ))}
+                {testResults[index].length > 10 && (
+                  <div className='text-xs text-muted-foreground text-center pt-2'>
+                    + {testResults[index].length - 10} more results
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </div>
         )}
       </SelectorCard>
@@ -639,7 +657,7 @@ function MultiURLScrapingNode({
             align='start'
             alignOffset={-240}
             sideOffset={12}
-            className='w-[400px]'
+            className='w-[400px] max-h-[80vh] overflow-y-auto'
           >
             <Card
               className={cn(
@@ -807,6 +825,7 @@ function MultiURLScrapingNode({
                       }
                       onTestSelector={handleTestSelector}
                     />
+
                   </TabsContent>
 
                   <TabsContent value='settings' className='space-y-4'>

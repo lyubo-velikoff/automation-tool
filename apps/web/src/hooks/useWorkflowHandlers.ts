@@ -93,6 +93,25 @@ export function useWorkflowHandlers() {
 
       // Transform scraping node data to match GraphQL schema
       if (node.type === 'SCRAPING' || node.type === 'MULTI_URL_SCRAPING') {
+        const cleanSelectors = cleanData.selectors?.map(selector => ({
+          selector: selector.selector || "",
+          selectorType: selector.selectorType || "css",
+          attributes: selector.attributes || ["text"],
+          name: selector.name || label || "Content",
+          description: selector.description || null
+        })) || [{
+          selector: "",
+          selectorType: "css",
+          attributes: ["text"],
+          name: label || "Content",
+          description: null
+        }];
+
+        // For MULTI_URL_SCRAPING, combine urlTemplate into template if it exists
+        const finalTemplate = node.type === 'MULTI_URL_SCRAPING' && cleanData.urlTemplate
+          ? cleanData.urlTemplate
+          : cleanData.template || null;
+
         return {
           id: node.id,
           type: node.type,
@@ -103,12 +122,16 @@ export function useWorkflowHandlers() {
           },
           data: {
             ...baseNodeData,
-            selectors: cleanData.selectors || [{
-              selector: "",
-              selectorType: "css",
-              attributes: ["text"],
-              name: label || "Content"
-            }]
+            selectors: cleanSelectors,
+            urls: cleanData.urls || [],
+            template: finalTemplate,
+            batchConfig: cleanData.batchConfig ? {
+              batchSize: cleanData.batchConfig.batchSize || 5,
+              rateLimit: cleanData.batchConfig.rateLimit || 10
+            } : {
+              batchSize: 5,
+              rateLimit: 10
+            }
           }
         };
       }
