@@ -275,24 +275,78 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
-  const processUrlTemplate = useCallback((template: string, url: string) => {
-    if (!template || !template.trim()) return url;
+  const resolveVariableUrl = useCallback((url: string) => {
+    // If it's not a variable reference, return as is
+    if (!url.match(/^\{\{.*\}\}$/)) return url;
+
+    // Extract the variable path (e.g., "Cursor forum.Content[0]")
+    const variablePath = url.replace(/^\{\{|\}\}$/g, '').split('.');
+    const nodeName = variablePath[0];
+    const selectorName = variablePath[1];
+    const index = variablePath[2]?.match(/\[(\d+)\]/)?.[1];
+
+    // Find the source node
+    const sourceNode = nodes.find(n => n.data.label === nodeName);
+    if (!sourceNode?.data?.results) return url;
+
     try {
-      // Replace {{variable}} with the actual URL
-      const processed = template.replace(/\{\{([^}]+)\}\}/g, url);
-      // Validate the resulting URL
-      return validateURL(processed) ? processed : url;
+      // Parse the results
+      const results = JSON.parse(sourceNode.data.results);
+      if (!results.bySelector?.[selectorName]) return url;
+
+      // Get the specific result
+      const selectorResults = results.bySelector[selectorName];
+      if (!Array.isArray(selectorResults)) return url;
+
+      // Get the specific index if provided, otherwise first result
+      const resultIndex = index ? parseInt(index) : 0;
+      return selectorResults[resultIndex] || url;
     } catch {
       return url;
     }
-  }, []);
+  }, [nodes]);
+
+  const processUrlTemplate = useCallback((template: string, url: string) => {
+    if (!template || !template.trim()) return url;
+    
+    try {
+      // First resolve any variables in the URL
+      const resolvedUrl = resolveVariableUrl(url);
+      
+      // If the resolved URL is still a variable reference, return it
+      if (resolvedUrl.match(/^\{\{.*\}\}$/)) return resolvedUrl;
+
+      // If the URL is already absolute, don't apply the template
+      if (resolvedUrl.match(/^https?:\/\//)) return resolvedUrl;
+
+      // Replace the variable placeholder with the URL
+      const processed = template.replace(/\{\{.*?\}\}/, (match) => {
+        // If the URL starts with a slash, remove it to avoid double slashes
+        return resolvedUrl.startsWith('/') ? resolvedUrl.slice(1) : resolvedUrl;
+      });
+
+      // Validate the resulting URL
+      if (validateURL(processed)) {
+        return processed;
+      }
+
+      // If validation fails, try prepending https:// if there's no protocol
+      if (!processed.match(/^https?:\/\//)) {
+        const withProtocol = `https://${processed}`;
+        return validateURL(withProtocol) ? withProtocol : url;
+      }
+
+      return url;
+    } catch {
+      return url;
+    }
+  }, [resolveVariableUrl]);
 
   const handleTestSelector = async (index: number) => {
     try {
       setTestingSelector(index);
       setLastTestedSelector(index);
 
-      // Validate URLs
       if (!data.urls || data.urls.length === 0) {
         toast({
           title: "Test Failed",
@@ -302,13 +356,23 @@ function MultiURLScrapingNode({
         return null;
       }
 
+      // Get the first URL and resolve any variables
+      const firstUrl = data.urls[0];
+      const resolvedUrl = resolveVariableUrl(firstUrl);
+      
       // Process URL with template
-      const testUrl = processUrlTemplate(data.urlTemplate || "", data.urls[0]);
+      const testUrl = processUrlTemplate(data.template || "", resolvedUrl);
+
+      console.log("Testing URL:", {
+        original: firstUrl,
+        resolved: resolvedUrl,
+        final: testUrl
+      });
 
       if (!testUrl || !validateURL(testUrl)) {
         toast({
           title: "Test Failed",
-          description: "Invalid URL after template processing. Please check your URL template",
+          description: "Invalid URL after processing. Please check your URL and template",
           variant: "destructive"
         });
         return null;
@@ -469,29 +533,6 @@ function MultiURLScrapingNode({
     data.sourceNode?.name,
     data.sourceNode?.results
   ]);
-
-  // Add effect to persist URL template changes
-  useEffect(() => {
-    if (data.urlTemplate && data.urlTemplate.trim()) {
-      // Only validate if we have a non-empty template and URLs
-      const testUrl = data.urls?.[0];
-      if (testUrl && !testUrl.includes('{{')) {  // Skip validation for variable URLs
-        const processed = processUrlTemplate(data.urlTemplate, testUrl);
-        if (!validateURL(processed)) {
-          // Debounce the warning to avoid showing it on every keystroke
-          const timer = setTimeout(() => {
-            toast({
-              title: "Warning",
-              description: "The current URL template may produce invalid URLs",
-              variant: "destructive"  // Changed from "warning" to fix type error
-            });
-          }, 1000);  // Wait 1 second before showing warning
-          
-          return () => clearTimeout(timer);
-        }
-      }
-    }
-  }, [data.urlTemplate, data.urls, processUrlTemplate, toast]);
 
   const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
@@ -851,9 +892,9 @@ function MultiURLScrapingNode({
                         <Label>URL Template (Optional)</Label>
                         <Input
                           placeholder='e.g., https://example.com{{Custom.urls}}'
-                          value={data.urlTemplate || ""}
+                          value={data.template || ""}
                           onChange={(e) =>
-                            handleConfigChange("urlTemplate", e.target.value)
+                            handleConfigChange("template", e.target.value)
                           }
                         />
                         <p className='text-xs text-muted-foreground'>
