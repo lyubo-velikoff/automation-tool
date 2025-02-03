@@ -52,6 +52,17 @@ import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
 import { SelectorEditor } from "./components/SelectorEditor";
 import { VariableSelector } from "../components/VariableSelector";
 import { SelectorConfig, BatchConfig } from "@/types/scraping";
+import { gql, useMutation } from "@apollo/client";
+
+const TEST_SCRAPING = gql`
+  mutation TestScraping($url: String!, $selectors: [SelectorConfigInput!]!) {
+    testScraping(url: $url, selectors: $selectors) {
+      success
+      error
+      results
+    }
+  }
+`;
 
 // Extended node data for multi-URL scraping
 interface MultiURLNodeData extends GlobalNodeData {
@@ -65,6 +76,8 @@ interface MultiURLNodeData extends GlobalNodeData {
     results: string;
   };
   onConfigChange?: (nodeId: string, data: MultiURLNodeData) => void;
+  urlTemplate?: string;
+  testResults?: Record<number, string[]>;
   [key: string]: unknown;
 }
 
@@ -105,6 +118,7 @@ function MultiURLScrapingNode({
   const [testResults, setTestResults] = useState<Record<number, any>>({});
   const edges = useEdges();
   const nodes = useNodes();
+  const [testScraping] = useMutation(TEST_SCRAPING);
 
   // Convert test results from record to array for the selector editor
   const currentTestResults =
@@ -251,79 +265,48 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
-  const handleTestSelector = async (index: number) => {
-    const selector = data.selectors[index];
-    const testUrl = data.urls?.[0];
-
-    if (!testUrl) {
-      toast({
-        title: "Test Failed",
-        description: "Please add at least one URL to test the selector",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!selector.selector) {
-      toast({
-        title: "Test Failed",
-        description: "Please enter a selector to test",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setTestingSelector(index);
-
+  const handleTestSelector = async (selector: SelectorConfig) => {
     try {
-      const response = await fetch("http://localhost:4000/api/test-selector", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
+      // Use the URL template if provided
+      const testUrl = data.urlTemplate
+        ? data.urlTemplate.replace(/\{\{([^}]+)\}\}/g, data.urls[0])
+        : data.urls[0];
+
+      const response = await testScraping({
+        variables: {
           url: testUrl,
-          selector: selector.selector,
-          selectorType: selector.selectorType,
-          attributes: selector.attributes
-        })
+          selectors: [{
+            selector: selector.selector,
+            selectorType: selector.selectorType,
+            attributes: selector.attributes,
+            name: selector.name || 'Test Selector',
+            description: selector.description
+          }]
+        }
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        setTestResults((prev) => ({
-          ...prev,
-          [index]: result.results[0]
-        }));
+      if (response.data?.testScraping.success) {
         toast({
           title: "Test Successful",
-          description: `Found ${result.count} matches`
+          description: `Found ${response.data.testScraping.results.length} matches`
         });
+        return response.data.testScraping.results;
       } else {
-        setTestResults((prev) => ({
-          ...prev,
-          [index]: null
-        }));
         toast({
           title: "Test Failed",
-          description: result.error || "Failed to test selector",
+          description: response.data.testScraping.error || "Unknown error",
           variant: "destructive"
         });
+        return null;
       }
     } catch (error) {
-      setTestResults((prev) => ({
-        ...prev,
-        [index]: null
-      }));
+      console.error("Error testing selector:", error);
       toast({
         title: "Test Failed",
-        description:
-          "Failed to test selector. Please check your configuration.",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive"
       });
-    } finally {
-      setTestingSelector(null);
+      return null;
     }
   };
 
@@ -344,33 +327,43 @@ function MultiURLScrapingNode({
       (edge) => edge.target === id && edge.targetHandle === "source"
     );
 
-    if (!incomingEdge) {
-      // Clear source node if no incoming connection
-      if (data.sourceNode) {
-        handleConfigChange("sourceNode", undefined);
-      }
+    // If no incoming edge, clear source node if it exists
+    if (!incomingEdge && data.sourceNode) {
+      handleConfigChange("sourceNode", null);
       return;
     }
 
-    // Find source node
-    const sourceNode = nodes.find((node) => node.id === incomingEdge.source);
-    if (!sourceNode) return;
+    // Skip if no incoming edge
+    if (!incomingEdge) return;
 
-    // Only update if something has changed
+    // Find source node
+    const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+    if (!sourceNode?.data) return;
+
+    // Only update if the source node has changed
     const currentSourceNode = data.sourceNode;
+    const newSourceNode = {
+      id: sourceNode.id,
+      name: sourceNode.data.label || "Unnamed Node",
+      results: sourceNode.data.results || ""
+    };
+
     if (
       !currentSourceNode ||
-      currentSourceNode.id !== sourceNode.id ||
-      currentSourceNode.name !== sourceNode.data?.label ||
-      currentSourceNode.results !== sourceNode.data?.results
+      currentSourceNode.id !== newSourceNode.id ||
+      currentSourceNode.name !== newSourceNode.name ||
+      currentSourceNode.results !== newSourceNode.results
     ) {
-      handleConfigChange("sourceNode", {
-        id: sourceNode.id,
-        name: sourceNode.data?.label || "Unnamed Node",
-        results: sourceNode.data?.results || ""
-      });
+      handleConfigChange("sourceNode", newSourceNode);
     }
-  }, [edges, nodes, id, data.sourceNode, handleConfigChange]);
+  }, [
+    edges,
+    nodes,
+    id,
+    data.sourceNode?.id,
+    data.sourceNode?.name,
+    data.sourceNode?.results
+  ]);
 
   const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
@@ -467,7 +460,7 @@ function MultiURLScrapingNode({
               <Button
                 variant='ghost'
                 size='sm'
-                onClick={() => handleTestSelector(index)}
+                onClick={() => handleTestSelector(selector)}
                 disabled={testingSelector === index}
               >
                 {testingSelector === index ? (
@@ -699,6 +692,21 @@ function MultiURLScrapingNode({
                             </div>
                           )}
                         </ScrollArea>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>URL Template (Optional)</Label>
+                        <Input
+                          placeholder='e.g., https://example.com{{Custom.urls}}'
+                          value={data.urlTemplate || ""}
+                          onChange={(e) =>
+                            handleConfigChange("urlTemplate", e.target.value)
+                          }
+                        />
+                        <p className='text-xs text-muted-foreground'>
+                          Use {"{{"} variable {"}}"} syntax to insert variables.
+                          Leave empty to use raw URLs.
+                        </p>
                       </div>
                     </div>
                   </TabsContent>

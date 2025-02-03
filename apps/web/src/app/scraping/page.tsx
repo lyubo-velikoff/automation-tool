@@ -82,7 +82,13 @@ export default function ScrapingTestPage() {
       const { data } = await testScraping({
         variables: {
           url,
-          selectors
+          selectors: selectors.map(selector => ({
+            selector: selector.selector,
+            selectorType: selector.selectorType,
+            attributes: selector.attributes,
+            name: selector.name,
+            description: selector.description
+          }))
         }
       });
 
