@@ -280,29 +280,50 @@ function MultiURLScrapingNode({
     if (!url.match(/^\{\{.*\}\}$/)) return url;
 
     // Extract the variable path (e.g., "Cursor forum.Content[0]")
-    const variablePath = url.replace(/^\{\{|\}\}$/g, '').split('.');
-    const nodeName = variablePath[0];
-    const selectorName = variablePath[1];
-    const index = variablePath[2]?.match(/\[(\d+)\]/)?.[1];
+    const variablePath = url.replace(/^\{\{|\}\}$/g, '');
+    
+    // Split by dot but preserve array indices
+    const parts = variablePath.split('.');
+    const nodeName = parts[0];
+    // Get selector name without the array index
+    const selectorName = parts[1]?.split('[')[0];
+    // Extract index if present
+    const index = parts[1]?.match(/\[(\d+)\]/)?.[1];
 
     // Find the source node
     const sourceNode = nodes.find(n => n.data.label === nodeName);
-    if (!sourceNode?.data?.results) return url;
+    if (!sourceNode) {
+      throw new Error(`Source node "${nodeName}" not found. Please check your variable reference.`);
+    }
+    
+    if (!sourceNode.data?.results) {
+      throw new Error(`No results found from "${nodeName}". Please test that node's selectors first.`);
+    }
 
     try {
       // Parse the results
       const results = JSON.parse(sourceNode.data.results);
-      if (!results.bySelector?.[selectorName]) return url;
+      if (!results.bySelector?.[selectorName]) {
+        throw new Error(`No results found for selector "${selectorName}" in node "${nodeName}".`);
+      }
 
       // Get the specific result
       const selectorResults = results.bySelector[selectorName];
-      if (!Array.isArray(selectorResults)) return url;
+      if (!Array.isArray(selectorResults)) {
+        throw new Error(`Invalid results format from "${nodeName}".`);
+      }
 
       // Get the specific index if provided, otherwise first result
       const resultIndex = index ? parseInt(index) : 0;
-      return selectorResults[resultIndex] || url;
-    } catch {
-      return url;
+      const result = selectorResults[resultIndex];
+      if (!result) {
+        throw new Error(`No result found at index [${index}] for selector "${selectorName}".`);
+      }
+      
+      return result;
+    } catch (error) {
+      if (error instanceof Error) throw error;
+      throw new Error(`Failed to process results from "${nodeName}".`);
     }
   }, [nodes]);
 
@@ -313,32 +334,45 @@ function MultiURLScrapingNode({
       // First resolve any variables in the URL
       const resolvedUrl = resolveVariableUrl(url);
       
-      // If the resolved URL is still a variable reference, return it
-      if (resolvedUrl.match(/^\{\{.*\}\}$/)) return resolvedUrl;
+      // Convert array result to string if needed
+      const urlString = Array.isArray(resolvedUrl) ? resolvedUrl[0] : resolvedUrl;
+      
+      // If the URL is still a variable reference, return it
+      if (typeof urlString === 'string' && urlString.match(/^\{\{.*\}\}$/)) return urlString;
 
-      // If the URL is already absolute, don't apply the template
-      if (resolvedUrl.match(/^https?:\/\//)) return resolvedUrl;
+      // If the URL is already absolute, return it
+      if (typeof urlString === 'string' && urlString.match(/^https?:\/\//)) return urlString;
 
-      // Replace the variable placeholder with the URL
-      const processed = template.replace(/\{\{.*?\}\}/, (match) => {
-        // If the URL starts with a slash, remove it to avoid double slashes
-        return resolvedUrl.startsWith('/') ? resolvedUrl.slice(1) : resolvedUrl;
+      // Get the base URL from the template (everything before the variable)
+      const baseUrl = template.split(/\{\{.*?\}/)[0].replace(/\/$/, '');
+      
+      // Clean up the path
+      const cleanPath = typeof urlString === 'string' 
+        ? urlString.replace(/^\/+/, '').replace(/\/$/, '')
+        : urlString;
+      
+      // Combine them
+      const combined = `${baseUrl}/${cleanPath}`;
+      
+      console.log("URL Processing:", {
+        template,
+        resolvedUrl,
+        urlString,
+        baseUrl,
+        cleanPath,
+        combined
       });
 
-      // Validate the resulting URL
-      if (validateURL(processed)) {
-        return processed;
+      // Validate and return
+      if (validateURL(combined)) {
+        console.log("Valid URL created:", combined);
+        return combined;
       }
 
-      // If validation fails, try prepending https:// if there's no protocol
-      if (!processed.match(/^https?:\/\//)) {
-        const withProtocol = `https://${processed}`;
-        return validateURL(withProtocol) ? withProtocol : url;
-      }
-
-      return url;
-    } catch {
-      return url;
+      throw new Error(`Could not create valid URL from template: ${template} and URL: ${urlString}`);
+    } catch (error) {
+      console.error("URL processing error:", error);
+      throw error;
     }
   }, [resolveVariableUrl]);
 
@@ -348,34 +382,26 @@ function MultiURLScrapingNode({
       setLastTestedSelector(index);
 
       if (!data.urls || data.urls.length === 0) {
-        toast({
-          title: "Test Failed",
-          description: "Please add at least one URL in the URLs tab before testing",
-          variant: "destructive"
-        });
-        return null;
+        throw new Error("Please add at least one URL in the URLs tab before testing");
       }
 
       // Get the first URL and resolve any variables
       const firstUrl = data.urls[0];
-      const resolvedUrl = resolveVariableUrl(firstUrl);
-      
-      // Process URL with template
-      const testUrl = processUrlTemplate(data.template || "", resolvedUrl);
-
-      console.log("Testing URL:", {
-        original: firstUrl,
-        resolved: resolvedUrl,
-        final: testUrl
+      console.log("Processing URL:", {
+        template: data.template,
+        originalUrl: firstUrl
       });
 
+      // First try to resolve the variable
+      const resolvedUrl = resolveVariableUrl(firstUrl);
+      console.log("Resolved URL:", resolvedUrl);
+      
+      // Then apply the template
+      const testUrl = processUrlTemplate(data.template || "", firstUrl);
+      console.log("Final URL:", testUrl);
+
       if (!testUrl || !validateURL(testUrl)) {
-        toast({
-          title: "Test Failed",
-          description: "Invalid URL after processing. Please check your URL and template",
-          variant: "destructive"
-        });
-        return null;
+        throw new Error(`Invalid URL after processing: ${testUrl}. Please check your URL and template.`);
       }
 
       // Get the selector at the specified index
