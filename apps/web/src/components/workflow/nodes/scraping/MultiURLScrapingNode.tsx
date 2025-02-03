@@ -292,85 +292,34 @@ function MultiURLScrapingNode({
 
   // Update the getNodesWithResults function to properly check for results
   const getNodesWithResults = useCallback(() => {
-    console.log("All nodes:", nodes.map(node => ({
-      id: node.id,
-      type: node.type,
-      data: node.data as NodeDataWithResults,
-      label: (node.data as NodeDataWithResults)?.label
-    })));
-
     const availableNodes = nodes
       .filter(node => {
         // Skip current node
-        if (node.id === id) {
-          console.log("Skipping current node:", node.id);
-          return false;
-        }
+        if (node.id === id) return false;
         
         const nodeData = node.data as NodeDataWithResults;
         
         // Ensure node has data
-        if (!nodeData) {
-          console.log("Node has no data:", node.id);
-          return false;
-        }
+        if (!nodeData) return false;
 
-        // Log node data for debugging
-        console.log("Checking node:", {
-          id: node.id,
-          type: node.type,
-          label: nodeData.label,
-          hasResults: !!nodeData.results,
-          resultsType: typeof nodeData.results
-        });
-        
         // Check if results exist and are parseable
-        if (!nodeData.results) {
-          console.log("Node has no results:", node.id);
-          return false;
-        }
+        if (!nodeData.results) return false;
         
         try {
           const results = JSON.parse(nodeData.results);
-          console.log("Parsed results:", {
-            nodeId: node.id,
-            hasSelector: !!results.bySelector,
-            selectorKeys: results.bySelector ? Object.keys(results.bySelector) : [],
-            isArray: Array.isArray(results)
-          });
 
           // For multi-URL nodes, check bySelector
           if (results.bySelector) {
-            const hasResults = Object.keys(results.bySelector).length > 0;
-            console.log("Multi-URL node results:", {
-              nodeId: node.id,
-              hasResults,
-              selectorCount: Object.keys(results.bySelector).length
-            });
-            return hasResults;
+            return Object.keys(results.bySelector).length > 0;
           }
           
           // For single scraping nodes, check if results array exists
           if (Array.isArray(results)) {
-            const hasResults = results.length > 0;
-            console.log("Single node results:", {
-              nodeId: node.id,
-              hasResults,
-              resultCount: results.length
-            });
-            return hasResults;
+            return results.length > 0;
           }
 
-          console.log("Invalid results format:", {
-            nodeId: node.id,
-            resultsType: typeof results
-          });
           return false;
         } catch (error) {
-          console.log("Failed to parse results:", {
-            nodeId: node.id,
-            error: error instanceof Error ? error.message : "Unknown error"
-          });
           return false;
         }
       })
@@ -383,7 +332,6 @@ function MultiURLScrapingNode({
         };
       });
 
-    console.log("Available nodes:", availableNodes);
     return availableNodes;
   }, [nodes, id]);
 
@@ -411,12 +359,6 @@ function MultiURLScrapingNode({
 
     const sourceData = sourceNode.data as NodeDataWithResults;
 
-    console.log("Source node found:", {
-      id: sourceNode.id,
-      label: sourceData.label,
-      hasResults: !!sourceData.results
-    });
-
     // Only update if the source node has changed
     const currentSourceNode = data.sourceNode;
     const newSourceNode = {
@@ -431,7 +373,6 @@ function MultiURLScrapingNode({
       currentSourceNode.name !== newSourceNode.name ||
       currentSourceNode.results !== newSourceNode.results
     ) {
-      console.log("Updating source node:", newSourceNode);
       handleConfigChange("sourceNode", newSourceNode);
     }
   }, [edges, nodes, id, data.sourceNode?.id, data.sourceNode?.name, data.sourceNode?.results]);
@@ -533,24 +474,13 @@ function MultiURLScrapingNode({
       // Combine them
       const combined = `${baseUrl}/${cleanPath}`;
       
-      console.log("URL Processing:", {
-        template,
-        resolvedUrl,
-        urlString,
-        baseUrl,
-        cleanPath,
-        combined
-      });
-
       // Validate and return
       if (validateURL(combined)) {
-        console.log("Valid URL created:", combined);
         return combined;
       }
 
       throw new Error(`Could not create valid URL from template: ${template} and URL: ${urlString}`);
     } catch (error) {
-      console.error("URL processing error:", error);
       throw error;
     }
   }, [resolveVariableUrl]);
@@ -566,18 +496,12 @@ function MultiURLScrapingNode({
 
       // Get the first URL and resolve any variables
       const firstUrl = data.urls[0];
-      console.log("Processing URL:", {
-        template: data.template,
-        originalUrl: firstUrl
-      });
-
+      
       // First try to resolve the variable
       const resolvedUrl = resolveVariableUrl(firstUrl);
-      console.log("Resolved URL:", resolvedUrl);
       
       // Then apply the template
       const testUrl = processUrlTemplate(data.template || "", firstUrl);
-      console.log("Final URL:", testUrl);
 
       if (!testUrl || !validateURL(testUrl)) {
         throw new Error(`Invalid URL after processing: ${testUrl}. Please check your URL and template.`);
@@ -613,14 +537,6 @@ function MultiURLScrapingNode({
         return null;
       }
 
-      console.log("Testing selector with config:", {
-        url: testUrl,
-        selector: normalizedSelector.selector,
-        selectorType: normalizedSelector.selectorType,
-        attributes: normalizedSelector.attributes,
-        name: normalizedSelector.name
-      });
-
       const response = await testScraping({
         variables: {
           url: testUrl,
@@ -650,11 +566,6 @@ function MultiURLScrapingNode({
             [normalizedSelector.name]: results
           }
         };
-        
-        console.log("Storing results in node:", {
-          nodeId: id,
-          results: nodeResults
-        });
 
         // Update the node's data with the results
         handleConfigChange("results", JSON.stringify(nodeResults));
