@@ -108,6 +108,13 @@ const validateURL = (url: string): boolean => {
   }
 };
 
+interface NodeDataWithResults {
+  label?: string;
+  results?: string;
+  type?: string;
+  [key: string]: any;
+}
+
 function MultiURLScrapingNode({
   id,
   data,
@@ -275,6 +282,161 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
+  const handleVariableSelect = useCallback(
+    (reference: string) => {
+      const currentUrls = data.urls || [];
+      handleConfigChange("urls", [...currentUrls, reference]);
+    },
+    [data.urls, handleConfigChange]
+  );
+
+  // Update the getNodesWithResults function to properly check for results
+  const getNodesWithResults = useCallback(() => {
+    console.log("All nodes:", nodes.map(node => ({
+      id: node.id,
+      type: node.type,
+      data: node.data as NodeDataWithResults,
+      label: (node.data as NodeDataWithResults)?.label
+    })));
+
+    const availableNodes = nodes
+      .filter(node => {
+        // Skip current node
+        if (node.id === id) {
+          console.log("Skipping current node:", node.id);
+          return false;
+        }
+        
+        const nodeData = node.data as NodeDataWithResults;
+        
+        // Ensure node has data
+        if (!nodeData) {
+          console.log("Node has no data:", node.id);
+          return false;
+        }
+
+        // Log node data for debugging
+        console.log("Checking node:", {
+          id: node.id,
+          type: node.type,
+          label: nodeData.label,
+          hasResults: !!nodeData.results,
+          resultsType: typeof nodeData.results
+        });
+        
+        // Check if results exist and are parseable
+        if (!nodeData.results) {
+          console.log("Node has no results:", node.id);
+          return false;
+        }
+        
+        try {
+          const results = JSON.parse(nodeData.results);
+          console.log("Parsed results:", {
+            nodeId: node.id,
+            hasSelector: !!results.bySelector,
+            selectorKeys: results.bySelector ? Object.keys(results.bySelector) : [],
+            isArray: Array.isArray(results)
+          });
+
+          // For multi-URL nodes, check bySelector
+          if (results.bySelector) {
+            const hasResults = Object.keys(results.bySelector).length > 0;
+            console.log("Multi-URL node results:", {
+              nodeId: node.id,
+              hasResults,
+              selectorCount: Object.keys(results.bySelector).length
+            });
+            return hasResults;
+          }
+          
+          // For single scraping nodes, check if results array exists
+          if (Array.isArray(results)) {
+            const hasResults = results.length > 0;
+            console.log("Single node results:", {
+              nodeId: node.id,
+              hasResults,
+              resultCount: results.length
+            });
+            return hasResults;
+          }
+
+          console.log("Invalid results format:", {
+            nodeId: node.id,
+            resultsType: typeof results
+          });
+          return false;
+        } catch (error) {
+          console.log("Failed to parse results:", {
+            nodeId: node.id,
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+          return false;
+        }
+      })
+      .map(node => {
+        const nodeData = node.data as NodeDataWithResults;
+        return {
+          id: node.id,
+          name: nodeData.label || "Unnamed Node",
+          results: nodeData.results || ""
+        };
+      });
+
+    console.log("Available nodes:", availableNodes);
+    return availableNodes;
+  }, [nodes, id]);
+
+  // Update the useEffect for handling connections to store results
+  useEffect(() => {
+    if (!id) return;
+
+    // Find incoming edge to this node
+    const incomingEdge = edges.find(
+      (edge) => edge.target === id && edge.targetHandle === "source"
+    );
+
+    // If no incoming edge, clear source node if it exists
+    if (!incomingEdge && data.sourceNode) {
+      handleConfigChange("sourceNode", null);
+      return;
+    }
+
+    // Skip if no incoming edge
+    if (!incomingEdge) return;
+
+    // Find source node
+    const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+    if (!sourceNode?.data) return;
+
+    const sourceData = sourceNode.data as NodeDataWithResults;
+
+    console.log("Source node found:", {
+      id: sourceNode.id,
+      label: sourceData.label,
+      hasResults: !!sourceData.results
+    });
+
+    // Only update if the source node has changed
+    const currentSourceNode = data.sourceNode;
+    const newSourceNode = {
+      id: sourceNode.id,
+      name: sourceData.label || "Unnamed Node",
+      results: sourceData.results || ""
+    };
+
+    if (
+      !currentSourceNode ||
+      currentSourceNode.id !== newSourceNode.id ||
+      currentSourceNode.name !== newSourceNode.name ||
+      currentSourceNode.results !== newSourceNode.results
+    ) {
+      console.log("Updating source node:", newSourceNode);
+      handleConfigChange("sourceNode", newSourceNode);
+    }
+  }, [edges, nodes, id, data.sourceNode?.id, data.sourceNode?.name, data.sourceNode?.results]);
+
+  // Update the resolveVariableUrl function to properly handle node data
   const resolveVariableUrl = useCallback((url: string) => {
     // If it's not a variable reference, return as is
     if (!url.match(/^\{\{.*\}\}$/)) return url;
@@ -291,36 +453,53 @@ function MultiURLScrapingNode({
     const index = parts[1]?.match(/\[(\d+)\]/)?.[1];
 
     // Find the source node
-    const sourceNode = nodes.find(n => n.data.label === nodeName);
+    const sourceNode = nodes.find(n => {
+      const nodeData = n.data as { label?: string };
+      return nodeData.label === nodeName;
+    });
+
     if (!sourceNode) {
       throw new Error(`Source node "${nodeName}" not found. Please check your variable reference.`);
     }
     
-    if (!sourceNode.data?.results) {
+    const sourceData = sourceNode.data as { results?: string };
+    if (!sourceData?.results) {
       throw new Error(`No results found from "${nodeName}". Please test that node's selectors first.`);
     }
 
     try {
       // Parse the results
-      const results = JSON.parse(sourceNode.data.results);
-      if (!results.bySelector?.[selectorName]) {
-        throw new Error(`No results found for selector "${selectorName}" in node "${nodeName}".`);
-      }
-
-      // Get the specific result
-      const selectorResults = results.bySelector[selectorName];
-      if (!Array.isArray(selectorResults)) {
-        throw new Error(`Invalid results format from "${nodeName}".`);
-      }
-
-      // Get the specific index if provided, otherwise first result
-      const resultIndex = index ? parseInt(index) : 0;
-      const result = selectorResults[resultIndex];
-      if (!result) {
-        throw new Error(`No result found at index [${index}] for selector "${selectorName}".`);
+      const results = JSON.parse(sourceData.results);
+      
+      // Handle results from multi-URL nodes
+      if (results.bySelector) {
+        if (!results.bySelector[selectorName]) {
+          throw new Error(`No results found for selector "${selectorName}" in node "${nodeName}".`);
+        }
+        const selectorResults = results.bySelector[selectorName];
+        if (!Array.isArray(selectorResults)) {
+          throw new Error(`Invalid results format from "${nodeName}".`);
+        }
+        // Get the specific index if provided, otherwise first result
+        const resultIndex = index ? parseInt(index) : 0;
+        const result = selectorResults[resultIndex];
+        if (!result) {
+          throw new Error(`No result found at index [${index}] for selector "${selectorName}".`);
+        }
+        return result;
       }
       
-      return result;
+      // Handle results from single scraping nodes
+      if (Array.isArray(results)) {
+        const resultIndex = index ? parseInt(index) : 0;
+        const result = results[resultIndex];
+        if (!result) {
+          throw new Error(`No result found at index [${index}] in node "${nodeName}".`);
+        }
+        return result[selectorName] || result;
+      }
+      
+      throw new Error(`Invalid results format from "${nodeName}".`);
     } catch (error) {
       if (error instanceof Error) throw error;
       throw new Error(`Failed to process results from "${nodeName}".`);
@@ -434,33 +613,11 @@ function MultiURLScrapingNode({
         return null;
       }
 
-      // Map UI attribute values to actual attributes
-      const attributeMap: { [key: string]: string[] } = {
-        "Text Content": ["text"],
-        "Link URL": ["href"],
-        "Source URL": ["src"],
-        "HTML Content": ["html"],
-        "Text + Link URL": ["text", "href"],
-        "Text + Source URL": ["text", "src"],
-        "Text + Link URL + Title": ["text", "href", "title"],
-        "Text + HTML Content": ["text", "html"]
-      };
-
-      // Get the actual attributes array
-      const mappedAttributes = selector.attributes.map(attr => {
-        // If the attribute is already a raw value (text, href, etc), use it
-        if (["text", "href", "src", "html", "title"].includes(attr)) {
-          return attr;
-        }
-        // Otherwise, look up in the map
-        return attributeMap[attr]?.[0] || "text";
-      });
-
       console.log("Testing selector with config:", {
         url: testUrl,
         selector: normalizedSelector.selector,
         selectorType: normalizedSelector.selectorType,
-        attributes: mappedAttributes,
+        attributes: normalizedSelector.attributes,
         name: normalizedSelector.name
       });
 
@@ -470,7 +627,7 @@ function MultiURLScrapingNode({
           selectors: [{
             selector: normalizedSelector.selector,
             selectorType: normalizedSelector.selectorType.toLowerCase() as "css" | "xpath",
-            attributes: mappedAttributes,
+            attributes: normalizedSelector.attributes,
             name: normalizedSelector.name,
             description: normalizedSelector.description
           }]
@@ -478,22 +635,42 @@ function MultiURLScrapingNode({
       });
 
       if (response.data?.testScraping.success) {
-        toast({
-          title: "Test Successful",
-          description: `Found ${response.data.testScraping.results.length} matches`
-        });
+        // Store results in both the local state and node data
+        const results = response.data.testScraping.results;
+        
+        // Update local test results
         setTestResults(prev => ({
           ...prev,
-          [index]: response.data.testScraping.results
+          [index]: results
         }));
-        return response.data.testScraping.results;
+
+        // Store results in node data
+        const nodeResults = {
+          bySelector: {
+            [normalizedSelector.name]: results
+          }
+        };
+        
+        console.log("Storing results in node:", {
+          nodeId: id,
+          results: nodeResults
+        });
+
+        // Update the node's data with the results
+        handleConfigChange("results", JSON.stringify(nodeResults));
+
+        toast({
+          title: "Test Successful",
+          description: `Found ${results.length} matches`
+        });
+        return results;
       } else {
         toast({
           title: "Test Failed",
           description: response.data.testScraping.error || "Unknown error",
           variant: "destructive"
         });
-        setLastTestedSelector(null);  // Clear last tested selector on failure
+        setLastTestedSelector(null);
         return null;
       }
     } catch (error) {
@@ -503,67 +680,12 @@ function MultiURLScrapingNode({
         description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive"
       });
-      setLastTestedSelector(null);  // Clear last tested selector on error
+      setLastTestedSelector(null);
       return null;
     } finally {
       setTestingSelector(null);
     }
   };
-
-  const handleVariableSelect = useCallback(
-    (reference: string) => {
-      const currentUrls = data.urls || [];
-      handleConfigChange("urls", [...currentUrls, reference]);
-    },
-    [data.urls, handleConfigChange]
-  );
-
-  // Update the useEffect for handling connections
-  useEffect(() => {
-    if (!id) return;
-
-    // Find incoming edge to this node
-    const incomingEdge = edges.find(
-      (edge) => edge.target === id && edge.targetHandle === "source"
-    );
-
-    // If no incoming edge, clear source node if it exists
-    if (!incomingEdge && data.sourceNode) {
-      handleConfigChange("sourceNode", null);
-      return;
-    }
-
-    // Skip if no incoming edge
-    if (!incomingEdge) return;
-
-    // Find source node
-    const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
-    if (!sourceNode?.data) return;
-
-    // Only update if the source node has changed
-    const currentSourceNode = data.sourceNode;
-    const newSourceNode = {
-      id: sourceNode.id,
-      name: sourceNode.data.label || "Unnamed Node",
-      results: sourceNode.data.results || ""
-    };
-
-    if (
-      !currentSourceNode ||
-      currentSourceNode.id !== newSourceNode.id ||
-      currentSourceNode.name !== newSourceNode.name ||
-      currentSourceNode.results !== newSourceNode.results
-    ) {
-      handleConfigChange("sourceNode", newSourceNode);
-    }
-  }, [
-    edges,
-    nodes,
-    id,
-    data.sourceNode?.id,
-    data.sourceNode?.name,
-    data.sourceNode?.results
-  ]);
 
   const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
@@ -822,18 +944,27 @@ function MultiURLScrapingNode({
                           />
                           <Button onClick={handleAddUrl}>Add URL</Button>
                         </div>
-                        {data.sourceNode && (
-                          <div className='space-y-2'>
-                            <Label>Add from Source Node</Label>
-                            <VariableSelector
-                              sourceNodeId={data.sourceNode.id}
-                              sourceNodeName={data.sourceNode.name}
-                              nodeResults={data.sourceNode.results}
-                              onSelect={handleVariableSelect}
-                              className='w-full'
-                            />
-                          </div>
-                        )}
+                        
+                        {/* Replace the conditional source node check with always showing available nodes */}
+                        <div className='space-y-2'>
+                          <Label>Add from Other Nodes</Label>
+                          {getNodesWithResults().map(node => (
+                            <div key={node.id} className='space-y-2'>
+                              <VariableSelector
+                                sourceNodeId={node.id}
+                                sourceNodeName={node.name}
+                                nodeResults={node.results}
+                                onSelect={handleVariableSelect}
+                                className='w-full'
+                              />
+                            </div>
+                          ))}
+                          {getNodesWithResults().length === 0 && (
+                            <p className='text-sm text-muted-foreground'>
+                              No nodes with available variables found
+                            </p>
+                          )}
+                        </div>
                         {urlError && (
                           <p className='text-sm text-red-500'>{urlError}</p>
                         )}
