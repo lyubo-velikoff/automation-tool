@@ -53,6 +53,12 @@ import { SelectorEditor } from "./components/SelectorEditor";
 import { VariableSelector } from "../components/VariableSelector";
 import { SelectorConfig, BatchConfig } from "@/types/scraping";
 import { gql, useMutation } from "@apollo/client";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 const TEST_SCRAPING = gql`
   mutation TestScraping($url: String!, $selectors: [SelectorConfigInput!]!) {
@@ -269,10 +275,22 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
+  const processUrlTemplate = useCallback((template: string, url: string) => {
+    if (!template || !template.trim()) return url;
+    try {
+      // Replace {{variable}} with the actual URL
+      const processed = template.replace(/\{\{([^}]+)\}\}/g, url);
+      // Validate the resulting URL
+      return validateURL(processed) ? processed : url;
+    } catch {
+      return url;
+    }
+  }, []);
+
   const handleTestSelector = async (index: number) => {
     try {
       setTestingSelector(index);
-      setLastTestedSelector(index);  // Set the last tested selector
+      setLastTestedSelector(index);
 
       // Validate URLs
       if (!data.urls || data.urls.length === 0) {
@@ -284,26 +302,24 @@ function MultiURLScrapingNode({
         return null;
       }
 
+      // Process URL with template
+      const testUrl = processUrlTemplate(data.urlTemplate || "", data.urls[0]);
+
+      if (!testUrl || !validateURL(testUrl)) {
+        toast({
+          title: "Test Failed",
+          description: "Invalid URL after template processing. Please check your URL template",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       // Get the selector at the specified index
       const selector = data.selectors?.[index];
       if (!selector) {
         toast({
           title: "Test Failed",
           description: "Selector not found",
-          variant: "destructive"
-        });
-        return null;
-      }
-
-      // Use the URL template if provided
-      const testUrl = data.urlTemplate && data.urlTemplate.trim()
-        ? data.urlTemplate.replace(/\{\{([^}]+)\}\}/g, data.urls[0])
-        : data.urls[0];
-
-      if (!testUrl || !testUrl.trim()) {
-        toast({
-          title: "Test Failed",
-          description: "Invalid URL. Please check your URL or template",
           variant: "destructive"
         });
         return null;
@@ -453,6 +469,29 @@ function MultiURLScrapingNode({
     data.sourceNode?.name,
     data.sourceNode?.results
   ]);
+
+  // Add effect to persist URL template changes
+  useEffect(() => {
+    if (data.urlTemplate && data.urlTemplate.trim()) {
+      // Only validate if we have a non-empty template and URLs
+      const testUrl = data.urls?.[0];
+      if (testUrl && !testUrl.includes('{{')) {  // Skip validation for variable URLs
+        const processed = processUrlTemplate(data.urlTemplate, testUrl);
+        if (!validateURL(processed)) {
+          // Debounce the warning to avoid showing it on every keystroke
+          const timer = setTimeout(() => {
+            toast({
+              title: "Warning",
+              description: "The current URL template may produce invalid URLs",
+              variant: "destructive"  // Changed from "warning" to fix type error
+            });
+          }, 1000);  // Wait 1 second before showing warning
+          
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [data.urlTemplate, data.urls, processUrlTemplate, toast]);
 
   const renderSelector = (selector: SelectorConfig, index: number) => {
     if (editingSelector === index) {
@@ -771,18 +810,32 @@ function MultiURLScrapingNode({
                               {data.urls.map((url, index) => (
                                 <div
                                   key={index}
-                                  className='flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50'
+                                  className='flex items-center p-2 rounded-lg bg-muted/50'
                                 >
-                                  <span className='text-sm truncate flex-grow'>
-                                    {url}
-                                  </span>
                                   <Button
                                     variant='ghost'
                                     size='sm'
+                                    className='h-8 w-8 p-0 shrink-0 mr-2'
                                     onClick={() => handleRemoveUrl(url)}
                                   >
                                     <X className='h-4 w-4' />
                                   </Button>
+                                  <div className='flex-1 overflow-hidden'>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className='overflow-x-auto'>
+                                            <span className='text-sm whitespace-nowrap inline-block'>
+                                              {url}
+                                            </span>
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className='max-w-[400px] break-all'>{url}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
                                 </div>
                               ))}
                             </div>
