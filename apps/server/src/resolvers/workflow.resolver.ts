@@ -543,6 +543,10 @@ export class WorkflowResolver {
   }
 
   private async executeScrapingNode(node: WorkflowNode, nodeResults: Record<string, any>): Promise<any> {
+    if (!node.data) {
+      throw new Error('Node data is required');
+    }
+
     console.log('Executing scraping node with data:', JSON.stringify(node.data, null, 2));
     console.log('Node results:', nodeResults);
 
@@ -565,91 +569,101 @@ export class WorkflowResolver {
       
       console.log('Using URLs:', urls);
 
-      if (!node.data?.selectors?.[0]) {
+      if (!node.data.selectors || node.data.selectors.length === 0) {
         throw new Error('Missing required selector configuration');
       }
 
       const scrapingService = new ScrapingService();
-      const firstSelector = node.data.selectors[0];
       const batchConfig = node.data.batchConfig || { batchSize: 5, rateLimit: 2 };
 
       try {
-        console.log('Starting multi-URL scraping with config:', {
-          selector: firstSelector.selector,
-          selectorType: firstSelector.selectorType,
-          attributes: firstSelector.attributes,
-          batchConfig
-        });
+        // Process each selector
+        const allResults = await Promise.all(
+          node.data.selectors.map(async (selector) => {
+            if (!selector.selector || !selector.selectorType || !selector.attributes) {
+              throw new Error('Invalid selector configuration');
+            }
 
-        const results = await scrapingService.scrapeUrls(
-          urls,
-          {
-            selector: firstSelector.selector,
-            selectorType: firstSelector.selectorType as 'css' | 'xpath',
-            attributes: firstSelector.attributes,
-            name: firstSelector.name || 'Post Content'
-          },
-          firstSelector.selectorType as 'css' | 'xpath',
-          firstSelector.attributes,
-          batchConfig
+            console.log('Processing selector:', selector);
+            const results = await scrapingService.scrapeUrls(
+              urls,
+              {
+                selector: selector.selector,
+                selectorType: selector.selectorType as 'css' | 'xpath',
+                attributes: selector.attributes,
+                name: selector.name || 'Default'
+              },
+              selector.selectorType as 'css' | 'xpath',
+              selector.attributes,
+              batchConfig
+            );
+            return {
+              name: selector.name || 'Default',
+              results
+            };
+          })
         );
 
-        console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+        // Format results by selector without stringification
+        const formattedResults = {
+          bySelector: allResults.reduce((acc, { name, results }) => {
+            acc[name] = results
+              .filter(r => r.success)
+              .map(r => r.results)
+              .filter(r => r.length > 0);
+            return acc;
+          }, {} as Record<string, any[]>)
+        };
 
-        if (!results || results.length === 0) {
-          console.log('Warning: No results found from scraping');
-        }
-
-        // Format results using the template
-        const formattedResults = node.data.template 
-          ? scrapingService.formatBatchResults(results, node.data.template)
-          : results.flatMap(r => r.success && r.results ? r.results.map(item => JSON.stringify(item)) : [`Error: ${r.error}`]);
-
-        console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
-
-        return { results: formattedResults };
+        console.log('Formatted results:', formattedResults);
+        return formattedResults;
       } catch (error) {
         console.error('Error in scraping service:', error);
         throw error;
       }
     }
+
     // Regular single-URL scraping
-    if (!node.data?.url || !node.data?.selectors?.[0]) {
-      throw new Error('Missing required scraping data (url or selector)');
+    if (!node.data?.url || typeof node.data.url !== 'string' || !node.data.selectors || node.data.selectors.length === 0) {
+      throw new Error('Missing required scraping data (url or selectors)');
     }
 
     const scrapingService = new ScrapingService();
-    const firstSelector = node.data.selectors[0];
-    console.log('Starting single-URL scraping with config:', {
-      url: node.data.url,
-      selector: firstSelector.selector,
-      selectorType: firstSelector.selectorType,
-      attributes: firstSelector.attributes
-    });
-
+    const url = node.data.url; // Store URL to avoid undefined checks
+    
     try {
-      const results = await scrapingService.scrapeUrl(
-        node.data.url,
-        firstSelector.selector,
-        firstSelector.selectorType as 'css' | 'xpath',
-        firstSelector.attributes,
-        'Post Content' // Pass the selector name that matches the template
+      // Process each selector
+      const allResults = await Promise.all(
+        node.data.selectors.map(async (selector) => {
+          if (!selector.selector || !selector.selectorType || !selector.attributes) {
+            throw new Error('Invalid selector configuration');
+          }
+
+          console.log('Processing selector:', selector);
+          const results = await scrapingService.scrapeUrl(
+            url,
+            selector.selector,
+            selector.selectorType as 'css' | 'xpath',
+            selector.attributes,
+            selector.name || 'Default'
+          );
+          return {
+            name: selector.name || 'Default',
+            results
+          };
+        })
       );
 
-      console.log('Raw scraping results:', JSON.stringify(results, null, 2));
+      // Format results by selector without stringification
+      const formattedResults = {
+        bySelector: allResults.reduce((acc, { name, results }) => {
+          acc[name] = results.map(item => Object.values(item));
+          return acc;
+        }, {} as Record<string, any[]>)
+      };
 
-      if (!results || results.length === 0) {
-        console.log('Warning: No results found from scraping');
-      }
-
-      // Format results using the template
-      const formattedResults = node.data.template 
-        ? scrapingService.formatResults(results, node.data.template)
-        : results.map(r => JSON.stringify(r));
-
-      console.log('Formatted results:', JSON.stringify(formattedResults, null, 2));
-
-      return { results: formattedResults };
+      console.log('Formatted results:', formattedResults);
+      return formattedResults;
     } catch (error) {
       console.error('Error in scraping service:', error);
       throw error;
@@ -900,7 +914,7 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeMultiURLScrapingNode(node: WorkflowNode): Promise<string[]> {
+  private async executeMultiURLScrapingNode(node: WorkflowNode): Promise<any[]> {
     const scrapingService = new ScrapingService();
     
     if (!node.data) {
@@ -940,7 +954,11 @@ export class WorkflowResolver {
       batchConfig
     );
 
-    return scrapingService.formatBatchResults(results, node.data.template);
+    // Return raw results without stringification
+    return results
+      .filter(r => r.success)
+      .map(r => r.results)
+      .filter(r => r.length > 0);
   }
 
   private async executeOpenAINode(
