@@ -629,7 +629,7 @@ export class WorkflowResolver {
     }
 
     const scrapingService = new ScrapingService();
-    const url = node.data.url; // Store URL to avoid undefined checks
+    const url = node.data.url;
     
     try {
       // Process each selector
@@ -781,40 +781,30 @@ export class WorkflowResolver {
       for (const node of workflowData.nodes) {
         console.log(`Executing node: ${node.type} ${node.id}`);
         try {
-          let nodeResult;
-          switch (node.type) {
-            case "GMAIL_TRIGGER":
-              nodeResult = await this.executeGmailTrigger(node, gmailToken);
-              break;
-            case "GMAIL_ACTION":
-              nodeResult = await this.executeGmailAction(node, gmailToken, { nodeResults });
-              break;
-            case "OPENAI":
-              nodeResult = await this.executeOpenAINode(node, { nodeResults, userId });
-              break;
-            case "SCRAPING":
-            case "MULTI_URL_SCRAPING":
-              nodeResult = await this.executeScrapingNode(node, nodeResults);
-              break;
-            default:
-              throw new Error(`Unsupported node type: ${node.type}`);
+          const nodeResult = await this.executeNode(node, { 
+            token: gmailToken, 
+            nodeResults,
+            userId 
+          });
+
+          // Store raw results for next nodes
+          if (nodeResult.results?.[0]) {
+            try {
+              nodeResults[node.id] = JSON.parse(nodeResult.results[0]);
+            } catch (e) {
+              nodeResults[node.id] = nodeResult.results[0];
+            }
           }
 
-          // Store results for next nodes
-          nodeResults[node.id] = nodeResult;
-
           // Add to results array
-          results.push(new NodeResult(
-            node.id,
-            "success",
-            Array.isArray(nodeResult?.results) ? nodeResult.results : [JSON.stringify(nodeResult)]
-          ));
+          results.push(nodeResult);
         } catch (error: any) {
           console.error(`Error executing node ${node.id}:`, error);
           results.push(new NodeResult(
             node.id,
             "error",
-            [error.message || "Unknown error"]
+            [error.message || "Unknown error"],
+            node.data?.label || node.label || `${node.type} Node`
           ));
           break; // Stop execution on error
         }
@@ -877,40 +867,52 @@ export class WorkflowResolver {
 
   private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
     try {
-      let results: string[] = [];
+      let result: any;
+      const nodeName = node.data?.label || node.label || `${node.type} Node`;
 
       switch (node.type) {
         case "GMAIL_TRIGGER":
-          results = await this.executeGmailTrigger(node, context.token);
+          result = await this.executeGmailTrigger(node, context.token);
           break;
         case "GMAIL_ACTION":
-          results = await this.executeGmailAction(node, context.token, context);
+          result = await this.executeGmailAction(node, context.token, context);
           break;
         case "SCRAPING":
-          results = await this.executeScrapingNode(node, context.nodeResults);
-          break;
         case "MULTI_URL_SCRAPING":
-          results = await this.executeMultiURLScrapingNode(node);
+          result = await this.executeScrapingNode(node, context.nodeResults);
           break;
         case "OPENAI":
-          results = await this.executeOpenAINode(node, context);
+          result = await this.executeOpenAINode(node, context);
           break;
         default:
           throw new Error(`Unsupported node type: ${node.type}`);
       }
 
-      return {
-        nodeId: node.id,
-        status: "success",
-        results
-      };
+      // For scraping nodes, handle the results differently
+      if (node.type === 'SCRAPING' || node.type === 'MULTI_URL_SCRAPING') {
+        return new NodeResult(
+          node.id,
+          "success",
+          [JSON.stringify(result)], // Only stringify once at the final step
+          nodeName
+        );
+      }
+
+      // For other nodes
+      return new NodeResult(
+        node.id,
+        "success",
+        Array.isArray(result) ? result : [JSON.stringify(result)],
+        nodeName
+      );
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
-      return {
-        nodeId: node.id,
-        status: "error",
-        results: [error instanceof Error ? error.message : "Unknown error occurred"]
-      };
+      return new NodeResult(
+        node.id,
+        "error",
+        [error instanceof Error ? error.message : "Unknown error occurred"],
+        node.data?.label || node.label || `${node.type} Node`
+      );
     }
   }
 

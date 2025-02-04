@@ -4,7 +4,6 @@ import { RateLimiter } from 'limiter';
 import pLimit from 'p-limit';
 import xpath from 'xpath';
 import { DOMParser } from 'xmldom';
-import memoize from 'lodash/memoize';
 import type { Browser, Page, HTTPRequest, ConsoleMessage } from 'puppeteer';
 import puppeteer from 'puppeteer';
 import { 
@@ -14,6 +13,13 @@ import {
   ScrapingResult 
 } from '../types/scraping';
 import { SelectorConfigInput } from "../schema/scraping";
+
+// Define a proper error handler
+const xmlErrorHandler = {
+  warning: (msg: string) => {},
+  error: (msg: string) => {},
+  fatalError: (msg: string) => {}
+};
 
 export class ScrapingService {
   private limiter: RateLimiter;
@@ -139,6 +145,7 @@ export class ScrapingService {
 
     // Create a batch-specific rate limiter
     const batchLimiter = new RateLimiter({ tokensPerInterval: rateLimit, interval: 'second' });
+    
     const concurrencyLimit = pLimit(batchSize);
 
     const results = await Promise.all(
@@ -161,7 +168,7 @@ export class ScrapingService {
             // Remove noscript tags as they can contain duplicate content
             $('noscript').remove();
 
-            const data: { [key: string]: string } = {};
+            const extractedData: string[] = [];
             
             // Process the selector using the same Cheerio instance
             console.log(`Processing selector "${selector.selector}" for "${selector.name}"`);
@@ -176,35 +183,41 @@ export class ScrapingService {
             console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
             if (elements.length === 0) {
               console.log(`No elements found for selector "${selector.selector}"`);
-              throw new Error(`No elements found for selector "${selector.selector}"`);
+              return {
+                success: false,
+                results: [],
+                error: `No elements found for selector "${selector.selector}"`
+              };
             }
 
-            // Take only the first element's data
-            const firstElement = elements.first();
-            selector.attributes.forEach(attr => {
-              if (attr === 'text') {
-                const text = firstElement.text().trim();
-                console.log(`Extracted text for ${selector.name}:`, text);
-                data[selector.name] = text;
-              } else if (attr === 'html') {
-                const html = firstElement.html() || '';
-                console.log(`Extracted HTML for ${selector.name}:`, html);
-                data[selector.name] = html;
-              } else {
-                const value = firstElement.attr(attr);
-                console.log(`Extracted ${attr} for ${selector.name}:`, value);
-                if (value) {
-                  data[selector.name] = value;
+            // Process all matching elements
+            elements.each((_, element) => {
+              const $el = $(element);
+              const elementData: Record<string, string> = {};
+
+              selector.attributes.forEach(attr => {
+                if (attr === 'text') {
+                  elementData[selector.name] = $el.text().trim();
+                } else if (attr === 'html') {
+                  elementData[selector.name] = $el.html()?.trim() || '';
+                } else {
+                  const value = $el.attr(attr);
+                  if (value) {
+                    elementData[selector.name] = value.trim();
+                  }
                 }
+              });
+
+              if (Object.keys(elementData).length > 0) {
+                extractedData.push(JSON.stringify(elementData));
               }
             });
 
-            console.log('Final data object:', data);
+            console.log('Extracted data:', extractedData);
 
             return {
               success: true,
-              data,
-              results: [[JSON.stringify(data)]]
+              results: [extractedData]
             };
           } catch (error) {
             console.error(`Error scraping ${url}:`, error);
@@ -242,16 +255,9 @@ export class ScrapingService {
 
       if (selectorType === 'xpath') {
         // XPath processing
-        const doc = new DOMParser({
-          errorHandler: {
-            warning: () => {},
-            error: () => {},
-            fatalError: () => {}
-          }
-        }).parseFromString(html);
-
-        const nodes = xpath.select(selector, doc);
-        console.log('XPath nodes found:', nodes.length);
+        const parser = new DOMParser({ errorHandler: xmlErrorHandler });
+        const doc = parser.parseFromString(html, 'text/html');
+        const nodes = xpath.select(selector, doc as unknown as Node);
 
         if (!Array.isArray(nodes)) {
           throw new Error('Invalid XPath selector');
@@ -363,8 +369,10 @@ export class ScrapingService {
       
       for (const selector of selectors) {
         if (selector.selectorType === 'xpath') {
-          const doc = new DOMParser().parseFromString(html);
-          const nodes = xpath.select(selector.selector, doc);
+          const parser = new DOMParser({ errorHandler: xmlErrorHandler });
+          const doc = parser.parseFromString(html, 'text/html');
+          const nodes = xpath.select(selector.selector, doc as unknown as Node);
+
           if (!Array.isArray(nodes)) {
             throw new Error('Invalid XPath selector result');
           }
