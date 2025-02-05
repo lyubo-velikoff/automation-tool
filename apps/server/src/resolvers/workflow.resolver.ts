@@ -543,38 +543,22 @@ export class WorkflowResolver {
   }
 
   private async executeScrapingNode(node: WorkflowNode, nodeResults: Record<string, any>): Promise<any> {
-    if (!node.data) {
-      throw new Error('Node data is required');
-    }
-
-    console.log('Executing scraping node with data:', JSON.stringify(node.data, null, 2));
-    console.log('Node results:', nodeResults);
-
+    // Multi-URL scraping
     if (node.type === 'MULTI_URL_SCRAPING') {
-      // First check if URLs are provided directly in the node data
-      let urls: string[] = node.data?.urls || [];
-      
-      // If no direct URLs, try to get them from previous node's results
-      if (urls.length === 0) {
-        const sourceNodeId = this.getSourceNodeId(node.id);
-        if (!sourceNodeId || !nodeResults[sourceNodeId]?.results) {
-          throw new Error('No URLs provided for multi-URL scraping');
-        }
-        urls = nodeResults[sourceNodeId].results;
+      if (!node.data?.urls || !Array.isArray(node.data.urls) || node.data.urls.length === 0) {
+        throw new Error('Missing URLs for multi-URL scraping');
       }
-      
-      if (!urls || urls.length === 0) {
-        throw new Error('No valid URLs found for scraping');
-      }
-      
-      console.log('Using URLs:', urls);
 
-      if (!node.data.selectors || node.data.selectors.length === 0) {
-        throw new Error('Missing required selector configuration');
+      if (!node.data.selectors || !Array.isArray(node.data.selectors) || node.data.selectors.length === 0) {
+        throw new Error('Missing selectors for multi-URL scraping');
       }
 
       const scrapingService = new ScrapingService();
-      const batchConfig = node.data.batchConfig || { batchSize: 5, rateLimit: 2 };
+      const urls = node.data.urls.map(url => this.interpolateVariables(url, { nodeResults }));
+      const batchConfig = {
+        batchSize: node.data.batchConfig?.batchSize || 5,
+        rateLimit: node.data.batchConfig?.rateLimit || 10
+      };
 
       try {
         // Process each selector
@@ -598,7 +582,7 @@ export class WorkflowResolver {
               batchConfig
             );
 
-            // Parse any stringified results
+            // Extract and parse results, ensuring they're not stringified
             const parsedResults = results
               .filter(r => r.success)
               .map(r => r.results)
@@ -610,6 +594,15 @@ export class WorkflowResolver {
                   } catch {
                     return result;
                   }
+                }
+                return result;
+              })
+              .map(result => {
+                // If the result is an object with a single key matching the selector name,
+                // just return the value to avoid unnecessary nesting
+                const keys = Object.keys(result);
+                if (keys.length === 1 && keys[0] === selector.name) {
+                  return result[selector.name];
                 }
                 return result;
               });
@@ -920,6 +913,7 @@ export class WorkflowResolver {
     try {
       let result: any;
       const nodeName = node.data?.label || node.label || `${node.type} Node`;
+      console.log(`Executing node: ${nodeName} (${node.type})`);
 
       switch (node.type) {
         case "GMAIL_TRIGGER":
@@ -941,26 +935,24 @@ export class WorkflowResolver {
 
       // Store raw results for next nodes
       if (result) {
-        try {
-          context.nodeResults[node.id] = result;
-        } catch (e) {
-          console.error('Error storing node results:', e);
-        }
+        context.nodeResults[node.id] = result;
       }
 
+      // Create NodeResult with node name
       return new NodeResult(
         node.id,
         "success",
         [result],
-        nodeName
+        nodeName // Ensure node name is passed here
       );
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
+      const nodeName = node.data?.label || node.label || `${node.type} Node`;
       return new NodeResult(
         node.id,
         "error",
         [{ error: error instanceof Error ? error.message : "Unknown error occurred" }],
-        node.data?.label || node.label || `${node.type} Node`
+        nodeName // Ensure node name is passed here too
       );
     }
   }

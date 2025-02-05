@@ -12,10 +12,10 @@ export class NodeResult {
   @Field(() => [GraphQLJSONObject])
   results: any[];
 
-  @Field(() => String, { nullable: true })
-  nodeName?: string;
+  @Field(() => String)
+  nodeName: string;
 
-  constructor(nodeId: string, status: string, results: any[], nodeName?: string) {
+  constructor(nodeId: string, status: string, results: any[], nodeName: string) {
     this.nodeId = nodeId;
     this.status = status;
     this.results = results;

@@ -168,7 +168,7 @@ export class ScrapingService {
             // Remove noscript tags as they can contain duplicate content
             $('noscript').remove();
 
-            const extractedData: string[] = [];
+            const extractedData: Record<string, string>[] = [];
             
             // Process the selector using the same Cheerio instance
             console.log(`Processing selector "${selector.selector}" for "${selector.name}"`);
@@ -209,7 +209,7 @@ export class ScrapingService {
               });
 
               if (Object.keys(elementData).length > 0) {
-                extractedData.push(JSON.stringify(elementData));
+                extractedData.push(elementData);
               }
             });
 
@@ -217,7 +217,7 @@ export class ScrapingService {
 
             return {
               success: true,
-              results: [extractedData]
+              results: extractedData
             };
           } catch (error) {
             console.error(`Error scraping ${url}:`, error);
