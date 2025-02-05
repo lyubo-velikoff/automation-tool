@@ -597,20 +597,34 @@ export class WorkflowResolver {
               selector.attributes,
               batchConfig
             );
+
+            // Parse any stringified results
+            const parsedResults = results
+              .filter(r => r.success)
+              .map(r => r.results)
+              .flat()
+              .map(result => {
+                if (typeof result === 'string') {
+                  try {
+                    return JSON.parse(result);
+                  } catch {
+                    return result;
+                  }
+                }
+                return result;
+              });
+
             return {
               name: selector.name || 'Default',
-              results
+              results: parsedResults
             };
           })
         );
 
-        // Format results by selector without stringification
+        // Format results by selector without extra nesting
         const formattedResults = {
           bySelector: allResults.reduce((acc, { name, results }) => {
-            acc[name] = results
-              .filter(r => r.success)
-              .map(r => r.results)
-              .flat();
+            acc[name] = results;
             return acc;
           }, {} as Record<string, any[]>)
         };
@@ -654,7 +668,7 @@ export class WorkflowResolver {
         })
       );
 
-      // Format results by selector without stringification
+      // Format results by selector without extra nesting
       const formattedResults = {
         bySelector: allResults.reduce((acc, { name, results }) => {
           acc[name] = results;
@@ -777,9 +791,16 @@ export class WorkflowResolver {
       const executionId = `exec-${Date.now()}`;
       const results: NodeResult[] = [];
 
-      // Execute nodes in order based on edges
-      for (const node of workflowData.nodes) {
-        console.log(`Executing node: ${node.type} ${node.id}`);
+      // Sort nodes in execution order
+      const sortedNodes = this.getNodesInExecutionOrder(workflowData.nodes, workflowData.edges);
+      console.log('New execution order:', sortedNodes.map(node => 
+        node.data?.label || node.label || `${node.type} Node`
+      ));
+
+      // Execute nodes in order
+      for (const node of sortedNodes) {
+        const nodeName = node.data?.label || node.label || `${node.type} Node`;
+        console.log(`Executing node: ${nodeName} (${node.type} ${node.id})`);
         try {
           const nodeResult = await this.executeNode(node, { 
             token: gmailToken, 
@@ -790,12 +811,12 @@ export class WorkflowResolver {
           // Add to results array
           results.push(nodeResult);
         } catch (error: any) {
-          console.error(`Error executing node ${node.id}:`, error);
+          console.error(`Error executing node ${nodeName}:`, error);
           results.push(new NodeResult(
             node.id,
             "error",
             [{ error: error.message || "Unknown error" }],
-            node.data?.label || node.label || `${node.type} Node`
+            nodeName
           ));
           break; // Stop execution on error
         }
@@ -831,6 +852,45 @@ export class WorkflowResolver {
         results: []
       };
     }
+  }
+
+  private getNodesInExecutionOrder(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+    // Find root nodes (nodes with no incoming edges)
+    const incomingEdges = new Map<string, number>();
+    edges.forEach(edge => {
+      incomingEdges.set(edge.target, (incomingEdges.get(edge.target) || 0) + 1);
+    });
+
+    const rootNodes = nodes.filter(node => !incomingEdges.has(node.id));
+    const visited = new Set<string>();
+    const result: WorkflowNode[] = [];
+
+    // Depth-first search to get execution order
+    const visit = (node: WorkflowNode) => {
+      if (visited.has(node.id)) return;
+      visited.add(node.id);
+      result.push(node);
+
+      // Find and visit all target nodes
+      edges
+        .filter(edge => edge.source === node.id)
+        .forEach(edge => {
+          const targetNode = nodes.find(n => n.id === edge.target);
+          if (targetNode) visit(targetNode);
+        });
+    };
+
+    // Visit all root nodes
+    rootNodes.forEach(visit);
+
+    // Add any remaining nodes (in case of cycles or disconnected nodes)
+    nodes.forEach(node => {
+      if (!visited.has(node.id)) {
+        result.push(node);
+      }
+    });
+
+    return result;
   }
 
   private getDependentNodes(nodeId: string, edges: WorkflowEdge[], nodes: WorkflowNode[]): WorkflowNode[] {
