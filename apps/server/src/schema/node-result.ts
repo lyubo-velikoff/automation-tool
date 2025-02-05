@@ -1,23 +1,24 @@
-import { Field, ObjectType } from "type-graphql";
+import { ObjectType, Field, ID } from "type-graphql";
+import { GraphQLJSONObject } from 'graphql-type-json';
 
 @ObjectType()
 export class NodeResult {
-  constructor(nodeId: string, status: string, results?: string[], nodeName?: string) {
+  @Field(() => ID)
+  nodeId: string;
+
+  @Field()
+  status: string;
+
+  @Field(() => [GraphQLJSONObject])
+  results: any[];
+
+  @Field(() => String, { nullable: true })
+  nodeName?: string;
+
+  constructor(nodeId: string, status: string, results: any[], nodeName?: string) {
     this.nodeId = nodeId;
     this.status = status;
     this.results = results;
     this.nodeName = nodeName;
   }
-
-  @Field(() => String)
-  nodeId!: string;
-
-  @Field(() => String)
-  status!: string;
-
-  @Field(() => [String], { nullable: true })
-  results?: string[];
-
-  @Field(() => String, { nullable: true })
-  nodeName?: string;
 } 

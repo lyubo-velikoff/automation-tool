@@ -58,6 +58,7 @@
     "google-auth-library": "^9.15.0",
     "googleapis": "^131.0.0",
     "graphql": "^16.8.1",
+    "graphql-type-json": "^0.3.2",
     "jest": "^29.7.0",
     "limiter": "^2.1.0",
     "lodash": "^4.17.21",

@@ -610,7 +610,7 @@ export class WorkflowResolver {
             acc[name] = results
               .filter(r => r.success)
               .map(r => r.results)
-              .filter(r => r.length > 0);
+              .flat();
             return acc;
           }, {} as Record<string, any[]>)
         };
@@ -629,7 +629,7 @@ export class WorkflowResolver {
     }
 
     const scrapingService = new ScrapingService();
-    const url = node.data.url;
+    const url = this.interpolateVariables(node.data.url, { nodeResults });
     
     try {
       // Process each selector
@@ -657,7 +657,7 @@ export class WorkflowResolver {
       // Format results by selector without stringification
       const formattedResults = {
         bySelector: allResults.reduce((acc, { name, results }) => {
-          acc[name] = results.map(item => Object.values(item));
+          acc[name] = results;
           return acc;
         }, {} as Record<string, any[]>)
       };
@@ -787,15 +787,6 @@ export class WorkflowResolver {
             userId 
           });
 
-          // Store raw results for next nodes
-          if (nodeResult.results?.[0]) {
-            try {
-              nodeResults[node.id] = JSON.parse(nodeResult.results[0]);
-            } catch (e) {
-              nodeResults[node.id] = nodeResult.results[0];
-            }
-          }
-
           // Add to results array
           results.push(nodeResult);
         } catch (error: any) {
@@ -803,7 +794,7 @@ export class WorkflowResolver {
           results.push(new NodeResult(
             node.id,
             "error",
-            [error.message || "Unknown error"],
+            [{ error: error.message || "Unknown error" }],
             node.data?.label || node.label || `${node.type} Node`
           ));
           break; // Stop execution on error
@@ -888,21 +879,19 @@ export class WorkflowResolver {
           throw new Error(`Unsupported node type: ${node.type}`);
       }
 
-      // For scraping nodes, handle the results differently
-      if (node.type === 'SCRAPING' || node.type === 'MULTI_URL_SCRAPING') {
-        return new NodeResult(
-          node.id,
-          "success",
-          [JSON.stringify(result)], // Only stringify once at the final step
-          nodeName
-        );
+      // Store raw results for next nodes
+      if (result) {
+        try {
+          context.nodeResults[node.id] = result;
+        } catch (e) {
+          console.error('Error storing node results:', e);
+        }
       }
 
-      // For other nodes
       return new NodeResult(
         node.id,
         "success",
-        Array.isArray(result) ? result : [JSON.stringify(result)],
+        [result],
         nodeName
       );
     } catch (error) {
@@ -910,7 +899,7 @@ export class WorkflowResolver {
       return new NodeResult(
         node.id,
         "error",
-        [error instanceof Error ? error.message : "Unknown error occurred"],
+        [{ error: error instanceof Error ? error.message : "Unknown error occurred" }],
         node.data?.label || node.label || `${node.type} Node`
       );
     }
