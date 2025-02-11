@@ -319,7 +319,7 @@ function MultiURLScrapingNode({
           }
 
           return false;
-        } catch (error) {
+    } catch (error) {
           return false;
         }
       })
@@ -857,24 +857,24 @@ function MultiURLScrapingNode({
                         </div>
                         
                         {/* Replace the conditional source node check with always showing available nodes */}
-                        <div className='space-y-2'>
+                          <div className='space-y-2'>
                           <Label>Add from Other Nodes</Label>
                           {getNodesWithResults().map(node => (
                             <div key={node.id} className='space-y-2'>
-                              <VariableSelector
+                            <VariableSelector
                                 sourceNodeId={node.id}
                                 sourceNodeName={node.name}
                                 nodeResults={node.results}
-                                onSelect={handleVariableSelect}
-                                className='w-full'
-                              />
-                            </div>
+                              onSelect={handleVariableSelect}
+                              className='w-full'
+                            />
+                          </div>
                           ))}
                           {getNodesWithResults().length === 0 && (
                             <p className='text-sm text-muted-foreground'>
                               No nodes with available variables found
                             </p>
-                          )}
+                        )}
                         </div>
                         {urlError && (
                           <p className='text-sm text-red-500'>{urlError}</p>

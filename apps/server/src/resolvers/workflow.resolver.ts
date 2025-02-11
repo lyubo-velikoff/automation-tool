@@ -478,66 +478,90 @@ export class WorkflowResolver {
   }
 
   private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
-    if (!text) return '';
+    console.log('=== Variable Resolution Debug ===');
+    console.log('Input text:', text);
+    console.log('Available nodes:', Object.keys(context.nodeResults));
 
-    const availableNodes = Object.entries(context.nodeResults).map(([id, data]) => ({
-      id,
-      label: data?.label || data?.data?.label || id,
-      results: data?.results || []
-    }));
+    // If no variables to replace, return original text
+    if (!text.includes('{{')) {
+      return text;
+    }
 
-    // First try to match by node label
-    return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+    return text.replace(/\{\{(.*?)\}\}/g, (match, path) => {
       try {
-        const [nodeIdentifier, field] = path.trim().split('.');
-        
-        // Find node by label first
-        const nodeByLabel = availableNodes.find(node => 
-          node.label.toLowerCase() === nodeIdentifier.toLowerCase()
-        );
+        // Split the path into parts (e.g., ["Forum", "results", "0", "bySelector", "URls", "0"])
+        const parts = path.split(/[\.\[\]]+/).filter(Boolean);
+        const nodeName = parts[0];
 
-        // Then try by ID if not found by label
-        const node = nodeByLabel || availableNodes.find(node => 
-          node.id === nodeIdentifier
-        );
+        // Find the node by name (case-insensitive)
+        const nodeData = Object.entries(context.nodeResults).find(([key, value]) => {
+          const label = value.label || key;
+          return label.toLowerCase() === nodeName.toLowerCase();
+        });
 
-        if (!node) {
-          console.warn(`No node found with identifier: ${nodeIdentifier}. Available nodes:`, 
-            availableNodes.map(n => ({ id: n.id, label: n.label }))
-          );
-          return match; // Keep original if not found
-        }
-
-        const nodeData = context.nodeResults[node.id];
         if (!nodeData) {
-          console.warn(`No results found for node: ${nodeIdentifier}`);
-          return '';
+          console.log('Node not found:', nodeName);
+          return match;
         }
 
-        // Handle special fields
-        if (field === 'results') {
-          const results = nodeData.results;
-          if (!results) {
-            console.warn(`No results found in node: ${nodeIdentifier}`);
-            return '';
+        // Start with the node's data
+        let value = nodeData[1];
+        console.log('Initial value:', JSON.stringify(value, null, 2));
+
+        // Skip the node name and process remaining parts
+        for (let i = 1; i < parts.length; i++) {
+          const part = parts[i];
+          console.log(`Processing part "${part}"`, value);
+          
+          if (part === 'results') continue; // Skip 'results' part as it's implicit
+
+          if (part === 'bySelector') {
+            value = value.bySelector;
+            continue;
           }
-          if (Array.isArray(results)) {
-            return results.join('\n');
+
+          // Handle array indices
+          if (!isNaN(Number(part))) {
+            const index = Number(part);
+            if (Array.isArray(value)) {
+              value = value[index];
+            } else if (value && typeof value === 'object' && Array.isArray(value[Object.keys(value)[0]])) {
+              // If value is an object with an array as its first property
+              const firstKey = Object.keys(value)[0];
+              value = value[firstKey][index];
+            }
+          } else {
+            // Handle object properties
+            value = value[part];
           }
-          return String(results);
+
+          // If we hit undefined, return the original match
+          if (value === undefined) {
+            console.log(`Value undefined at part: ${part}`);
+            return match;
+          }
+
+          console.log(`After processing "${part}":`, value);
         }
 
-        // Handle nested data fields
-        const value = field.split('.').reduce((obj: Record<string, any>, key: string) => obj?.[key], nodeData);
-        if (value === undefined) {
-          console.warn(`Field '${field}' not found in node: ${nodeIdentifier}`);
-          return '';
+        // Handle the final value
+        if (value && typeof value === 'object') {
+          if (value.URls) {
+            value = value.URls;
+          } else if (Array.isArray(value)) {
+            value = value[0];
+          } else {
+            // Get the first non-null value from the object
+            const firstValue = Object.values(value).find(v => v !== null && v !== undefined);
+            value = firstValue || value;
+          }
         }
 
-        return String(value);
+        console.log('Final resolved value:', value);
+        return value || match;
       } catch (error) {
-        console.error('Error interpolating variables:', error);
-        return match; // Keep original on error
+        console.error('Error resolving variable:', error);
+        return match;
       }
     });
   }
@@ -554,7 +578,19 @@ export class WorkflowResolver {
       }
 
       const scrapingService = new ScrapingService();
-      const urls = node.data.urls.map(url => this.interpolateVariables(url, { nodeResults }));
+      
+      // First, resolve all URLs
+      const resolvedUrls = node.data.urls.map(url => {
+        const resolved = this.interpolateVariables(url, { nodeResults });
+        // If still contains variable syntax, it means resolution failed
+        if (resolved.includes('{{')) {
+          throw new Error(`Failed to resolve URL: ${url}`);
+        }
+        return resolved;
+      });
+
+      console.log('Resolved URLs:', resolvedUrls);
+
       const batchConfig = {
         batchSize: node.data.batchConfig?.batchSize || 5,
         rateLimit: node.data.batchConfig?.rateLimit || 10
@@ -570,7 +606,7 @@ export class WorkflowResolver {
 
             console.log('Processing selector:', selector);
             const results = await scrapingService.scrapeUrls(
-              urls,
+              resolvedUrls,
               {
                 selector: selector.selector,
                 selectorType: selector.selectorType as 'css' | 'xpath',
@@ -582,7 +618,7 @@ export class WorkflowResolver {
               batchConfig
             );
 
-            // Extract and parse results, ensuring they're not stringified
+            // Extract and parse results
             const parsedResults = results
               .filter(r => r.success)
               .map(r => r.results)
@@ -596,15 +632,6 @@ export class WorkflowResolver {
                   }
                 }
                 return result;
-              })
-              .map(result => {
-                // If the result is an object with a single key matching the selector name,
-                // just return the value to avoid unnecessary nesting
-                const keys = Object.keys(result);
-                if (keys.length === 1 && keys[0] === selector.name) {
-                  return result[selector.name];
-                }
-                return result;
               });
 
             return {
@@ -614,7 +641,7 @@ export class WorkflowResolver {
           })
         );
 
-        // Format results by selector without extra nesting
+        // Format results by selector
         const formattedResults = {
           bySelector: allResults.reduce((acc, { name, results }) => {
             acc[name] = results;
@@ -661,7 +688,7 @@ export class WorkflowResolver {
         })
       );
 
-      // Format results by selector without extra nesting
+      // Format results by selector
       const formattedResults = {
         bySelector: allResults.reduce((acc, { name, results }) => {
           acc[name] = results;
@@ -933,17 +960,26 @@ export class WorkflowResolver {
           throw new Error(`Unsupported node type: ${node.type}`);
       }
 
-      // Store raw results for next nodes
+      // Store results with both ID and label for easier lookup
       if (result) {
-        context.nodeResults[node.id] = result;
+        context.nodeResults[node.id] = {
+          ...result,
+          label: nodeName
+        };
+        // Also store by label if it exists
+        if (nodeName) {
+          context.nodeResults[nodeName] = {
+            ...result,
+            label: nodeName
+          };
+        }
       }
 
-      // Create NodeResult with node name
       return new NodeResult(
         node.id,
         "success",
         [result],
-        nodeName // Ensure node name is passed here
+        nodeName
       );
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
@@ -952,7 +988,7 @@ export class WorkflowResolver {
         node.id,
         "error",
         [{ error: error instanceof Error ? error.message : "Unknown error occurred" }],
-        nodeName // Ensure node name is passed here too
+        nodeName
       );
     }
   }
