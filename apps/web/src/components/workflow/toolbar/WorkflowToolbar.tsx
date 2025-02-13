@@ -15,15 +15,18 @@ import { useState } from "react";
 import { useMutation, useApolloClient } from "@apollo/client";
 import { CREATE_WORKFLOW } from "@/graphql/mutations";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;
   onScheduleClick: () => void;
+  className?: string;
 }
 
 export function WorkflowToolbar({
   onAddNode,
-  onScheduleClick
+  onScheduleClick,
+  className
 }: WorkflowToolbarProps) {
   const {
     workflowId,
@@ -119,7 +122,7 @@ export function WorkflowToolbar({
   };
 
   return (
-    <div className='flex items-center gap-4 p-4 border-t bg-background/80 backdrop-blur-sm'>
+    <div className={cn('flex items-center gap-4 p-4 border bg-background/80 backdrop-blur-sm rounded-lg shadow-lg', className)}>
       <WorkflowSelector />
 
       {/* Update Existing Workflow */}

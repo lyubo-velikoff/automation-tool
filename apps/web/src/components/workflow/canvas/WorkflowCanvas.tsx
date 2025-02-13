@@ -52,10 +52,20 @@ function WorkflowCanvas({
   return (
     <ReactFlowProvider>
       <div
-        className='flex flex-col w-full h-[calc(100vh-4rem)]'
+        className='relative w-full h-screen'
         data-testid='workflow-canvas'
       >
-        <div className='flex-grow relative h-[calc(100%-4rem)]'>
+        <WorkflowToolbar
+          onAddNode={handleAddNode}
+          onScheduleClick={() => {
+            if (onSchedule) {
+              onSchedule(nodes, edges);
+            }
+            setScheduleDialogOpen(true);
+          }}
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-50 w-auto"
+        />
+        <div className='h-full'>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -84,24 +94,13 @@ function WorkflowCanvas({
           </ReactFlow>
         </div>
 
-        <div className='flex flex-col gap-4'>
-          <WorkflowToolbar
-            onAddNode={handleAddNode}
-            onScheduleClick={() => {
-              if (onSchedule) {
-                onSchedule(nodes, edges);
-              }
-              setScheduleDialogOpen(true);
-            }}
+        {workflowId && (
+          <ExecutionHistory
+            history={executionHistory}
+            currentExecution={currentExecution}
+            className='absolute bottom-4 right-4 z-50'
           />
-          {workflowId && (
-            <ExecutionHistory
-              history={executionHistory}
-              currentExecution={currentExecution}
-              className='mx-4 mb-4'
-            />
-          )}
-        </div>
+        )}
 
         <ScheduleWorkflowDialog
           open={scheduleDialogOpen}

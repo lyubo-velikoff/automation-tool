@@ -29,24 +29,30 @@ interface NodeResult {
   results?: string[];
 }
 
-interface WorkflowExecution {
+type ExecutionResult = {
   id: string;
   workflow_id: string;
   execution_id: string;
   status: string;
   results?: NodeResult[];
   created_at: string;
-}
+};
 
 interface ExecutionHistoryProps {
+  history: ExecutionResult[];
+  currentExecution: ExecutionResult | null;
   className?: string;
 }
 
-export function ExecutionHistory({ className }: ExecutionHistoryProps) {
+export function ExecutionHistory({
+  history,
+  currentExecution,
+  className
+}: ExecutionHistoryProps) {
   const { workflowId } = useWorkflow();
   const [isExpanded, setIsExpanded] = useState(false);
   const { data, loading } = useQuery<{
-    workflowExecutions: WorkflowExecution[];
+    workflowExecutions: ExecutionResult[];
   }>(GET_WORKFLOW_EXECUTIONS, {
     variables: { workflowId },
     skip: !workflowId
@@ -57,7 +63,7 @@ export function ExecutionHistory({ className }: ExecutionHistoryProps) {
   }
 
   return (
-    <Card className={cn("w-full", className)}>
+    <Card className={cn('w-[400px]', className)}>
       <CardHeader
         className='cursor-pointer'
         onClick={() => setIsExpanded(!isExpanded)}
