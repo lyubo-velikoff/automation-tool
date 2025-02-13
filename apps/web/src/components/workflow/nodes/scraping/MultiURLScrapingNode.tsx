@@ -666,20 +666,6 @@ function MultiURLScrapingNode({
                         </ScrollArea>
                       </div>
 
-                      <div className='space-y-2'>
-                        <Label>URL Template (Optional)</Label>
-                        <Input
-                          placeholder='e.g., https://example.com{{Custom.urls}}'
-                          value={data.template || ""}
-                          onChange={(e) =>
-                            handleConfigChange("template", e.target.value)
-                          }
-                        />
-                        <p className='text-xs text-muted-foreground'>
-                          Use {"{{"} variable {"}}"} syntax to insert variables.
-                          Leave empty to use raw URLs.
-                        </p>
-                      </div>
                     </div>
                   </TabsContent>
 
