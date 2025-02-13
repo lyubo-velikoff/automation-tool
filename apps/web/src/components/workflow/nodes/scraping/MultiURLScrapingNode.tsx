@@ -37,7 +37,6 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip";
 import { Maybe, NodeData, SelectorConfigType } from '@/gql/graphql';
-import type { ReactNode } from 'react';
 import { Textarea } from "@/components/ui/inputs/textarea";
 
 const TEST_SCRAPING = gql`
@@ -73,10 +72,6 @@ interface MultiURLScrapingNodeProps {
   selected?: boolean;
   type?: string;
   isConnectable: boolean;
-}
-
-interface Props {
-  children?: ReactNode;
 }
 
 const MultiURLScrapingIcon = () => {

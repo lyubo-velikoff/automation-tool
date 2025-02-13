@@ -26,16 +26,10 @@ interface ScrapingNodeProps {
 }
 
 function ScrapingNode({ id, data, selected }: ScrapingNodeProps) {
-  console.log("ScrapingNode render:", { id, data });
-
   const handleConfigChange = useCallback(
     (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
-      console.log("handleConfigChange called:", { key, value });
-      console.log("Current data:", data);
-
       const onConfigChange = data.onConfigChange;
       if (!onConfigChange) {
-        console.log("No onConfigChange function found");
         return;
       }
 
@@ -46,9 +40,7 @@ function ScrapingNode({ id, data, selected }: ScrapingNodeProps) {
         [key]: value
       };
 
-      console.log("New data before update:", newData);
       onConfigChange(id || "", newData);
-      console.log("Update completed");
     },
     [data, id]
   );

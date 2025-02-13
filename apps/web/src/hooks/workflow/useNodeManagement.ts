@@ -111,7 +111,6 @@ export function useNodeManagement() {
 
       // Log the execution order for debugging
       const orderedNodes = getExecutionOrder(nodes, newEdges);
-      console.log('New execution order:', orderedNodes.map(n => n.type));
     },
     [edges, nodes, setEdges, setContextEdges]
   );
