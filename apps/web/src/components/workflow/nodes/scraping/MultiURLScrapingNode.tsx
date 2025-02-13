@@ -12,7 +12,6 @@ import {
 import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { Button } from "@/components/ui/inputs/button";
-import { Textarea } from "@/components/ui/inputs/textarea";
 import {
   Select,
   SelectContent,
@@ -35,23 +34,12 @@ import {
   TabsTrigger,
   TabsContent
 } from "@/components/ui/data-display/tabs";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell
-} from "@/components/ui/data-display/table";
-import { Edit2, Trash2, Plus, Loader2 } from "lucide-react";
+import { Edit2, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/data-display/separator";
 import { Badge } from "@/components/ui/data-display/badge";
 import { Card as SelectorCard } from "@/components/ui/layout/card";
-import { VariablePicker } from "@/components/workflow/shared/VariablePicker";
 import { SelectorEditor } from "./components/SelectorEditor";
-import { VariableSelector } from "../components/VariableSelector";
-import { SelectorConfig, BatchConfig } from "@/types/scraping";
+import { SelectorConfig, BatchConfig, ScrapingNodeData, SelectorType } from "@/types/scraping";
 import { gql, useMutation } from "@apollo/client";
 import {
   Tooltip,
@@ -59,6 +47,10 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from "@/components/ui/tooltip";
+import { Maybe, NodeData, SelectorConfigType } from '@/gql/graphql';
+import type { ReactNode } from 'react';
+import { Textarea } from "@/components/ui/inputs/textarea";
+import { VariablePicker } from "../../shared/VariablePicker";
 
 const TEST_SCRAPING = gql`
   mutation TestScraping($url: String!, $selectors: [SelectorConfigInput!]!) {
@@ -71,17 +63,16 @@ const TEST_SCRAPING = gql`
 `;
 
 // Extended node data for multi-URL scraping
-interface MultiURLNodeData extends GlobalNodeData {
-  urls: string[];
-  selectors: SelectorConfig[];
-  batchConfig: BatchConfig;
-  template?: string;
+interface MultiURLNodeData extends Omit<ScrapingNodeData, 'selectors' | 'batchConfig'> {
+  selectors?: Maybe<SelectorConfig[]>;
+  batchConfig?: Maybe<BatchConfig>;
+  template?: Maybe<string>;
   sourceNode?: {
     id: string;
     name: string;
     results: string;
   };
-  onConfigChange?: (nodeId: string, data: MultiURLNodeData) => void;
+  onConfigChange?: (nodeId: string, data: NodeData) => void;
   urlTemplate?: string;
   testResults?: Record<number, string[]>;
   [key: string]: unknown;
@@ -93,6 +84,10 @@ interface MultiURLScrapingNodeProps {
   selected?: boolean;
   type?: string;
   isConnectable: boolean;
+}
+
+interface Props {
+  children?: ReactNode;
 }
 
 const MultiURLScrapingIcon = () => {
@@ -282,58 +277,7 @@ function MultiURLScrapingNode({
     setEditingSelector(null);
   };
 
-  const handleVariableSelect = useCallback(
-    (reference: string) => {
-      const currentUrls = data.urls || [];
-      handleConfigChange("urls", [...currentUrls, reference]);
-    },
-    [data.urls, handleConfigChange]
-  );
 
-  // Update the getNodesWithResults function to properly check for results
-  const getNodesWithResults = useCallback(() => {
-    const availableNodes = nodes
-      .filter(node => {
-        // Skip current node
-        if (node.id === id) return false;
-        
-        const nodeData = node.data as NodeDataWithResults;
-        
-        // Ensure node has data
-        if (!nodeData) return false;
-
-        // Check if results exist and are parseable
-        if (!nodeData.results) return false;
-        
-        try {
-          const results = JSON.parse(nodeData.results);
-
-          // For multi-URL nodes, check bySelector
-          if (results.bySelector) {
-            return Object.keys(results.bySelector).length > 0;
-          }
-          
-          // For single scraping nodes, check if results array exists
-          if (Array.isArray(results)) {
-            return results.length > 0;
-          }
-
-          return false;
-    } catch (error) {
-          return false;
-        }
-      })
-      .map(node => {
-        const nodeData = node.data as NodeDataWithResults;
-        return {
-          id: node.id,
-          name: nodeData.label || "Unnamed Node",
-          results: nodeData.results || ""
-        };
-      });
-
-    return availableNodes;
-  }, [nodes, id]);
 
   // Update the useEffect for handling connections to store results
   useEffect(() => {
@@ -501,7 +445,7 @@ function MultiURLScrapingNode({
       const resolvedUrl = resolveVariableUrl(firstUrl);
       
       // Then apply the template
-      const testUrl = processUrlTemplate(data.template || "", firstUrl);
+      const testUrl = processUrlTemplate(data.template ?? "", firstUrl);
 
       if (!testUrl || !validateURL(testUrl)) {
         throw new Error(`Invalid URL after processing: ${testUrl}. Please check your URL and template.`);
@@ -598,159 +542,20 @@ function MultiURLScrapingNode({
     }
   };
 
-  const renderSelector = (selector: SelectorConfig, index: number) => {
-    if (editingSelector === index) {
-      return (
-        <SelectorCard key={index} className='p-4 space-y-4'>
-          <div className='grid grid-cols-2 gap-4'>
-            <div>
-              <Label>Name</Label>
-              <Input
-                value={selector.name || ""}
-                onChange={(e) =>
-                  handleSelectorChange(index, "name", e.target.value)
-                }
-                placeholder='e.g., Title, Content, Link'
-              />
-            </div>
-            <div>
-              <Label>Type</Label>
-              <Select
-                value={selector.selectorType}
-                onValueChange={(value) =>
-                  handleSelectorChange(index, "selectorType", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='css'>CSS</SelectItem>
-                  <SelectItem value='xpath'>XPath</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label>Selector</Label>
-            <Input
-              value={selector.selector}
-              onChange={(e) =>
-                handleSelectorChange(index, "selector", e.target.value)
-              }
-              placeholder={
-                selector.selectorType === "css"
-                  ? "#topic-title h1 a"
-                  : "//div[@id='topic-title']//h1/a"
-              }
-            />
-          </div>
-          <div>
-            <Label>Attributes</Label>
-            <Select
-              value={selector.attributes[0]}
-              onValueChange={(value) =>
-                handleSelectorChange(index, "attributes", [value])
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='text'>Text Content</SelectItem>
-                <SelectItem value='href'>Link URL</SelectItem>
-                <SelectItem value='src'>Image Source</SelectItem>
-                <SelectItem value='html'>HTML Content</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className='flex justify-end'>
-            <Button variant='ghost' size='sm' onClick={handleSaveSelector}>
-              Save
-            </Button>
-          </div>
-        </SelectorCard>
-      );
-    }
 
-    return (
-      <SelectorCard key={index} className='relative'>
-        <div className='p-4 space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-2'>
-              <div className='font-medium'>
-                {selector.name || `Selector ${index + 1}`}
-              </div>
-              <Badge
-                variant={
-                  selector.selectorType === "css" ? "default" : "secondary"
-                }
-              >
-                {selector.selectorType}
-              </Badge>
-            </div>
-            <div className='flex items-center gap-2'>
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={() => handleTestSelector(index)}
-                disabled={testingSelector === index}
-              >
-                {testingSelector === index ? (
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                ) : (
-                  "Test"
-                )}
-              </Button>
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={() => handleEditSelector(index)}
-              >
-                <Edit2 className='h-4 w-4' />
-              </Button>
-              <Button
-                variant='ghost'
-                size='sm'
-                onClick={() => handleRemoveSelector(index)}
-              >
-                <Trash2 className='h-4 w-4' />
-              </Button>
-            </div>
-          </div>
-          <code className='block px-2 py-1 bg-muted rounded text-xs overflow-x-auto'>
-            {selector.selector}
-          </code>
-          <div className='flex items-center gap-2'>
-            {selector.attributes.map((attr) => (
-              <Badge key={attr} variant='outline'>
-                {attr}
-              </Badge>
-            ))}
-          </div>
-        </div>
-        {testResults[index] && (
-          <div className='border-t bg-muted/50 p-4'>
-            <div className='font-medium text-sm mb-2'>Found {testResults[index].length} matches:</div>
-            <ScrollArea className='h-[200px]'>
-              <div className='space-y-2'>
-                {testResults[index].slice(0, 10).map((result: any, idx: number) => (
-                  <div key={idx} className='font-mono text-xs bg-background p-2 rounded'>
-                    {JSON.stringify(result, null, 2)}
-                  </div>
-                ))}
-                {testResults[index].length > 10 && (
-                  <div className='text-xs text-muted-foreground text-center pt-2'>
-                    + {testResults[index].length - 10} more results
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-      </SelectorCard>
-    );
+
+  // Update the condition to check for undefined
+  const isValid = data.urls?.length && data.selectors?.length;
+
+
+  // Update the selector handling
+  const handleUpdateSelectors = (selectors: SelectorConfigType[]) => {
+    handleConfigChange("selectors", selectors.map(selector => ({
+      ...selector,
+      selectorType: selector.selectorType as SelectorType
+    })));
   };
+
 
   return (
     <>
@@ -782,9 +587,7 @@ function MultiURLScrapingNode({
                 className={cn(
                   "w-[64px] h-[64px] flex items-center justify-center bg-muted cursor-pointer transition-colors",
                   "hover:bg-muted/80 active:bg-muted/70",
-                  data.urls?.length > 0 &&
-                    data.selectors?.length > 0 &&
-                    "ring-2 ring-blue-500/50"
+                  isValid && "ring-2 ring-blue-500/50"
                 )}
               >
                 <MultiURLScrapingIcon />
@@ -856,26 +659,6 @@ function MultiURLScrapingNode({
                           <Button onClick={handleAddUrl}>Add URL</Button>
                         </div>
                         
-                        {/* Replace the conditional source node check with always showing available nodes */}
-                          <div className='space-y-2'>
-                          <Label>Add from Other Nodes</Label>
-                          {getNodesWithResults().map(node => (
-                            <div key={node.id} className='space-y-2'>
-                            <VariableSelector
-                                sourceNodeId={node.id}
-                                sourceNodeName={node.name}
-                                nodeResults={node.results}
-                              onSelect={handleVariableSelect}
-                              className='w-full'
-                            />
-                          </div>
-                          ))}
-                          {getNodesWithResults().length === 0 && (
-                            <p className='text-sm text-muted-foreground'>
-                              No nodes with available variables found
-                            </p>
-                        )}
-                        </div>
                         {urlError && (
                           <p className='text-sm text-red-500'>{urlError}</p>
                         )}
@@ -892,26 +675,6 @@ function MultiURLScrapingNode({
                           />
                           <div className='flex justify-between items-center'>
                             <Button onClick={handleBulkAdd}>Add URLs</Button>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant='outline' size='sm'>
-                                  Insert Variable
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className='w-64' align='end'>
-                                <VariablePicker
-                                  nodeId={id || ""}
-                                  onInsertVariable={(variable: string) => {
-                                    const currentText = bulkUrls;
-                                    setBulkUrls(
-                                      currentText +
-                                        (currentText ? "\n" : "") +
-                                        variable
-                                    );
-                                  }}
-                                />
-                              </PopoverContent>
-                            </Popover>
                           </div>
                         </div>
                       </div>
@@ -984,9 +747,7 @@ function MultiURLScrapingNode({
                       template={data.template}
                       testResults={currentTestResults}
                       isLoading={testingSelector !== null}
-                      onUpdateSelectors={(selectors) =>
-                        handleConfigChange("selectors", selectors)
-                      }
+                      onUpdateSelectors={handleUpdateSelectors}
                       onUpdateTemplate={(template) =>
                         handleConfigChange("template", template)
                       }
