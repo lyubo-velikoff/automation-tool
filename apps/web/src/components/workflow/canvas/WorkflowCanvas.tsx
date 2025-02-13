@@ -81,7 +81,7 @@ function WorkflowCanvas({
             minZoom={0.1}
             maxZoom={4}
             fitView
-            className='h-full'
+            className='h-full w-full'
             snapToGrid
             snapGrid={[15, 15]}
             nodesDraggable={true}
@@ -90,7 +90,11 @@ function WorkflowCanvas({
             proOptions={{ hideAttribution: true }}
           >
             <Background />
-            <Controls className='absolute bottom-4 left-4 scale-150' />
+            <Controls 
+              className='absolute bottom-0 right-0 !m-0 flex flex-row !bg-background/80 backdrop-blur-sm scale-100 shadow-lg z-40'
+              showInteractive={false}
+              position="bottom-right"
+            />
           </ReactFlow>
         </div>
 
