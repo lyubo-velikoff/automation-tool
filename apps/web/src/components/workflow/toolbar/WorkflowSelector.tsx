@@ -24,6 +24,7 @@ import { Node, Edge } from "reactflow";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { useNodeManagement } from "@/hooks/workflow/useNodeManagement";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 
 interface Workflow {
   id: string;
@@ -39,6 +40,7 @@ export function WorkflowSelector() {
   const { data } = useQuery(GET_WORKFLOWS);
   const { workflowId, setWorkflowId, setWorkflowName } = useWorkflow();
   const { handleWorkflowSelect } = useNodeManagement();
+  const router = useRouter();
 
   // Sort workflows by updated_at or created_at
   const sortedWorkflows = useMemo(() => {
@@ -61,8 +63,9 @@ export function WorkflowSelector() {
       setWorkflowName(workflow.name);
       handleWorkflowSelect(workflow.nodes, workflow.edges || []);
       setOpen(false);
+      router.push(`/workflows/${workflow.id}`);
     },
-    [handleWorkflowSelect, setWorkflowId, setWorkflowName]
+    [handleWorkflowSelect, setWorkflowId, setWorkflowName, router]
   );
 
   return (
