@@ -10,37 +10,17 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/inputs/select";
-import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
-import { Separator } from "@/components/ui/data-display/separator";
-import { Textarea } from "@/components/ui/inputs/textarea";
+import { Plus, Trash2 } from "lucide-react";
 import { SelectorConfigType } from "@/gql/graphql";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/data-display/table";
 
 interface SelectorEditorProps {
   selectors: SelectorConfigType[];
-  template?: string;
-  testResults?: string[][] | null;
-  isLoading?: boolean;
   onUpdateSelectors: (selectors: SelectorConfigType[]) => void;
-  onUpdateTemplate: (template: string) => void;
-  onTestSelector: (index: number) => void;
 }
 
 export function SelectorEditor({
   selectors,
-  template,
-  testResults,
-  isLoading,
   onUpdateSelectors,
-  onUpdateTemplate,
-  onTestSelector
 }: SelectorEditorProps) {
   const handleAddSelector = () => {
     const newSelectors = [...selectors];
@@ -91,18 +71,6 @@ export function SelectorEditor({
                   </Badge>
                 </div>
                 <div className='flex items-center gap-2'>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={() => onTestSelector(index)}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className='h-4 w-4 animate-spin' />
-                    ) : (
-                      "Test"
-                    )}
-                  </Button>
                   <Button
                     variant='ghost'
                     size='sm'
@@ -190,52 +158,6 @@ export function SelectorEditor({
         <Plus className='h-4 w-4 mr-2' />
         Add Selector
       </Button>
-
-      <Separator className='my-4' />
-
-      <div className='space-y-4'>
-        <div>
-          <Label>Output Template</Label>
-          <Textarea
-            value={template || ""}
-            onChange={(e) => onUpdateTemplate(e.target.value)}
-            placeholder='Example:
-Title: {{Title}}
-URL: {{url}}
-Content: {{Content}}'
-            rows={4}
-            className='font-mono text-sm'
-          />
-          <p className='text-xs text-muted-foreground mt-1'>
-            Use double curly braces and exact selector name (e.g.,{" "}
-            {"{{Content}}"}) to reference selector outputs. Available variables:{" "}
-            {"{{url}}"} and your selector names (case-sensitive).
-          </p>
-        </div>
-
-        {testResults && testResults.length > 0 && (
-          <div className='border rounded-lg overflow-hidden'>
-            <Table>
-              <TableHeader className='sticky top-0 bg-background z-10'>
-                <TableRow>
-                  <TableHead className='bg-background'>#</TableHead>
-                  <TableHead className='bg-background'>Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {testResults.map((row, rowIndex) => (
-                  <TableRow key={rowIndex}>
-                    <TableCell>{rowIndex + 1}</TableCell>
-                    {row.map((value, colIndex) => (
-                      <TableCell key={colIndex}>{value}</TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

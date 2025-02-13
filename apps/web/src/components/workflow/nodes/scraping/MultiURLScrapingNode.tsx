@@ -667,14 +667,7 @@ function MultiURLScrapingNode({
                   <TabsContent value='selectors' className='space-y-4'>
                     <SelectorEditor
                       selectors={data.selectors || []}
-                      template={data.template ?? undefined}
-                      testResults={currentTestResults}
-                      isLoading={testingSelector !== null}
                       onUpdateSelectors={handleUpdateSelectors}
-                      onUpdateTemplate={(template) =>
-                        handleConfigChange("template", template)
-                      }
-                      onTestSelector={handleTestSelector}
                     />
 
                   </TabsContent>
