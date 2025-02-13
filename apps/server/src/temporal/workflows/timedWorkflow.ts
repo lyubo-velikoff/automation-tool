@@ -19,8 +19,6 @@ export async function timedWorkflow(input: TimedWorkflowInput): Promise<void> {
   const { nodes, edges, intervalMinutes, userId, gmailToken } = input;
 
   while (true) {
-    console.log('Executing timed workflow iteration');
-
     // Create a map of node connections
     const nodeConnections = new Map<string, string[]>();
     edges.forEach(edge => {

@@ -58,7 +58,6 @@ export class ScrapingService {
 
     let data: string;
     if (useJavaScript) {
-      console.log('Using Puppeteer for JavaScript rendering');
       const browser = await this.initBrowser();
       const page = await browser.newPage();
       
@@ -89,7 +88,6 @@ export class ScrapingService {
           }
         });
         
-        console.log('Navigating to page:', url);
         await page.goto(url, { 
           waitUntil: ['domcontentloaded', 'networkidle2'],
           timeout: 30000 
@@ -102,9 +100,8 @@ export class ScrapingService {
             const latestTopicList = document.querySelector('.latest-topic-list');
             return topicList || latestTopicList;
           }, { timeout: 10000 });
-          console.log('Content loaded successfully');
         } catch (error) {
-          console.log('Proceeding without waiting for topic list');
+          console.error('Proceeding without waiting for topic list');
         }
 
         data = await page.content();
@@ -115,7 +112,6 @@ export class ScrapingService {
           topicListItems: document.querySelectorAll('.topic-list-item').length,
           mainLinks: document.querySelectorAll('.main-link').length
         }));
-        console.log('Found elements:', elementCounts);
       } finally {
         await page.close();
       }
@@ -135,9 +131,6 @@ export class ScrapingService {
     attributes: string[],
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
-    console.log('Scraping multiple URLs:', urls);
-    console.log('Using selector:', selector);
-    console.log('Batch config:', batchConfig);
 
     // Default batch configuration
     const batchSize = batchConfig?.batchSize || 1;
@@ -159,10 +152,7 @@ export class ScrapingService {
             // Add a small delay between requests
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Fetch the page
-            console.log('Fetching page:', url);
             const html = await this.getCachedPage(url);
-            console.log('Page fetched');
             const $ = cheerio.load(html);
 
             // Remove noscript tags as they can contain duplicate content
@@ -171,7 +161,6 @@ export class ScrapingService {
             const extractedData: Record<string, string>[] = [];
             
             // Process the selector using the same Cheerio instance
-            console.log(`Processing selector "${selector.selector}" for "${selector.name}"`);
             let elements;
             if (selector.selectorType === 'xpath') {
               // TODO: Implement XPath support
@@ -180,9 +169,7 @@ export class ScrapingService {
               elements = $(selector.selector);
             }
 
-            console.log(`Found ${elements.length} elements matching selector: ${selector.selector}`);
             if (elements.length === 0) {
-              console.log(`No elements found for selector "${selector.selector}"`);
               return {
                 success: false,
                 results: [],
@@ -213,8 +200,6 @@ export class ScrapingService {
               }
             });
 
-            console.log('Extracted data:', extractedData);
-
             return {
               success: true,
               results: extractedData
@@ -241,10 +226,6 @@ export class ScrapingService {
     attributes: string[] = ['text'],
     selectorName: string = 'text'
   ): Promise<ScrapedItem[]> {
-    console.log('Scraping URL:', url);
-    console.log('Using selector:', selector);
-    console.log('Selector type:', selectorType);
-    console.log('Extracting attributes:', attributes);
 
     try {
       // Use JavaScript rendering for Discourse forums
@@ -289,7 +270,6 @@ export class ScrapingService {
         $('noscript').remove();
 
         const elements = $(selector);
-        console.log(`Found ${elements.length} elements matching selector:`, selector);
 
         elements.each((_, el) => {
           const item: ScrapedItem = {};
@@ -312,11 +292,6 @@ export class ScrapingService {
             results.push(item);
           }
         });
-
-        // Log a sample of the results
-        if (results.length > 0) {
-          console.log('Sample of results:', results.slice(0, 3));
-        }
       }
 
       return results;
@@ -360,7 +335,6 @@ export class ScrapingService {
 
   async testScraping(url: string, selectors: SelectorConfigInput[]): Promise<ScrapingResult> {
     try {
-      console.log('Testing scraping with:', { url, selectors });
       
       const html = await this.getCachedPage(url, true);
       const $ = cheerio.load(html);
@@ -376,9 +350,7 @@ export class ScrapingService {
           if (!Array.isArray(nodes)) {
             throw new Error('Invalid XPath selector result');
           }
-          
-          console.log(`Found ${nodes.length} elements for selector "${selector.name}"`);
-          
+                    
           for (const node of nodes) {
             const row: string[] = [];
             
@@ -400,7 +372,6 @@ export class ScrapingService {
           }
         } else {
           const elements = $(selector.selector);
-          console.log(`Found ${elements.length} elements for selector "${selector.name}"`);
           
           elements.each((_, element) => {
             const row: string[] = [];

@@ -81,13 +81,6 @@ export class EmailActionNode {
         return String(nodeData[field] || nodeData.data?.[field] || '');
       }
 
-      // Log available nodes for debugging
-      console.log('Available nodes:', Object.entries(context).map(([id, data]) => ({
-        id,
-        label: data.label || data.data?.label,
-        hasResults: Boolean(data.results || data.data?.results)
-      })));
-
       return match; // Keep original if not found
     });
   }

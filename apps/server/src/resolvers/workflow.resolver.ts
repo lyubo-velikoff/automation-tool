@@ -432,7 +432,7 @@ export class WorkflowResolver {
     }
 
     const gmail = createGmailClient(gmailToken);
-    console.log('Checking for new emails...');
+    
     return {};
   }
 
@@ -478,10 +478,6 @@ export class WorkflowResolver {
   }
 
   private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
-    console.log('=== Variable Resolution Debug ===');
-    console.log('Input text:', text);
-    console.log('Available nodes:', Object.keys(context.nodeResults));
-
     // If no variables to replace, return original text
     if (!text.includes('{{')) {
       return text;
@@ -500,19 +496,16 @@ export class WorkflowResolver {
         });
 
         if (!nodeData) {
-          console.log('Node not found:', nodeName);
+
           return match;
         }
 
         // Start with the node's data
         let value = nodeData[1];
-        console.log('Initial value:', JSON.stringify(value, null, 2));
 
         // Skip the node name and process remaining parts
         for (let i = 1; i < parts.length; i++) {
-          const part = parts[i];
-          console.log(`Processing part "${part}"`, value);
-          
+          const part = parts[i];          
           if (part === 'results') continue; // Skip 'results' part as it's implicit
 
           if (part === 'bySelector') {
@@ -537,11 +530,9 @@ export class WorkflowResolver {
 
           // If we hit undefined, return the original match
           if (value === undefined) {
-            console.log(`Value undefined at part: ${part}`);
             return match;
           }
 
-          console.log(`After processing "${part}":`, value);
         }
 
         // Handle the final value
@@ -557,10 +548,8 @@ export class WorkflowResolver {
           }
         }
 
-        console.log('Final resolved value:', value);
         return value || match;
       } catch (error) {
-        console.error('Error resolving variable:', error);
         return match;
       }
     });
@@ -589,8 +578,6 @@ export class WorkflowResolver {
         return resolved;
       });
 
-      console.log('Resolved URLs:', resolvedUrls);
-
       const batchConfig = {
         batchSize: node.data.batchConfig?.batchSize || 5,
         rateLimit: node.data.batchConfig?.rateLimit || 10
@@ -604,7 +591,6 @@ export class WorkflowResolver {
               throw new Error('Invalid selector configuration');
             }
 
-            console.log('Processing selector:', selector);
             const results = await scrapingService.scrapeUrls(
               resolvedUrls,
               {
@@ -649,10 +635,8 @@ export class WorkflowResolver {
           }, {} as Record<string, any[]>)
         };
 
-        console.log('Formatted results:', formattedResults);
         return formattedResults;
       } catch (error) {
-        console.error('Error in scraping service:', error);
         throw error;
       }
     }
@@ -673,7 +657,6 @@ export class WorkflowResolver {
             throw new Error('Invalid selector configuration');
           }
 
-          console.log('Processing selector:', selector);
           const results = await scrapingService.scrapeUrl(
             url,
             selector.selector,
@@ -696,7 +679,6 @@ export class WorkflowResolver {
         }, {} as Record<string, any[]>)
       };
 
-      console.log('Formatted results:', formattedResults);
       return formattedResults;
     } catch (error) {
       console.error('Error in scraping service:', error);
@@ -813,14 +795,9 @@ export class WorkflowResolver {
 
       // Sort nodes in execution order
       const sortedNodes = this.getNodesInExecutionOrder(workflowData.nodes, workflowData.edges);
-      console.log('New execution order:', sortedNodes.map(node => 
-        node.data?.label || node.label || `${node.type} Node`
-      ));
-
       // Execute nodes in order
       for (const node of sortedNodes) {
         const nodeName = node.data?.label || node.label || `${node.type} Node`;
-        console.log(`Executing node: ${nodeName} (${node.type} ${node.id})`);
         try {
           const nodeResult = await this.executeNode(node, { 
             token: gmailToken, 
@@ -940,7 +917,6 @@ export class WorkflowResolver {
     try {
       let result: any;
       const nodeName = node.data?.label || node.label || `${node.type} Node`;
-      console.log(`Executing node: ${nodeName} (${node.type})`);
 
       switch (node.type) {
         case "GMAIL_TRIGGER":
@@ -993,53 +969,6 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeMultiURLScrapingNode(node: WorkflowNode): Promise<any[]> {
-    const scrapingService = new ScrapingService();
-    
-    if (!node.data) {
-      throw new Error("Node data is missing");
-    }
-
-    const urls = node.data.urls || [];
-    if (urls.length === 0) {
-      throw new Error("No URLs provided for scraping");
-    }
-
-    const firstSelector = node.data.selectors?.[0];
-    if (!firstSelector) {
-      throw new Error("No selector configuration found");
-    }
-
-    const { selector, selectorType, attributes } = firstSelector;
-    if (!selector || !selectorType || !attributes) {
-      throw new Error("Invalid selector configuration");
-    }
-
-    const batchConfig = {
-      batchSize: node.data.batchConfig?.batchSize || 5,
-      rateLimit: node.data.batchConfig?.rateLimit || 10
-    };
-
-    const results = await scrapingService.scrapeUrls(
-      urls,
-      {
-        selector: selector,
-        selectorType: selectorType as 'css' | 'xpath',
-        attributes: attributes,
-        name: 'Post Content'
-      },
-      selectorType as 'css' | 'xpath',
-      attributes,
-      batchConfig
-    );
-
-    // Return raw results without stringification
-    return results
-      .filter(r => r.success)
-      .map(r => r.results)
-      .filter(r => r.length > 0);
-  }
-
   private async executeOpenAINode(
     node: WorkflowNode,
     context: { nodeResults: Record<string, any>; userId: string }
@@ -1057,15 +986,12 @@ export class WorkflowResolver {
         throw new Error('Prompt is empty after variable interpolation');
       }
 
-      console.log('Executing OpenAI node with prompt:', prompt);
       
       const result = await openaiService.complete(prompt, {
         model: node.data.model,
         temperature: node.data.temperature,
         maxTokens: node.data.maxTokens
       });
-
-      console.log('OpenAI node execution completed successfully');
 
       return {
         success: true,
@@ -1179,7 +1105,6 @@ export class WorkflowResolver {
       // Check if workflow exists before attempting to terminate
       const description = await handle.describe();
       if (!description) {
-        console.log('Workflow not found, considering it already stopped');
         return true;
       }
       
@@ -1188,7 +1113,6 @@ export class WorkflowResolver {
     } catch (error: any) {
       // If workflow not found, consider it already stopped
       if (error.name === 'WorkflowNotFoundError') {
-        console.log('Workflow not found, considering it already stopped');
         return true;
       }
       console.error('Error stopping timed workflow:', error);
