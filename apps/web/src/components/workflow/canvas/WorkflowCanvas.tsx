@@ -16,6 +16,9 @@ import { WorkflowToolbar } from "../toolbar/WorkflowToolbar";
 import { ExecutionHistory } from "../toolbar/ExecutionHistory";
 import { useWorkflowExecution } from "@/hooks/useWorkflowExecution";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Zap } from "lucide-react";
 
 interface WorkflowCanvasProps {
   onSave?: (
@@ -55,6 +58,15 @@ function WorkflowCanvas({
         className='relative w-full h-screen'
         data-testid='workflow-canvas'
       >
+        <Link 
+          href="/"
+          className="absolute top-4 left-4 z-50 transition-transform hover:scale-110 active:scale-95"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Zap className="h-4 w-4" />
+          </div>
+        </Link>
+
         <WorkflowToolbar
           onAddNode={handleAddNode}
           onScheduleClick={() => {
