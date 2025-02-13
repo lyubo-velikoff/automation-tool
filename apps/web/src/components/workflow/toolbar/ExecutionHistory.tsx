@@ -65,8 +65,16 @@ export function ExecutionHistory({
   return (
     <Card className={cn('w-[400px]', className)}>
       <CardHeader
-        className='cursor-pointer'
+        className='cursor-pointer hover:bg-accent transition-colors'
+        role="button"
+        tabIndex={0}
         onClick={() => setIsExpanded(!isExpanded)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(!isExpanded);
+          }
+        }}
       >
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
@@ -76,9 +84,9 @@ export function ExecutionHistory({
             </span>
           </div>
           {isExpanded ? (
-            <ChevronDown className='h-4 w-4' />
+            <ChevronDown className='h-4 w-4 transition-transform' />
           ) : (
-            <ChevronRight className='h-4 w-4' />
+            <ChevronRight className='h-4 w-4 transition-transform' />
           )}
         </div>
       </CardHeader>
@@ -136,9 +144,13 @@ export function ExecutionHistory({
                       <TableCell>
                         {hasErrors ? (
                           <div className='text-sm text-destructive'>
-                            {errorMessages?.map((error, idx) => (
-                              <div key={idx}>{error}</div>
-                            ))}
+                            {errorMessages && errorMessages.length > 0 ? (
+                              errorMessages.map((error, idx) => (
+                                <div key={idx}>{String(error)}</div>
+                              ))
+                            ) : (
+                              <div>An error occurred during execution</div>
+                            )}
                           </div>
                         ) : execution.status === "completed" ? (
                           <span className='text-sm text-muted-foreground'>
