@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/card"
-import OpenAISettingsDialog from "@/components/ui/feedback/OpenAISettingsDialog"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/layout/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/data-display/separator"
@@ -92,13 +91,6 @@ export default function ConnectionsPage() {
             </Card>
           </div>
 
-          <OpenAISettingsDialog
-            open={openAISettingsOpen}
-            onOpenChange={setOpenAISettingsOpen}
-            onSuccess={() => {
-              window.location.reload()
-            }}
-          />
         </div>
       </SidebarInset>
     </SidebarProvider>

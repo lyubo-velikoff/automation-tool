@@ -1,10 +1,19 @@
-import { Resolver, Query, Mutation, Arg, Ctx, Authorized, Int, ID } from "type-graphql";
+import {
+  Resolver,
+  Query,
+  Mutation,
+  Arg,
+  Ctx,
+  Authorized,
+  Int,
+  ID,
+} from "type-graphql";
 import {
   Workflow,
   WorkflowNode,
   WorkflowEdge,
   WorkflowTag,
-  WorkflowExecution
+  WorkflowExecution,
 } from "../schema/workflow";
 import { NodeResult } from "../schema/node-result";
 import {
@@ -13,20 +22,17 @@ import {
   WorkflowNodeInput,
   WorkflowEdgeInput,
   CreateWorkflowTagInput,
-  SaveAsTemplateInput
+  SaveAsTemplateInput,
 } from "../schema/workflow-inputs";
-import { ObjectType, Field } from 'type-graphql';
-import { createGmailClient } from '../integrations/gmail/config';
-import { ScrapingService } from '../services/scraping.service';
-import { getTemporalClient } from '../temporal/client';
+import { ObjectType, Field } from "type-graphql";
+import { createGmailClient } from "../integrations/gmail/config";
+import { ScrapingService } from "../services/scraping.service";
+import { getTemporalClient } from "../temporal/client";
 import { Context } from "../types";
-import { supabase } from '../lib/supabase';
-import { OpenAIService } from '../services/openai.service';
+import { supabase } from "../lib/supabase";
+import { OpenAIService } from "../services/openai.service";
 import { VariableService } from "../services/variable.service";
-import { 
-  NodeVariablesType,
-  VariablePreviewType
-} from "../types/workflow";
+import { NodeVariablesType } from "../types/workflow";
 
 @ObjectType()
 class ExecutionResult {
@@ -88,14 +94,14 @@ export class WorkflowResolver {
       .from("workflows")
       .select("*")
       .eq("user_id", ctx.user.id)
-      .eq("is_active", true)  // Only return active workflows
+      .eq("is_active", true) // Only return active workflows
       .order("created_at", { ascending: false });
 
     if (error) throw error;
     if (!workflows) return [];
 
     // Then, get all workflow-tag relationships for these workflows
-    const workflowIds = workflows.map(w => w.id);
+    const workflowIds = workflows.map((w) => w.id);
     const { data: tagRelations, error: tagRelError } = await ctx.supabase
       .from("workflow_tags_workflows")
       .select("workflow_id, tag_id, workflow_tags (*)")
@@ -104,11 +110,12 @@ export class WorkflowResolver {
     if (tagRelError) throw tagRelError;
 
     // Map tags to their respective workflows
-    return workflows.map(workflow => ({
+    return workflows.map((workflow) => ({
       ...workflow,
-      tags: tagRelations
-        ?.filter(rel => rel.workflow_id === workflow.id)
-        .map(rel => rel.workflow_tags) || []
+      tags:
+        tagRelations
+          ?.filter((rel) => rel.workflow_id === workflow.id)
+          .map((rel) => rel.workflow_tags) || [],
     }));
   }
 
@@ -146,7 +153,7 @@ export class WorkflowResolver {
       .select("*")
       .eq("id", id)
       .eq("user_id", context.user.id)
-      .eq("is_active", true)  // Only return active workflows
+      .eq("is_active", true) // Only return active workflows
       .single();
 
     if (error) throw error;
@@ -175,7 +182,7 @@ export class WorkflowResolver {
         nodes: input.nodes,
         edges: input.edges,
         user_id: ctx.user.id,
-        is_active: true
+        is_active: true,
       })
       .select()
       .single();
@@ -188,7 +195,7 @@ export class WorkflowResolver {
         .insert(
           input.tag_ids.map((tag_id) => ({
             workflow_id: workflow.id,
-            tag_id
+            tag_id,
           }))
         );
 
@@ -198,7 +205,8 @@ export class WorkflowResolver {
     // Get workflow with tags
     const { data: workflowWithTags, error: getError } = await ctx.supabase
       .from("workflows")
-      .select(`
+      .select(
+        `
         *,
         tags:workflow_tags_workflows(
           workflow_tags (
@@ -209,7 +217,8 @@ export class WorkflowResolver {
             updated_at
           )
         )
-      `)
+      `
+      )
       .eq("id", workflow.id)
       .eq("user_id", ctx.user.id)
       .single();
@@ -219,7 +228,7 @@ export class WorkflowResolver {
     // Transform the tags structure to match the expected format
     return {
       ...workflowWithTags,
-      tags: workflowWithTags.tags?.map((t: any) => t.workflow_tags) || []
+      tags: workflowWithTags.tags?.map((t: any) => t.workflow_tags) || [],
     };
   }
 
@@ -234,7 +243,7 @@ export class WorkflowResolver {
     if (typeof input.description === "string")
       updateData.description = input.description;
     if (Array.isArray(input.nodes)) {
-      updateData.nodes = input.nodes.map(node => ({
+      updateData.nodes = input.nodes.map((node) => ({
         ...node,
         data: {
           ...node.data,
@@ -256,8 +265,8 @@ export class WorkflowResolver {
           prompt: node.data?.prompt,
           model: node.data?.model,
           temperature: node.data?.temperature,
-          maxTokens: node.data?.maxTokens
-        }
+          maxTokens: node.data?.maxTokens,
+        },
       }));
     }
     if (Array.isArray(input.edges)) updateData.edges = input.edges;
@@ -300,7 +309,7 @@ export class WorkflowResolver {
           .insert(
             input.tag_ids.map((tag_id) => ({
               workflow_id: input.id,
-              tag_id
+              tag_id,
             }))
           );
 
@@ -311,7 +320,8 @@ export class WorkflowResolver {
     // Get updated workflow with tags
     const { data: updatedWorkflow, error: getError } = await ctx.supabase
       .from("workflows")
-      .select(`
+      .select(
+        `
         *,
         tags:workflow_tags_workflows(
           workflow_tags (
@@ -322,7 +332,8 @@ export class WorkflowResolver {
             updated_at
           )
         )
-      `)
+      `
+      )
       .eq("id", input.id)
       .eq("user_id", ctx.user.id)
       .single();
@@ -332,7 +343,7 @@ export class WorkflowResolver {
     // Transform the tags structure to match the expected format
     return {
       ...updatedWorkflow,
-      tags: updatedWorkflow.tags?.map((t: any) => t.workflow_tags) || []
+      tags: updatedWorkflow.tags?.map((t: any) => t.workflow_tags) || [],
     };
   }
 
@@ -362,7 +373,8 @@ export class WorkflowResolver {
   ): Promise<Workflow> {
     try {
       // First verify the user exists
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+      const { data: userData, error: userError } =
+        await supabase.auth.admin.getUserById(userId);
 
       if (userError) {
         throw new Error(`Invalid user ID: ${userError.message}`);
@@ -380,8 +392,8 @@ export class WorkflowResolver {
             nodes,
             edges,
             user_id: userId,
-            is_active: true
-          }
+            is_active: true,
+          },
         ])
         .select()
         .single();
@@ -402,23 +414,23 @@ export class WorkflowResolver {
 
   private async getNodeCredentials(userId: string, nodeType: string) {
     const { data: settings, error } = await supabase
-      .from('user_settings')
-      .select('*')
-      .eq('user_id', userId)
+      .from("user_settings")
+      .select("*")
+      .eq("user_id", userId)
       .single();
-    
+
     if (error) throw error;
-    if (!settings) throw new Error('User settings not found');
+    if (!settings) throw new Error("User settings not found");
 
     switch (nodeType) {
-      case 'openaiCompletion':
+      case "openaiCompletion":
         // Temporarily return empty credentials to skip OpenAI validation
-        return { apiKey: 'disabled' };
-      case 'GMAIL_TRIGGER':
-      case 'GMAIL_ACTION':
+        return { apiKey: "disabled" };
+      case "GMAIL_TRIGGER":
+      case "GMAIL_ACTION":
         // Get Gmail OAuth tokens from user settings
         return { tokens: settings.gmail_tokens };
-      case 'SCRAPING':
+      case "SCRAPING":
         // Scraping doesn't need credentials
         return {};
       default:
@@ -426,60 +438,72 @@ export class WorkflowResolver {
     }
   }
 
-  private async executeGmailTrigger(node: WorkflowNode, gmailToken?: string): Promise<any> {
+  private async executeGmailTrigger(
+    node: WorkflowNode,
+    gmailToken?: string
+  ): Promise<any> {
     if (!gmailToken) {
-      throw new Error('Gmail token not found. Please reconnect your Gmail account.');
+      throw new Error(
+        "Gmail token not found. Please reconnect your Gmail account."
+      );
     }
 
     const gmail = createGmailClient(gmailToken);
-    
+
     return {};
   }
 
   private async executeGmailAction(
-    node: WorkflowNode, 
+    node: WorkflowNode,
     gmailToken: string | undefined,
     context: { nodeResults: Record<string, any> }
   ): Promise<any> {
     if (!gmailToken) {
-      throw new Error('Gmail token not found');
+      throw new Error("Gmail token not found");
     }
 
     const gmail = createGmailClient(gmailToken);
 
     // Interpolate variables in subject and body
-    const subject = node.data?.subject ? this.interpolateVariables(node.data.subject, context) : '';
-    const body = node.data?.body ? this.interpolateVariables(node.data.body, context) : '';
+    const subject = node.data?.subject
+      ? this.interpolateVariables(node.data.subject, context)
+      : "";
+    const body = node.data?.body
+      ? this.interpolateVariables(node.data.body, context)
+      : "";
 
     const message = [
       'Content-Type: text/plain; charset="UTF-8"',
-      'MIME-Version: 1.0',
-      'Content-Transfer-Encoding: 7bit',
+      "MIME-Version: 1.0",
+      "Content-Transfer-Encoding: 7bit",
       `To: ${node.data?.to}`,
       `Subject: ${subject}`,
-      '',
-      body
-    ].join('\n');
+      "",
+      body,
+    ].join("\n");
 
     const encodedMessage = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
 
     await gmail.users.messages.send({
-      userId: 'me',
+      userId: "me",
       requestBody: {
-        raw: encodedMessage
-      }
+        raw: encodedMessage,
+      },
     });
 
     return { sent: true };
   }
 
-  private interpolateVariables(text: string, context: { nodeResults: Record<string, any> }): string {
+  private interpolateVariables(
+    text: string,
+    context: { nodeResults: Record<string, any> }
+  ): string {
     // If no variables to replace, return original text
-    if (!text.includes('{{')) {
+    if (!text.includes("{{")) {
       return text;
     }
 
@@ -490,13 +514,14 @@ export class WorkflowResolver {
         const nodeName = parts[0];
 
         // Find the node by name (case-insensitive)
-        const nodeData = Object.entries(context.nodeResults).find(([key, value]) => {
-          const label = value.label || key;
-          return label.toLowerCase() === nodeName.toLowerCase();
-        });
+        const nodeData = Object.entries(context.nodeResults).find(
+          ([key, value]) => {
+            const label = value.label || key;
+            return label.toLowerCase() === nodeName.toLowerCase();
+          }
+        );
 
         if (!nodeData) {
-
           return match;
         }
 
@@ -505,10 +530,10 @@ export class WorkflowResolver {
 
         // Skip the node name and process remaining parts
         for (let i = 1; i < parts.length; i++) {
-          const part = parts[i];          
-          if (part === 'results') continue; // Skip 'results' part as it's implicit
+          const part = parts[i];
+          if (part === "results") continue; // Skip 'results' part as it's implicit
 
-          if (part === 'bySelector') {
+          if (part === "bySelector") {
             value = value.bySelector;
             continue;
           }
@@ -518,7 +543,11 @@ export class WorkflowResolver {
             const index = Number(part);
             if (Array.isArray(value)) {
               value = value[index];
-            } else if (value && typeof value === 'object' && Array.isArray(value[Object.keys(value)[0]])) {
+            } else if (
+              value &&
+              typeof value === "object" &&
+              Array.isArray(value[Object.keys(value)[0]])
+            ) {
               // If value is an object with an array as its first property
               const firstKey = Object.keys(value)[0];
               value = value[firstKey][index];
@@ -532,18 +561,19 @@ export class WorkflowResolver {
           if (value === undefined) {
             return match;
           }
-
         }
 
         // Handle the final value
-        if (value && typeof value === 'object') {
+        if (value && typeof value === "object") {
           if (value.URls) {
             value = value.URls;
           } else if (Array.isArray(value)) {
             value = value[0];
           } else {
             // Get the first non-null value from the object
-            const firstValue = Object.values(value).find(v => v !== null && v !== undefined);
+            const firstValue = Object.values(value).find(
+              (v) => v !== null && v !== undefined
+            );
             value = firstValue || value;
           }
         }
@@ -555,24 +585,35 @@ export class WorkflowResolver {
     });
   }
 
-  private async executeScrapingNode(node: WorkflowNode, nodeResults: Record<string, any>): Promise<any> {
+  private async executeScrapingNode(
+    node: WorkflowNode,
+    nodeResults: Record<string, any>
+  ): Promise<any> {
     // Multi-URL scraping
-    if (node.type === 'MULTI_URL_SCRAPING') {
-      if (!node.data?.urls || !Array.isArray(node.data.urls) || node.data.urls.length === 0) {
-        throw new Error('Missing URLs for multi-URL scraping');
+    if (node.type === "MULTI_URL_SCRAPING") {
+      if (
+        !node.data?.urls ||
+        !Array.isArray(node.data.urls) ||
+        node.data.urls.length === 0
+      ) {
+        throw new Error("Missing URLs for multi-URL scraping");
       }
 
-      if (!node.data.selectors || !Array.isArray(node.data.selectors) || node.data.selectors.length === 0) {
-        throw new Error('Missing selectors for multi-URL scraping');
+      if (
+        !node.data.selectors ||
+        !Array.isArray(node.data.selectors) ||
+        node.data.selectors.length === 0
+      ) {
+        throw new Error("Missing selectors for multi-URL scraping");
       }
 
       const scrapingService = new ScrapingService();
-      
+
       // First, resolve all URLs
-      const resolvedUrls = node.data.urls.map(url => {
+      const resolvedUrls = node.data.urls.map((url) => {
         const resolved = this.interpolateVariables(url, { nodeResults });
         // If still contains variable syntax, it means resolution failed
-        if (resolved.includes('{{')) {
+        if (resolved.includes("{{")) {
           throw new Error(`Failed to resolve URL: ${url}`);
         }
         return resolved;
@@ -580,37 +621,41 @@ export class WorkflowResolver {
 
       const batchConfig = {
         batchSize: node.data.batchConfig?.batchSize || 5,
-        rateLimit: node.data.batchConfig?.rateLimit || 10
+        rateLimit: node.data.batchConfig?.rateLimit || 10,
       };
 
       try {
         // Process each selector
         const allResults = await Promise.all(
           node.data.selectors.map(async (selector) => {
-            if (!selector.selector || !selector.selectorType || !selector.attributes) {
-              throw new Error('Invalid selector configuration');
+            if (
+              !selector.selector ||
+              !selector.selectorType ||
+              !selector.attributes
+            ) {
+              throw new Error("Invalid selector configuration");
             }
 
             const results = await scrapingService.scrapeUrls(
               resolvedUrls,
               {
                 selector: selector.selector,
-                selectorType: selector.selectorType as 'css' | 'xpath',
+                selectorType: selector.selectorType as "css" | "xpath",
                 attributes: selector.attributes,
-                name: selector.name || 'Default'
+                name: selector.name || "Default",
               },
-              selector.selectorType as 'css' | 'xpath',
+              selector.selectorType as "css" | "xpath",
               selector.attributes,
               batchConfig
             );
 
             // Extract and parse results
             const parsedResults = results
-              .filter(r => r.success)
-              .map(r => r.results)
+              .filter((r) => r.success)
+              .map((r) => r.results)
               .flat()
-              .map(result => {
-                if (typeof result === 'string') {
+              .map((result) => {
+                if (typeof result === "string") {
                   try {
                     return JSON.parse(result);
                   } catch {
@@ -621,8 +666,8 @@ export class WorkflowResolver {
               });
 
             return {
-              name: selector.name || 'Default',
-              results: parsedResults
+              name: selector.name || "Default",
+              results: parsedResults,
             };
           })
         );
@@ -632,7 +677,7 @@ export class WorkflowResolver {
           bySelector: allResults.reduce((acc, { name, results }) => {
             acc[name] = results;
             return acc;
-          }, {} as Record<string, any[]>)
+          }, {} as Record<string, any[]>),
         };
 
         return formattedResults;
@@ -642,31 +687,40 @@ export class WorkflowResolver {
     }
 
     // Regular single-URL scraping
-    if (!node.data?.url || typeof node.data.url !== 'string' || !node.data.selectors || node.data.selectors.length === 0) {
-      throw new Error('Missing required scraping data (url or selectors)');
+    if (
+      !node.data?.url ||
+      typeof node.data.url !== "string" ||
+      !node.data.selectors ||
+      node.data.selectors.length === 0
+    ) {
+      throw new Error("Missing required scraping data (url or selectors)");
     }
 
     const scrapingService = new ScrapingService();
     const url = this.interpolateVariables(node.data.url, { nodeResults });
-    
+
     try {
       // Process each selector
       const allResults = await Promise.all(
         node.data.selectors.map(async (selector) => {
-          if (!selector.selector || !selector.selectorType || !selector.attributes) {
-            throw new Error('Invalid selector configuration');
+          if (
+            !selector.selector ||
+            !selector.selectorType ||
+            !selector.attributes
+          ) {
+            throw new Error("Invalid selector configuration");
           }
 
           const results = await scrapingService.scrapeUrl(
             url,
             selector.selector,
-            selector.selectorType as 'css' | 'xpath',
+            selector.selectorType as "css" | "xpath",
             selector.attributes,
-            selector.name || 'Default'
+            selector.name || "Default"
           );
           return {
-            name: selector.name || 'Default',
-            results
+            name: selector.name || "Default",
+            results,
           };
         })
       );
@@ -676,34 +730,36 @@ export class WorkflowResolver {
         bySelector: allResults.reduce((acc, { name, results }) => {
           acc[name] = results;
           return acc;
-        }, {} as Record<string, any[]>)
+        }, {} as Record<string, any[]>),
       };
 
       return formattedResults;
     } catch (error) {
-      console.error('Error in scraping service:', error);
+      console.error("Error in scraping service:", error);
       throw error;
     }
   }
 
   private getSourceNodeId(nodeId: string): string | null {
     if (!this.currentWorkflow) return null;
-    const edge = this.currentWorkflow.edges.find((e: WorkflowEdge) => e.target === nodeId);
+    const edge = this.currentWorkflow.edges.find(
+      (e: WorkflowEdge) => e.target === nodeId
+    );
     return edge?.source || null;
   }
 
   private getNodeResults(type: string, result: any): string[] {
     try {
       switch (type) {
-        case 'START':
-          return ['Workflow started'];
-        case 'SCRAPING':
+        case "START":
+          return ["Workflow started"];
+        case "SCRAPING":
           return result.results || [];
-        case 'GMAIL_TRIGGER':
-          return result.emails?.map((e: any) => e.snippet || '') || [];
-        case 'GMAIL_ACTION':
-          return ['Email sent successfully'];
-        case 'OPENAI':
+        case "GMAIL_TRIGGER":
+          return result.emails?.map((e: any) => e.snippet || "") || [];
+        case "GMAIL_ACTION":
+          return ["Email sent successfully"];
+        case "OPENAI":
           if (!result.success) {
             const errorMsg = result.error?.message || result.results[0];
             throw new Error(errorMsg);
@@ -719,35 +775,38 @@ export class WorkflowResolver {
     }
   }
 
-  private getExecutionOrder(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+  private getExecutionOrder(
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[]
+  ): WorkflowNode[] {
     // Create adjacency list
     const graph = new Map<string, string[]>();
     const inDegree = new Map<string, number>();
-    
+
     // Initialize
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       graph.set(node.id, []);
       inDegree.set(node.id, 0);
     });
-    
+
     // Build graph
-    edges.forEach(edge => {
+    edges.forEach((edge) => {
       graph.get(edge.source)?.push(edge.target);
       inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
     });
-    
+
     // Find nodes with no dependencies
     const queue = nodes
-      .filter(node => (inDegree.get(node.id) || 0) === 0)
-      .map(node => node.id);
-    
+      .filter((node) => (inDegree.get(node.id) || 0) === 0)
+      .map((node) => node.id);
+
     const result: string[] = [];
-    
+
     // Process queue
     while (queue.length > 0) {
       const nodeId = queue.shift()!;
       result.push(nodeId);
-      
+
       const neighbors = graph.get(nodeId) || [];
       for (const neighbor of neighbors) {
         inDegree.set(neighbor, (inDegree.get(neighbor) || 0) - 1);
@@ -756,9 +815,9 @@ export class WorkflowResolver {
         }
       }
     }
-    
+
     // Map back to nodes
-    return result.map(id => nodes.find(n => n.id === id)!);
+    return result.map((id) => nodes.find((n) => n.id === id)!);
   }
 
   @Mutation(() => ExecutionResult)
@@ -781,7 +840,7 @@ export class WorkflowResolver {
 
     try {
       // Get the Gmail token from context.req.headers
-      const gmailToken = context.req?.headers?.['gmail-token'];
+      const gmailToken = context.req?.headers?.["gmail-token"];
       const userId = context.user?.id;
 
       if (!userId) {
@@ -794,27 +853,32 @@ export class WorkflowResolver {
       const results: NodeResult[] = [];
 
       // Sort nodes in execution order
-      const sortedNodes = this.getNodesInExecutionOrder(workflowData.nodes, workflowData.edges);
+      const sortedNodes = this.getNodesInExecutionOrder(
+        workflowData.nodes,
+        workflowData.edges
+      );
       // Execute nodes in order
       for (const node of sortedNodes) {
         const nodeName = node.data?.label || node.label || `${node.type} Node`;
         try {
-          const nodeResult = await this.executeNode(node, { 
-            token: gmailToken, 
+          const nodeResult = await this.executeNode(node, {
+            token: gmailToken,
             nodeResults,
-            userId 
+            userId,
           });
 
           // Add to results array
           results.push(nodeResult);
         } catch (error: any) {
           console.error(`Error executing node ${nodeName}:`, error);
-          results.push(new NodeResult(
-            node.id,
-            "error",
-            [{ error: error.message || "Unknown error" }],
-            nodeName
-          ));
+          results.push(
+            new NodeResult(
+              node.id,
+              "error",
+              [{ error: error.message || "Unknown error" }],
+              nodeName
+            )
+          );
           break; // Stop execution on error
         }
       }
@@ -826,8 +890,10 @@ export class WorkflowResolver {
           workflow_id: workflowId,
           user_id: userId,
           execution_id: executionId,
-          status: results.some(r => r.status === "error") ? "error" : "success",
-          results
+          status: results.some((r) => r.status === "error")
+            ? "error"
+            : "success",
+          results,
         });
 
       if (saveError) {
@@ -835,10 +901,12 @@ export class WorkflowResolver {
       }
 
       return {
-        success: !results.some(r => r.status === "error"),
-        message: results.some(r => r.status === "error") ? "Workflow execution failed" : "Workflow executed successfully",
+        success: !results.some((r) => r.status === "error"),
+        message: results.some((r) => r.status === "error")
+          ? "Workflow execution failed"
+          : "Workflow executed successfully",
         executionId,
-        results
+        results,
       };
     } catch (error: any) {
       console.error("Error executing workflow:", error);
@@ -846,19 +914,22 @@ export class WorkflowResolver {
         success: false,
         message: error.message || "Unknown error",
         executionId: `exec-${Date.now()}`,
-        results: []
+        results: [],
       };
     }
   }
 
-  private getNodesInExecutionOrder(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+  private getNodesInExecutionOrder(
+    nodes: WorkflowNode[],
+    edges: WorkflowEdge[]
+  ): WorkflowNode[] {
     // Find root nodes (nodes with no incoming edges)
     const incomingEdges = new Map<string, number>();
-    edges.forEach(edge => {
+    edges.forEach((edge) => {
       incomingEdges.set(edge.target, (incomingEdges.get(edge.target) || 0) + 1);
     });
 
-    const rootNodes = nodes.filter(node => !incomingEdges.has(node.id));
+    const rootNodes = nodes.filter((node) => !incomingEdges.has(node.id));
     const visited = new Set<string>();
     const result: WorkflowNode[] = [];
 
@@ -870,9 +941,9 @@ export class WorkflowResolver {
 
       // Find and visit all target nodes
       edges
-        .filter(edge => edge.source === node.id)
-        .forEach(edge => {
-          const targetNode = nodes.find(n => n.id === edge.target);
+        .filter((edge) => edge.source === node.id)
+        .forEach((edge) => {
+          const targetNode = nodes.find((n) => n.id === edge.target);
           if (targetNode) visit(targetNode);
         });
     };
@@ -881,7 +952,7 @@ export class WorkflowResolver {
     rootNodes.forEach(visit);
 
     // Add any remaining nodes (in case of cycles or disconnected nodes)
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       if (!visited.has(node.id)) {
         result.push(node);
       }
@@ -890,30 +961,37 @@ export class WorkflowResolver {
     return result;
   }
 
-  private getDependentNodes(nodeId: string, edges: WorkflowEdge[], nodes: WorkflowNode[]): WorkflowNode[] {
+  private getDependentNodes(
+    nodeId: string,
+    edges: WorkflowEdge[],
+    nodes: WorkflowNode[]
+  ): WorkflowNode[] {
     const dependentNodes: WorkflowNode[] = [];
     const visited = new Set<string>();
-    
+
     const traverse = (currentId: string) => {
       if (visited.has(currentId)) return;
       visited.add(currentId);
-      
+
       // Find all edges where current node is the source
-      const outgoingEdges = edges.filter(e => e.source === currentId);
+      const outgoingEdges = edges.filter((e) => e.source === currentId);
       for (const edge of outgoingEdges) {
-        const targetNode = nodes.find(n => n.id === edge.target);
+        const targetNode = nodes.find((n) => n.id === edge.target);
         if (targetNode) {
           dependentNodes.push(targetNode);
           traverse(edge.target);
         }
       }
     };
-    
+
     traverse(nodeId);
     return dependentNodes;
   }
 
-  private async executeNode(node: WorkflowNode, context: any): Promise<NodeResult> {
+  private async executeNode(
+    node: WorkflowNode,
+    context: any
+  ): Promise<NodeResult> {
     try {
       let result: any;
       const nodeName = node.data?.label || node.label || `${node.type} Node`;
@@ -940,30 +1018,30 @@ export class WorkflowResolver {
       if (result) {
         context.nodeResults[node.id] = {
           ...result,
-          label: nodeName
+          label: nodeName,
         };
         // Also store by label if it exists
         if (nodeName) {
           context.nodeResults[nodeName] = {
             ...result,
-            label: nodeName
+            label: nodeName,
           };
         }
       }
 
-      return new NodeResult(
-        node.id,
-        "success",
-        [result],
-        nodeName
-      );
+      return new NodeResult(node.id, "success", [result], nodeName);
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
       const nodeName = node.data?.label || node.label || `${node.type} Node`;
       return new NodeResult(
         node.id,
         "error",
-        [{ error: error instanceof Error ? error.message : "Unknown error occurred" }],
+        [
+          {
+            error:
+              error instanceof Error ? error.message : "Unknown error occurred",
+          },
+        ],
         nodeName
       );
     }
@@ -974,23 +1052,22 @@ export class WorkflowResolver {
     context: { nodeResults: Record<string, any>; userId: string }
   ): Promise<any> {
     if (!node.data?.prompt) {
-      throw new Error('Missing prompt in OpenAI node');
+      throw new Error("Missing prompt in OpenAI node");
     }
 
     try {
       const openaiService = await OpenAIService.create(context.userId);
-      
+
       // Interpolate variables in prompt
       const prompt = this.interpolateVariables(node.data.prompt, context);
       if (!prompt.trim()) {
-        throw new Error('Prompt is empty after variable interpolation');
+        throw new Error("Prompt is empty after variable interpolation");
       }
 
-      
       const result = await openaiService.complete(prompt, {
         model: node.data.model,
         temperature: node.data.temperature,
-        maxTokens: node.data.maxTokens
+        maxTokens: node.data.maxTokens,
       });
 
       return {
@@ -1000,26 +1077,26 @@ export class WorkflowResolver {
         model: node.data.model,
         usage: {
           prompt_tokens: prompt.length / 4, // Rough estimate
-          completion_tokens: result.length / 4 // Rough estimate
-        }
+          completion_tokens: result.length / 4, // Rough estimate
+        },
       };
     } catch (error) {
-      console.error('OpenAI node execution error:', error);
-      
+      console.error("OpenAI node execution error:", error);
+
       // Determine if this is a user configuration error
-      const isConfigError = error instanceof Error && (
-        error.message.includes('API key') ||
-        error.message.includes('model not found') ||
-        error.message.includes('invalid model')
-      );
+      const isConfigError =
+        error instanceof Error &&
+        (error.message.includes("API key") ||
+          error.message.includes("model not found") ||
+          error.message.includes("invalid model"));
 
       return {
         success: false,
-        results: [error instanceof Error ? error.message : 'Unknown error'],
+        results: [error instanceof Error ? error.message : "Unknown error"],
         error: {
-          type: isConfigError ? 'configuration' : 'execution',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        }
+          type: isConfigError ? "configuration" : "execution",
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
       };
     }
   }
@@ -1033,18 +1110,18 @@ export class WorkflowResolver {
     try {
       const client = await getTemporalClient();
       const handle = client.workflow.getHandle(`timed-${workflowId}`);
-      
+
       try {
         const description = await handle.describe();
-        return description?.status?.name === 'RUNNING';
+        return description?.status?.name === "RUNNING";
       } catch (error: any) {
-        if (error.name === 'WorkflowNotFoundError') {
+        if (error.name === "WorkflowNotFoundError") {
           return false;
         }
         throw error;
       }
     } catch (error) {
-      console.error('Error checking workflow schedule:', error);
+      console.error("Error checking workflow schedule:", error);
       return false;
     }
   }
@@ -1052,41 +1129,50 @@ export class WorkflowResolver {
   @Mutation(() => Boolean)
   @Authorized()
   async startTimedWorkflow(
-    @Arg('workflowId') workflowId: string,
-    @Arg('nodes', () => [WorkflowNodeInput]) nodes: WorkflowNodeInput[],
-    @Arg('edges', () => [WorkflowEdgeInput]) edges: WorkflowEdgeInput[],
-    @Arg('intervalMinutes', () => Int) intervalMinutes: number,
+    @Arg("workflowId") workflowId: string,
+    @Arg("nodes", () => [WorkflowNodeInput]) nodes: WorkflowNodeInput[],
+    @Arg("edges", () => [WorkflowEdgeInput]) edges: WorkflowEdgeInput[],
+    @Arg("intervalMinutes", () => Int) intervalMinutes: number,
     @Ctx() ctx: Context
   ): Promise<boolean> {
     try {
       const client = await getTemporalClient();
-      
+
       // Check if workflow is already running
       const handle = client.workflow.getHandle(`timed-${workflowId}`);
       try {
         const description = await handle.describe();
-        if (description?.status?.name === 'RUNNING') {
-          throw new Error('Workflow is already scheduled');
+        if (description?.status?.name === "RUNNING") {
+          throw new Error("Workflow is already scheduled");
         }
       } catch (error: any) {
         // If workflow not found, we can proceed with starting it
-        if (error.name !== 'WorkflowNotFoundError') {
+        if (error.name !== "WorkflowNotFoundError") {
           throw error;
         }
       }
-      
+
       // Get the Gmail token from request headers
-      const gmailToken = ctx.req?.get('x-gmail-token');
-      
-      await client.workflow.start('timedWorkflow', {
-        args: [{ workflowId, nodes, edges, intervalMinutes, userId: ctx.user.id, gmailToken }],
-        taskQueue: 'automation-tool',
+      const gmailToken = ctx.req?.get("x-gmail-token");
+
+      await client.workflow.start("timedWorkflow", {
+        args: [
+          {
+            workflowId,
+            nodes,
+            edges,
+            intervalMinutes,
+            userId: ctx.user.id,
+            gmailToken,
+          },
+        ],
+        taskQueue: "automation-tool",
         workflowId: `timed-${workflowId}`,
       });
 
       return true;
     } catch (error) {
-      console.error('Error starting timed workflow:', error);
+      console.error("Error starting timed workflow:", error);
       if (error instanceof Error) {
         throw error;
       }
@@ -1096,26 +1182,26 @@ export class WorkflowResolver {
 
   @Mutation(() => Boolean)
   async stopTimedWorkflow(
-    @Arg('workflowId') workflowId: string
+    @Arg("workflowId") workflowId: string
   ): Promise<boolean> {
     try {
       const client = await getTemporalClient();
       const handle = client.workflow.getHandle(`timed-${workflowId}`);
-      
+
       // Check if workflow exists before attempting to terminate
       const description = await handle.describe();
       if (!description) {
         return true;
       }
-      
+
       await handle.terminate();
       return true;
     } catch (error: any) {
       // If workflow not found, consider it already stopped
-      if (error.name === 'WorkflowNotFoundError') {
+      if (error.name === "WorkflowNotFoundError") {
         return true;
       }
-      console.error('Error stopping timed workflow:', error);
+      console.error("Error stopping timed workflow:", error);
       return false;
     }
   }
@@ -1165,17 +1251,17 @@ export class WorkflowResolver {
             // Scraping fields
             url: node.data?.url,
             selectors: node.data?.selectors,
-            template: node.data?.template
-          }
+            template: node.data?.template,
+          },
         })),
         edges: workflow.edges.map((edge: WorkflowEdge) => ({
           ...edge,
           id: `${edge.id}-copy-${timestamp}`,
           source: `${edge.source}-copy-${timestamp}`,
-          target: `${edge.target}-copy-${timestamp}`
+          target: `${edge.target}-copy-${timestamp}`,
         })),
         user_id: context.user.id,
-        is_active: true
+        is_active: true,
       };
 
       // Insert the new workflow
@@ -1186,14 +1272,14 @@ export class WorkflowResolver {
         .single();
 
       if (insertError) {
-        console.error('Error duplicating workflow:', insertError);
+        console.error("Error duplicating workflow:", insertError);
         throw new Error(`Failed to duplicate workflow: ${insertError.message}`);
       }
       if (!duplicatedWorkflow) throw new Error("Failed to duplicate workflow");
 
       return { ...duplicatedWorkflow } as Workflow;
     } catch (error) {
-      console.error('Error in duplicateWorkflow:', error);
+      console.error("Error in duplicateWorkflow:", error);
       throw error;
     }
   }
@@ -1208,7 +1294,7 @@ export class WorkflowResolver {
       .insert({
         name: input.name,
         color: input.color,
-        user_id: ctx.user.id
+        user_id: ctx.user.id,
       })
       .select()
       .single();
@@ -1243,7 +1329,7 @@ export class WorkflowResolver {
       .select("*")
       .eq("id", input.workflow_id)
       .eq("user_id", ctx.user.id)
-      .eq("is_active", true)  // Only return active workflows
+      .eq("is_active", true) // Only return active workflows
       .single();
 
     if (workflowError) throw workflowError;
@@ -1256,7 +1342,7 @@ export class WorkflowResolver {
         description: input.description || workflow.description,
         nodes: workflow.nodes,
         edges: workflow.edges,
-        user_id: ctx.user.id
+        user_id: ctx.user.id,
       })
       .select()
       .single();
@@ -1304,16 +1390,19 @@ export class WorkflowResolver {
     @Arg("results") results: string
   ): Promise<NodeVariablesType> {
     const nodeResults = JSON.parse(results);
-    const variables = this.variableService.getAvailableVariables(nodeName, nodeResults);
-    
+    const variables = this.variableService.getAvailableVariables(
+      nodeName,
+      nodeResults
+    );
+
     return {
       nodeId,
       nodeName,
-      variables: variables.map(v => ({
+      variables: variables.map((v) => ({
         reference: v.reference,
         preview: v.preview,
-        type: v.type
-      }))
+        type: v.type,
+      })),
     };
   }
 }
