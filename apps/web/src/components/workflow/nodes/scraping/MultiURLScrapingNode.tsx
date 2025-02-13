@@ -13,19 +13,11 @@ import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { Button } from "@/components/ui/inputs/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/inputs/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/overlays/popover";
 import { cn } from "@/lib/utils";
-import { NodeData as GlobalNodeData } from "@/components/workflow/config/nodeTypes";
 import { ScrollArea } from "@/components/ui/layout/scroll-area";
 import { X, Globe2 } from "lucide-react";
 import {
@@ -34,10 +26,7 @@ import {
   TabsTrigger,
   TabsContent
 } from "@/components/ui/data-display/tabs";
-import { Edit2, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/data-display/badge";
-import { Card as SelectorCard } from "@/components/ui/layout/card";
 import { SelectorEditor } from "./components/SelectorEditor";
 import { SelectorConfig, BatchConfig, ScrapingNodeData, SelectorType } from "@/types/scraping";
 import { gql, useMutation } from "@apollo/client";
@@ -50,7 +39,6 @@ import {
 import { Maybe, NodeData, SelectorConfigType } from '@/gql/graphql';
 import type { ReactNode } from 'react';
 import { Textarea } from "@/components/ui/inputs/textarea";
-import { VariablePicker } from "../../shared/VariablePicker";
 
 const TEST_SCRAPING = gql`
   mutation TestScraping($url: String!, $selectors: [SelectorConfigInput!]!) {
@@ -67,6 +55,7 @@ interface MultiURLNodeData extends Omit<ScrapingNodeData, 'selectors' | 'batchCo
   selectors?: Maybe<SelectorConfig[]>;
   batchConfig?: Maybe<BatchConfig>;
   template?: Maybe<string>;
+  urls?: string[];
   sourceNode?: {
     id: string;
     name: string;
@@ -121,7 +110,6 @@ function MultiURLScrapingNode({
   const [newUrl, setNewUrl] = useState("");
   const [bulkUrls, setBulkUrls] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [editingSelector, setEditingSelector] = useState<number | null>(null);
   const [testingSelector, setTestingSelector] = useState<number | null>(null);
   const [lastTestedSelector, setLastTestedSelector] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, any>>({});
@@ -153,25 +141,6 @@ function MultiURLScrapingNode({
     [data, id]
   );
 
-  const handleSelectorChange = useCallback(
-    (index: number, field: keyof SelectorConfig, value: unknown) => {
-      const selectors = [...(data.selectors || [])];
-      if (!selectors[index]) {
-        selectors[index] = {
-          selector: "",
-          selectorType: "css",
-          attributes: ["text"],
-          name: `Selector ${index + 1}`
-        };
-      }
-      selectors[index] = {
-        ...selectors[index],
-        [field]: value
-      };
-      handleConfigChange("selectors", selectors);
-    },
-    [data.selectors, handleConfigChange]
-  );
 
   const handleBatchConfigChange = useCallback(
     (field: keyof BatchConfig, value: number) => {
@@ -184,25 +153,6 @@ function MultiURLScrapingNode({
     [data.batchConfig, handleConfigChange]
   );
 
-  const handleAddSelector = useCallback(() => {
-    const selectors = [...(data.selectors || [])];
-    selectors.push({
-      selector: "",
-      selectorType: "css",
-      attributes: ["text"],
-      name: `Selector ${selectors.length + 1}`
-    });
-    handleConfigChange("selectors", selectors);
-  }, [data.selectors, handleConfigChange]);
-
-  const handleRemoveSelector = useCallback(
-    (index: number) => {
-      const selectors = [...(data.selectors || [])];
-      selectors.splice(index, 1);
-      handleConfigChange("selectors", selectors);
-    },
-    [data.selectors, handleConfigChange]
-  );
 
   const handleAddUrl = useCallback(() => {
     if (!newUrl) {
@@ -268,14 +218,6 @@ function MultiURLScrapingNode({
     setBulkUrls("");
     setUrlError(null);
   }, [bulkUrls, data.urls, handleConfigChange]);
-
-  const handleEditSelector = (index: number) => {
-    setEditingSelector(index);
-  };
-
-  const handleSaveSelector = () => {
-    setEditingSelector(null);
-  };
 
 
 
@@ -591,9 +533,9 @@ function MultiURLScrapingNode({
                 )}
               >
                 <MultiURLScrapingIcon />
-                {data.label && (
+                {(data.label as string | undefined) && (
                   <div className='absolute -bottom-6 text-xs text-gray-600 font-medium'>
-                    {data.label}
+                    {data.label as string}
                   </div>
                 )}
               </Card>
@@ -636,7 +578,7 @@ function MultiURLScrapingNode({
                     <div>
                       <Label>Node Label</Label>
                       <Input
-                        value={data.label || ""}
+                        value={(data.label as string | undefined) || ""}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                           handleConfigChange("label", e.target.value)
                         }
@@ -744,7 +686,7 @@ function MultiURLScrapingNode({
                   <TabsContent value='selectors' className='space-y-4'>
                     <SelectorEditor
                       selectors={data.selectors || []}
-                      template={data.template}
+                      template={data.template ?? undefined}
                       testResults={currentTestResults}
                       isLoading={testingSelector !== null}
                       onUpdateSelectors={handleUpdateSelectors}
