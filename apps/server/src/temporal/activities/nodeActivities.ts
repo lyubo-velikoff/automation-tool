@@ -23,8 +23,6 @@ export async function executeNode(
   gmailToken?: string,
   context: WorkflowContext = { nodeResults: {} }
 ): Promise<void> {
-  console.log(`Executing node ${node.id} of type ${node.type} with data:`, JSON.stringify(node.data, null, 2));
-  
   switch (node.type) {
     case 'GMAIL_TRIGGER':
       await handleGmailTrigger(node, gmailToken);
@@ -36,7 +34,6 @@ export async function executeNode(
       await handleOpenAICompletion(node);
       break;
     case 'MULTI_URL_SCRAPING':
-      console.log('Node data before multi-URL scraping:', node.data);
       const multiResults = await handleMultiURLScraping(node, context);
       context.nodeResults[node.id] = multiResults;
       break;
@@ -66,7 +63,6 @@ async function handleGmailTrigger(node: WorkflowNode, gmailToken?: string): Prom
   }
 
   const gmail = createGmailClient(gmailToken);
-  console.log('Checking for new emails...');
 }
 
 async function handleGmailAction(
@@ -84,11 +80,9 @@ async function handleGmailAction(
 
   const gmail = createGmailClient(gmailToken);
 
-  // Interpolate variables in subject and body
   const subject = interpolateVariables(node.data.subject, context);
   const body = interpolateVariables(node.data.body, context);
 
-  // Create email message
   const message = [
     'Content-Type: text/plain; charset="UTF-8"',
     'MIME-Version: 1.0',
@@ -105,24 +99,19 @@ async function handleGmailAction(
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 
-  // Send email
   await gmail.users.messages.send({
     userId: 'me',
     requestBody: {
       raw: encodedMessage
     }
   });
-  
-  console.log('Email sent successfully');
 }
 
 async function handleOpenAICompletion(node: WorkflowNode): Promise<void> {
   // TODO: Implement OpenAI completion logic
-  console.log('Generating AI response...');
 }
 
 async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
-  // Find the edge that targets this node
   const sourceNodeId = Object.keys(context.nodeResults).find(id => {
     const results = context.nodeResults[id];
     return Array.isArray(results) && results.length > 0;
@@ -132,19 +121,16 @@ async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext
     throw new Error('No source node found with results for multi-URL scraping');
   }
 
-  // Get the results from the source node
   const sourceNodeResults = context.nodeResults[sourceNodeId];
   if (!sourceNodeResults || !Array.isArray(sourceNodeResults)) {
     throw new Error(`Invalid results found from source node ${sourceNodeId}`);
   }
 
-  // Filter out any non-URL results
   const urls = sourceNodeResults.filter(result => result.startsWith('http'));
   if (urls.length === 0) {
     throw new Error('No valid URLs found in source node results');
   }
 
-  console.log('Found URLs from source node:', urls);
   return urls;
 }
 
@@ -159,14 +145,10 @@ function cleanHtmlContent(content: string): string {
 }
 
 async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
-  console.log('Starting multi-URL scraping with node:', JSON.stringify(node, null, 2));
-  console.log('Context:', JSON.stringify(context, null, 2));
-
   if (!node.data) {
     throw new Error('No data provided for multi-URL scraping node');
   }
 
-  // Handle both single selector and array of selectors
   const selectorConfig: SelectorConfig = Array.isArray(node.data.selectors) 
     ? node.data.selectors[0]
     : {
@@ -183,13 +165,11 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
   const template = node.data.template;
 
   const urls = await getSourceNodeResults(node, context);
-  console.log('Source node results (URLs):', urls);
 
   if (!urls || urls.length === 0) {
     throw new Error('No URLs found from source node');
   }
 
-  console.log('Using selector:', selectorConfig);
   const results = await scrapingService.scrapeUrls(
     urls, 
     selectorConfig,
@@ -197,9 +177,7 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
     selectorConfig.attributes,
     node.data.batchConfig
   );
-  console.log('Scraping results:', results);
 
-  // Format results using template if provided
   if (template) {
     return results.map((result: ScrapingResult) => {
       let formattedResult = template;
@@ -209,7 +187,6 @@ async function handleMultiURLScraping(node: WorkflowNode, context: WorkflowConte
     });
   }
 
-  // Return raw results if no template
   return results.map((result: ScrapingResult) => {
     const cleanedData = Object.fromEntries(
       Object.entries(result.data || {}).map(([key, value]) => [key, cleanHtmlContent(value)])

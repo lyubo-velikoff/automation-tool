@@ -116,7 +116,6 @@ async function bootstrap() {
   // Add test-selector endpoint
   app.post('/api/test-selector', async (req, res) => {
     try {
-      console.log('Received test-selector request:', req.body);
       const { url, selector, selectorType, attributes } = req.body;
       
       if (!url || !selector) {
@@ -128,14 +127,12 @@ async function bootstrap() {
 
       try {
         const scrapingService = new ScrapingService();
-        console.log('Created scraping service, starting scrape...');
         const results = await scrapingService.scrapeUrl(
           url,
           selector,
           selectorType || 'css',
           attributes || ['text', 'href']
         );
-        console.log('Scraping complete:', results);
         
         res.json({ 
           success: true, 
@@ -233,10 +230,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   app.listen(port, () => {
-    console.log(`Server started on http://localhost:${port}`);
-    console.log(`GraphQL endpoint: http://localhost:${port}/graphql`);
-    console.log(`REST endpoints:`);
-    console.log(`  - Health check: http://localhost:${port}/health`);
+    console.log(`Server ready at http://localhost:${port}/graphql`);
   });
 }
 

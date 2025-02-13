@@ -9,6 +9,5 @@ export async function runWorker() {
     taskQueue: 'automation-tool',
   });
 
-  console.log('Starting Temporal worker...');
   await worker.run();
 } 
