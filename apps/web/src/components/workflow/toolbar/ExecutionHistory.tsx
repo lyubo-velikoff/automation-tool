@@ -4,13 +4,18 @@ import { useQuery } from "@apollo/client";
 import { GET_WORKFLOW_EXECUTIONS } from "@/graphql/queries";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
 import { ScrollArea } from "@/components/ui/layout/scroll-area";
-import { Card, CardContent, CardHeader } from "@/components/ui/layout/card";
+import { Button } from "@/components/ui/inputs/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/layout/dialog";
 import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  ChevronDown,
-  ChevronRight
+  History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -39,18 +44,18 @@ type ExecutionResult = {
 };
 
 interface ExecutionHistoryProps {
-  history: ExecutionResult[];
-  currentExecution: ExecutionResult | null;
+  history?: ExecutionResult[];
+  currentExecution?: ExecutionResult | null;
   className?: string;
 }
 
 export function ExecutionHistory({
-  history,
-  currentExecution,
+  history = [],
+  currentExecution = null,
   className
 }: ExecutionHistoryProps) {
   const { workflowId } = useWorkflow();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const { data, loading } = useQuery<{
     workflowExecutions: ExecutionResult[];
   }>(GET_WORKFLOW_EXECUTIONS, {
@@ -63,36 +68,22 @@ export function ExecutionHistory({
   }
 
   return (
-    <Card className={cn('w-[400px]', className)}>
-      <CardHeader
-        className='cursor-pointer hover:bg-accent transition-colors'
-        role="button"
-        tabIndex={0}
-        onClick={() => setIsExpanded(!isExpanded)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setIsExpanded(!isExpanded);
-          }
-        }}
+    <>
+      <Button
+        variant="outline"
+        size="icon"
+        className={cn('h-9 w-9', className)}
+        onClick={() => setIsOpen(true)}
       >
-        <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-2'>
-            <h3 className='text-lg font-semibold'>Execution History</h3>
-            <span className='text-sm text-muted-foreground'>
-              ({data.workflowExecutions.length} executions)
-            </span>
-          </div>
-          {isExpanded ? (
-            <ChevronDown className='h-4 w-4 transition-transform' />
-          ) : (
-            <ChevronRight className='h-4 w-4 transition-transform' />
-          )}
-        </div>
-      </CardHeader>
-      {isExpanded && (
-        <CardContent>
-          <ScrollArea className='h-[300px] w-full'>
+        <History className="h-4 w-4" />
+      </Button>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-[800px] max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Execution History</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[500px] w-full pr-4">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -168,8 +159,8 @@ export function ExecutionHistory({
               </TableBody>
             </Table>
           </ScrollArea>
-        </CardContent>
-      )}
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

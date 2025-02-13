@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/inputs/label";
 import { useRouter } from "next/navigation";
 import { Node, Edge } from "reactflow";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
+import { ExecutionHistory } from "./ExecutionHistory";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;
@@ -314,6 +315,9 @@ export function WorkflowToolbar({
         <PlayIcon className='h-4 w-4' />
         {isExecuting ? "Executing..." : "Test"}
       </Button>
+
+      {workflowId && <ExecutionHistory />}
+
       <Button
         variant='outline'
         onClick={() => {
