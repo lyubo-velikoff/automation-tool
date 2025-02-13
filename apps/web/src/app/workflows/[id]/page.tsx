@@ -9,7 +9,6 @@ import { WorkflowProvider } from "@/contexts/workflow/WorkflowContext";
 import { useWorkflowHandlers } from "@/hooks/useWorkflowHandlers";
 import { WorkflowLoadingSkeleton } from "@/components/ui/feedback/loading-skeleton";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
-import { SidebarLayout } from "@/components/layouts/SidebarLayout";
 
 function WorkflowContent() {
   const params = useParams();
@@ -39,7 +38,7 @@ function WorkflowContent() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Error loading workflow</h2>
           <p className="text-sm text-muted-foreground">{error.message}</p>
@@ -50,7 +49,7 @@ function WorkflowContent() {
 
   if (!data?.workflow) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Workflow not found</h2>
           <p className="text-sm text-muted-foreground">
@@ -74,9 +73,7 @@ export default function WorkflowPage() {
       onExecute={handleExecute}
       onSchedule={handleSchedule}
     >
-      <SidebarLayout>
-        <WorkflowContent />
-      </SidebarLayout>
+      <WorkflowContent />
     </WorkflowProvider>
   );
 }
