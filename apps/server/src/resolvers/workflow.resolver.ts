@@ -22,7 +22,7 @@ import { getTemporalClient } from '../temporal/client';
 import { Context } from "../types";
 import { supabase } from '../lib/supabase';
 import { OpenAIService } from '../services/openai.service';
-import { VariableService } from "../services/VariableService";
+import { VariableService } from "../services/variable.service";
 import { 
   NodeVariablesType,
   VariablePreviewType
