@@ -1,7 +1,6 @@
 import { BasicNode } from "@/components/ui/data-display/basic-node";
 import GmailActionNode from "../nodes/gmail/GmailActionNode";
 import GmailTriggerNode from "../nodes/gmail/GmailTriggerNode";
-import WebScrapingNode from "../nodes/scraping/WebScrapingNode";
 import MultiURLScrapingNode from "../nodes/scraping/MultiURLScrapingNode";
 import OpenAINode from "../nodes/openai/OpenAINode";
 import { NodeData as BaseNodeData } from '@/gql/graphql';
@@ -15,7 +14,6 @@ export interface NodeData extends BaseNodeData {
 export const NODE_TYPES = {
   GMAIL_TRIGGER: GmailTriggerNode,
   GMAIL_ACTION: GmailActionNode,
-  SCRAPING: WebScrapingNode,
   MULTI_URL_SCRAPING: MultiURLScrapingNode,
   OPENAI: OpenAINode,
   default: BasicNode

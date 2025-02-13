@@ -35,10 +35,6 @@ export async function executeNode(
     case 'OPENAI':
       await handleOpenAICompletion(node);
       break;
-    case 'SCRAPING':
-      const results = await handleWebScraping(node);
-      context.nodeResults[node.id] = results;
-      break;
     case 'MULTI_URL_SCRAPING':
       console.log('Node data before multi-URL scraping:', node.data);
       const multiResults = await handleMultiURLScraping(node, context);
@@ -123,63 +119,6 @@ async function handleGmailAction(
 async function handleOpenAICompletion(node: WorkflowNode): Promise<void> {
   // TODO: Implement OpenAI completion logic
   console.log('Generating AI response...');
-}
-
-async function handleWebScraping(node: WorkflowNode): Promise<string[]> {
-  if (!node.data?.url || !node.data?.selectors) {
-    throw new Error('Missing required scraping data (url or selectors)');
-  }
-
-  const { 
-    url,
-    selectors,
-    template
-  } = node.data;
-
-  try {
-    console.log(`Scraping ${url} with selectors:`, selectors);
-    
-    // Ensure proper selector config
-    const selectorConfig: SelectorConfig = {
-      selector: selectors[0].selector,
-      selectorType: selectors[0].selectorType || 'css',
-      attributes: selectors[0].attributes || ['text'],
-      name: selectors[0].name || 'content'
-    };
-
-    const results = await scrapingService.scrapeUrls(
-      [url],
-      selectorConfig,
-      selectorConfig.selectorType,
-      selectorConfig.attributes,
-      node.data.batchConfig
-    );
-    
-    console.log('Raw scraping results:', JSON.stringify(results, null, 2));
-    
-    // Format the results using the template
-    if (template) {
-      return results.map((result: ScrapingResult) => {
-        if (!result.success || !result.data) {
-          return `Error: ${result.error || 'Unknown error'}`;
-        }
-        
-        let formattedResult = template;
-        Object.entries(result.data).forEach(([key, value]) => {
-          formattedResult = formattedResult.replace(`{{${key}}}`, value || '');
-        });
-        return formattedResult;
-      });
-    }
-
-    // If no template, return raw data
-    return results.map(result => 
-      result.success && result.data ? JSON.stringify(result.data) : `Error: ${result.error || 'Unknown error'}`
-    );
-  } catch (error) {
-    console.error('Error during web scraping:', error);
-    throw error;
-  }
 }
 
 async function getSourceNodeResults(node: WorkflowNode, context: WorkflowContext): Promise<string[]> {
