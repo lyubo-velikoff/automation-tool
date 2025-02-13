@@ -67,21 +67,37 @@ export function ExecutionHistory({
     return null;
   }
 
+  const executionCount = data.workflowExecutions.length;
+  const latestExecution = data.workflowExecutions[0];
+  const hasErrors = latestExecution.results?.some(r => r.status === "error");
+  const isRunning = latestExecution.status === "running";
+
   return (
     <>
       <Button
         variant="outline"
         size="icon"
-        className={cn('h-9 w-9', className)}
+        className={cn(
+          'h-9 w-9 shrink-0 rounded-lg',
+          isRunning && 'text-primary border-primary',
+          hasErrors && 'text-destructive border-destructive',
+          className
+        )}
         onClick={() => setIsOpen(true)}
+        title="View execution history"
       >
-        <History className="h-4 w-4" />
+        <History className="h-5 w-5" />
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-[800px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Execution History</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Execution History</span>
+              <span className="text-sm text-muted-foreground font-normal">
+                {executionCount} execution{executionCount !== 1 ? 's' : ''}
+              </span>
+            </DialogTitle>
           </DialogHeader>
           <ScrollArea className="h-[500px] w-full pr-4">
             <Table>

@@ -316,8 +316,6 @@ export function WorkflowToolbar({
         {isExecuting ? "Executing..." : "Test"}
       </Button>
 
-      {workflowId && <ExecutionHistory />}
-
       <Button
         variant='outline'
         onClick={() => {
@@ -328,7 +326,11 @@ export function WorkflowToolbar({
       >
         Schedule
       </Button>
-      <AddNodeButton onAddNode={onAddNode} />
+
+      <div className="flex items-center gap-2">
+        <AddNodeButton onAddNode={onAddNode} />
+        {workflowId && <ExecutionHistory />}
+      </div>
     </div>
   );
 }

@@ -110,14 +110,6 @@ function WorkflowCanvas({
           </ReactFlow>
         </div>
 
-        {workflowId && (
-          <ExecutionHistory
-            history={executionHistory}
-            currentExecution={currentExecution}
-            className='absolute bottom-4 right-4 z-50'
-          />
-        )}
-
         <ScheduleWorkflowDialog
           open={scheduleDialogOpen}
           onOpenChange={setScheduleDialogOpen}
