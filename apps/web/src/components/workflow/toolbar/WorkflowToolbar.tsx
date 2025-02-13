@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/inputs/button";
 import { Input } from "@/components/ui/inputs/input";
-import { PlayIcon } from "lucide-react";
+import { PlayIcon, Tag } from "lucide-react";
 import { WorkflowSelector } from "./WorkflowSelector";
 import AddNodeButton from "./AddNodeButton";
 import { useWorkflow } from "@/contexts/workflow/WorkflowContext";
@@ -12,10 +12,18 @@ import {
   PopoverTrigger
 } from "@/components/ui/feedback/popover";
 import { useState } from "react";
-import { useMutation, useApolloClient } from "@apollo/client";
+import { useMutation, useApolloClient, useQuery } from "@apollo/client";
 import { CREATE_WORKFLOW } from "@/graphql/mutations";
+import { GET_WORKFLOW_TAGS } from "@/graphql/queries";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger
+} from "@/components/ui/overlays/dropdown-menu";
+import { Label } from "@/components/ui/inputs/label";
 
 interface WorkflowToolbarProps {
   onAddNode: (type: string) => void;
@@ -44,8 +52,10 @@ export function WorkflowToolbar({
 
   const apolloClient = useApolloClient();
   const [newWorkflowName, setNewWorkflowName] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createWorkflow] = useMutation(CREATE_WORKFLOW);
+  const { data: tagsData } = useQuery(GET_WORKFLOW_TAGS);
 
   const handleCreateWorkflow = async () => {
     if (!newWorkflowName) return;
@@ -71,10 +81,7 @@ export function WorkflowToolbar({
           model: node.data.model,
           maxTokens: node.data.maxTokens,
           url: node.data.url,
-          selector: node.data.selector,
-          selectorType: node.data.selectorType,
-          attribute: node.data.attribute,
-          label: node.data.label
+          selectors: node.data.selectors
         }
       }));
 
@@ -90,7 +97,8 @@ export function WorkflowToolbar({
           input: {
             name: newWorkflowName,
             nodes: cleanedNodes,
-            edges: cleanedEdges
+            edges: cleanedEdges,
+            tag_ids: selectedTags
           }
         }
       });
@@ -110,6 +118,7 @@ export function WorkflowToolbar({
         description: "Workflow created successfully"
       });
       setNewWorkflowName("");
+      setSelectedTags([]);
       setIsCreateOpen(false);
     } catch (error) {
       toast({
@@ -142,16 +151,63 @@ export function WorkflowToolbar({
         </PopoverTrigger>
         <PopoverContent className='w-80'>
           <div className='flex flex-col gap-4'>
-            <div className='flex gap-2'>
-              <Input
-                value={newWorkflowName}
-                onChange={(e) => setNewWorkflowName(e.target.value)}
-                placeholder='Enter workflow name'
-                className='flex-grow'
-              />
+            <div className='space-y-4'>
+              <div className='space-y-2'>
+                <Label>Name</Label>
+                <Input
+                  value={newWorkflowName}
+                  onChange={(e) => setNewWorkflowName(e.target.value)}
+                  placeholder='Enter workflow name'
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label>Tags</Label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant='outline'
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        selectedTags.length === 0 && "text-muted-foreground"
+                      )}
+                    >
+                      <Tag className='mr-2 h-4 w-4' />
+                      {selectedTags.length > 0
+                        ? `${selectedTags.length} tag${
+                            selectedTags.length === 1 ? "" : "s"
+                          } selected`
+                        : "Select tags"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='start' className='w-[200px]'>
+                    {tagsData?.workflowTags?.map((tag: { id: string; name: string; color: string }) => (
+                      <DropdownMenuCheckboxItem
+                        key={tag.id}
+                        checked={selectedTags.includes(tag.id)}
+                        onCheckedChange={(checked: boolean) => {
+                          setSelectedTags(
+                            checked
+                              ? [...selectedTags, tag.id]
+                              : selectedTags.filter((id) => id !== tag.id)
+                          );
+                        }}
+                      >
+                        <div className='flex items-center'>
+                          <div
+                            className='w-2 h-2 rounded-full mr-2'
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.name}
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <Button
                 onClick={handleCreateWorkflow}
                 disabled={!newWorkflowName || isSaving}
+                className='w-full'
               >
                 Create
               </Button>
