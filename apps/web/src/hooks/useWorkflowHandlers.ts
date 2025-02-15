@@ -195,7 +195,12 @@ export function useWorkflowHandlers() {
       });
 
       if (!data.executeWorkflow.success) {
-        throw new Error(data.executeWorkflow.message);
+        toast({
+          title: "Error",
+          description: data.executeWorkflow.message,
+          variant: "destructive"
+        });
+        return;
       }
 
       toast({
@@ -209,7 +214,6 @@ export function useWorkflowHandlers() {
         description: errorMessage,
         variant: "destructive"
       });
-      throw error;
     }
   };
 
