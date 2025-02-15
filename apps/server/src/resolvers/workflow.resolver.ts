@@ -528,6 +528,11 @@ export class WorkflowResolver {
         // Start with the node's data
         let value = nodeData[1];
 
+        // For OpenAI nodes, if no further path is specified, return the text directly
+        if (parts.length === 1 && value.text !== undefined) {
+          return value.text;
+        }
+
         // Handle scraping node results
         if (value.bySelector) {
           // If only the node name is provided, return all results in a formatted string
@@ -830,6 +835,15 @@ export class WorkflowResolver {
     @Arg("workflowId", () => String) workflowId: string,
     @Ctx() context: any
   ): Promise<ExecutionResult> {
+    console.log("Debug - Workflow Execution Start:", {
+      workflowId,
+      hasContext: !!context,
+      hasReqHeaders: !!context.req?.headers,
+      allHeaders: context.req?.headers,
+      gmailToken: context.req?.headers?.["gmail-token"],
+      userId: context.user?.id
+    });
+
     // Get workflow
     const { data: workflowData, error } = await supabase
       .from("workflows")
@@ -1019,7 +1033,9 @@ export class WorkflowResolver {
           result = await this.executeScrapingNode(node, context.nodeResults);
           break;
         case "OPENAI":
-          result = await this.executeOpenAINode(node, context);
+          const completion = await this.executeOpenAINode(node, context);
+          // Store OpenAI results as an object with text property
+          result = { text: completion };
           break;
         default:
           throw new Error(`Unsupported node type: ${node.type}`);
@@ -1027,16 +1043,15 @@ export class WorkflowResolver {
 
       // Store results with both ID and label for easier lookup
       if (result) {
-        context.nodeResults[node.id] = {
+        // Ensure all results are objects with a label
+        const resultObj = {
           ...result,
           label: nodeName,
         };
-        // Also store by label if it exists
+        
+        context.nodeResults[node.id] = resultObj;
         if (nodeName) {
-          context.nodeResults[nodeName] = {
-            ...result,
-            label: nodeName,
-          };
+          context.nodeResults[nodeName] = resultObj;
         }
       }
 
@@ -1044,15 +1059,11 @@ export class WorkflowResolver {
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
       const nodeName = node.data?.label || node.label || `${node.type} Node`;
+      const errorResult = { error: error instanceof Error ? error.message : "Unknown error occurred" };
       return new NodeResult(
         node.id,
         "error",
-        [
-          {
-            error:
-              error instanceof Error ? error.message : "Unknown error occurred",
-          },
-        ],
+        [errorResult],
         nodeName
       );
     }
@@ -1081,34 +1092,12 @@ export class WorkflowResolver {
         maxTokens: node.data.maxTokens,
       });
 
-      return {
-        success: true,
-        results: [result],
-        prompt, // Include the interpolated prompt for debugging
-        model: node.data.model,
-        usage: {
-          prompt_tokens: prompt.length / 4, // Rough estimate
-          completion_tokens: result.length / 4, // Rough estimate
-        },
-      };
+      // Return just the completion result as a string
+      // This makes it easier to use in variable interpolation
+      return result;
     } catch (error) {
       console.error("OpenAI node execution error:", error);
-
-      // Determine if this is a user configuration error
-      const isConfigError =
-        error instanceof Error &&
-        (error.message.includes("API key") ||
-          error.message.includes("model not found") ||
-          error.message.includes("invalid model"));
-
-      return {
-        success: false,
-        results: [error instanceof Error ? error.message : "Unknown error"],
-        error: {
-          type: isConfigError ? "configuration" : "execution",
-          message: error instanceof Error ? error.message : "Unknown error",
-        },
-      };
+      throw error;
     }
   }
 
