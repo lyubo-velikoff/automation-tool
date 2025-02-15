@@ -509,7 +509,7 @@ export class WorkflowResolver {
 
     return text.replace(/\{\{(.*?)\}\}/g, (match, path) => {
       try {
-        // Split the path into parts (e.g., ["Forum", "results", "0", "bySelector", "URls", "0"])
+        // Split the path into parts (e.g., ["Forum", "URls", "0"])
         const parts = path.split(/[\.\[\]]+/).filter(Boolean);
         const nodeName = parts[0];
 
@@ -528,58 +528,71 @@ export class WorkflowResolver {
         // Start with the node's data
         let value = nodeData[1];
 
-        // Skip the node name and process remaining parts
-        for (let i = 1; i < parts.length; i++) {
-          const part = parts[i];
-          if (part === "results") continue; // Skip 'results' part as it's implicit
-
-          if (part === "bySelector") {
-            value = value.bySelector;
-            continue;
+        // Handle scraping node results
+        if (value.bySelector) {
+          // If only the node name is provided, return all results in a formatted string
+          if (parts.length === 1) {
+            return Object.entries(value.bySelector)
+              .map(([selector, results]) => {
+                return `${selector}: ${JSON.stringify(results, null, 2)}`;
+              })
+              .join('\n');
           }
 
-          // Handle array indices
+          // Get the selector name
+          const selectorName = parts[1];
+          const selectorResults = value.bySelector[selectorName];
+
+          if (!selectorResults) {
+            return match;
+          }
+
+          // If an index is provided, get that specific result
+          if (parts.length > 2 && !isNaN(Number(parts[2]))) {
+            const index = Number(parts[2]);
+            const result = selectorResults[index];
+            
+            // Handle nested URL objects (specific to forum scraping results)
+            if (result && typeof result === 'object' && result[selectorName]) {
+              return result[selectorName];
+            }
+            
+            return result || match;
+          }
+
+          // Otherwise, return all results for this selector
+          return Array.isArray(selectorResults) 
+            ? selectorResults.map(r => r[selectorName] || r).join('\n')
+            : JSON.stringify(selectorResults);
+        }
+
+        // Handle other node types
+        for (let i = 1; i < parts.length; i++) {
+          const part = parts[i];
+          if (part === "results") continue;
+
           if (!isNaN(Number(part))) {
             const index = Number(part);
-            if (Array.isArray(value)) {
-              value = value[index];
-            } else if (
-              value &&
-              typeof value === "object" &&
-              Array.isArray(value[Object.keys(value)[0]])
-            ) {
-              // If value is an object with an array as its first property
-              const firstKey = Object.keys(value)[0];
-              value = value[firstKey][index];
-            }
+            value = Array.isArray(value) ? value[index] : value;
           } else {
-            // Handle object properties
             value = value[part];
           }
 
-          // If we hit undefined, return the original match
           if (value === undefined) {
             return match;
           }
         }
 
-        // Handle the final value
-        if (value && typeof value === "object") {
-          if (value.URls) {
-            value = value.URls;
-          } else if (Array.isArray(value)) {
-            value = value[0];
-          } else {
-            // Get the first non-null value from the object
-            const firstValue = Object.values(value).find(
-              (v) => v !== null && v !== undefined
-            );
-            value = firstValue || value;
-          }
+        // Convert final value to string appropriately
+        if (value === null || value === undefined) {
+          return match;
+        } else if (typeof value === 'object') {
+          return JSON.stringify(value, null, 2);
+        } else {
+          return String(value);
         }
-
-        return value || match;
       } catch (error) {
+        console.error('Error interpolating variable:', error);
         return match;
       }
     });
