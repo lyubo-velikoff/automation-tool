@@ -180,10 +180,7 @@ export function ExecutionHistory({
                                   <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
                                 )}
                                 <span className="text-sm font-medium">
-                                  Node {index + 1}
-                                </span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({result.nodeId})
+                                  {result.nodeName || `Node ${index + 1}`}
                                 </span>
                               </div>
                               {result.results && result.results.length > 0 && (
@@ -200,6 +197,9 @@ export function ExecutionHistory({
                                       } else if (item.text) {
                                         // Show text content if present (for OpenAI results)
                                         content = item.text;
+                                      } else if (item.sent) {
+                                        // For Gmail action results
+                                        content = "Email sent successfully";
                                       } else {
                                         // For other objects, try to extract meaningful data
                                         const entries = Object.entries(item);
@@ -211,15 +211,27 @@ export function ExecutionHistory({
                                                 return Object.entries(value)
                                                   .map(([selector, results]) => {
                                                     const values = Array.isArray(results) 
-                                                      ? results.map(r => Object.values(r)[0]).filter(Boolean)
+                                                      ? results.map(r => {
+                                                          // Handle both string values and object values
+                                                          if (typeof r === 'string') return r;
+                                                          return Object.values(r)[0] || '';
+                                                        }).filter(Boolean)
                                                       : [results];
-                                                    return `${selector}: ${values.join(', ')}`;
+                                                    return `${selector}:\n${values.join('\n')}`;
                                                   })
-                                                  .join('\n');
+                                                  .join('\n\n');
+                                              } else if (key === 'urls' || key === 'URIs') {
+                                                // Format URL lists with one URL per line
+                                                const urls = Array.isArray(value) ? value : [value];
+                                                // Ensure we're getting the full URL string
+                                                const formattedUrls = urls.map(url => 
+                                                  typeof url === 'string' ? url : JSON.stringify(url)
+                                                );
+                                                return `${key}:\n${formattedUrls.join('\n')}`;
                                               }
-                                              return `${key}: ${JSON.stringify(value)}`;
+                                              return `${key}: ${JSON.stringify(value, null, 2)}`;
                                             })
-                                            .join('\n');
+                                            .join('\n\n');
                                         } else {
                                           content = JSON.stringify(item, null, 2);
                                         }
@@ -232,7 +244,7 @@ export function ExecutionHistory({
                                       <div 
                                         key={idx} 
                                         className={cn(
-                                          "whitespace-pre-wrap py-1",
+                                          "whitespace-pre-wrap py-1 font-mono text-xs",
                                           item.error ? "text-destructive" : "text-muted-foreground"
                                         )}
                                       >
