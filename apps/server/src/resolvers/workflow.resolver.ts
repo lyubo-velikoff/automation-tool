@@ -458,20 +458,11 @@ export class WorkflowResolver {
     gmailToken: string | undefined,
     context: { nodeResults: Record<string, any> }
   ): Promise<any> {
-    console.log("Debug - Gmail Action Node:", {
-      nodeId: node.id,
-      nodeType: node.type,
-      gmailToken: gmailToken ? "Present" : "Missing",
-      nodeData: node.data
-    });
-
     if (!gmailToken) {
-      console.error("Debug - Gmail Token Missing in executeGmailAction");
       throw new Error("Gmail token not found");
     }
 
     const gmail = createGmailClient(gmailToken);
-    console.log("Debug - Gmail Client Created");
 
     // Interpolate variables in subject and body
     const subject = node.data?.subject
@@ -480,12 +471,6 @@ export class WorkflowResolver {
     const body = node.data?.body
       ? this.interpolateVariables(node.data.body, context)
       : "";
-
-    console.log("Debug - Email Content:", {
-      to: node.data?.to,
-      subject,
-      bodyLength: body.length
-    });
 
     const message = [
       'Content-Type: text/plain; charset="UTF-8"',
@@ -860,15 +845,8 @@ export class WorkflowResolver {
     try {
       // Get the Gmail token from context.req.headers
       const gmailToken = context.req?.headers?.["gmail-token"];
-      console.log("Debug - Workflow Execution:", {
-        workflowId,
-        hasGmailToken: !!gmailToken,
-        headerKeys: Object.keys(context.req?.headers || {}),
-        rawGmailTokenHeader: context.req?.headers?.["gmail-token"],
-        userId: context.user?.id
-      });
-
       const userId = context.user?.id;
+      
       if (!userId) {
         throw new Error("User ID is required");
       }
@@ -879,12 +857,6 @@ export class WorkflowResolver {
         .select("gmail_tokens")
         .eq("user_id", userId)
         .single();
-      
-      console.log("Debug - User Settings:", {
-        hasSettings: !!settings,
-        hasGmailTokens: !!settings?.gmail_tokens,
-        settingsKeys: settings ? Object.keys(settings) : []
-      });
 
       // Create execution context
       const nodeResults = {} as Record<string, any>;
