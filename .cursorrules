@@ -6,6 +6,13 @@
 - Express + Apollo backend in `apps/server`
 - Shared packages in `packages/` (future use)
 
+## Development Environment
+- Windows OS (Windows 10/11)
+- PowerShell as default shell
+- VSCode as primary IDE
+- Node.js via nvm-windows
+- Git for Windows
+
 ## Code Style & Conventions
 
 ### TypeScript
