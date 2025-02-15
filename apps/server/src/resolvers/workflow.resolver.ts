@@ -847,6 +847,7 @@ export class WorkflowResolver {
     @Arg("workflowId", () => String) workflowId: string,
     @Ctx() context: any
   ): Promise<ExecutionResult> {
+    let executionId: string | undefined;
     try {
       const workflow = await this.workflow(workflowId, context);
       if (!workflow) {
@@ -872,7 +873,24 @@ export class WorkflowResolver {
 
       const nodeResults: Record<string, any> = {};
       const results: NodeResult[] = [];
-      const executionId = `exec-${Date.now()}`;
+      executionId = `exec-${Date.now()}`;
+      
+      // Store initial execution record
+      const { data: execution, error: insertError } = await context.supabase
+        .from("workflow_executions")
+        .insert({
+          workflow_id: workflowId,
+          user_id: context.user.id,
+          execution_id: executionId,
+          status: "running",
+          results: []
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to create execution record: ${insertError.message}`);
+      }
       
       for (const node of executionOrder) {
         try {
@@ -897,20 +915,48 @@ export class WorkflowResolver {
         }
       }
 
+      // Update execution record with final results
+      const success = !results.some(r => r.status === "error");
+      const { error: updateError } = await context.supabase
+        .from("workflow_executions")
+        .update({
+          status: success ? "completed" : "failed",
+          results
+        })
+        .eq("id", execution.id);
+
+      if (updateError) {
+        console.error("Failed to update execution record:", updateError);
+      }
+
       return {
-        success: !results.some(r => r.status === "error"),
-        message: results.some(r => r.status === "error")
-          ? "Workflow execution failed"
-          : "Workflow executed successfully",
+        success,
+        message: success
+          ? "Workflow executed successfully"
+          : "Workflow execution failed",
         executionId,
         results
       };
     } catch (error) {
       console.error("Error executing workflow:", error);
+      // If we have an execution ID, update the execution record with error
+      if (executionId) {
+        const { error: updateError } = await context.supabase
+          .from("workflow_executions")
+          .update({
+            status: "failed",
+            results: []
+          })
+          .eq("execution_id", executionId);
+
+        if (updateError) {
+          console.error("Failed to update execution record:", updateError);
+        }
+      }
       return {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error occurred",
-        executionId: `exec-${Date.now()}`,
+        executionId: executionId || `exec-${Date.now()}`,
         results: []
       };
     }
