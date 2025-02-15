@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
 import { Button } from "@/components/ui/inputs/button";
-import { useGmail } from "@/contexts/auth/GmailContext";
+import { useConnections } from "@/contexts/connections/ConnectionsContext";
 import { cn } from "@/lib/utils";
 
 interface GmailTriggerNodeProps {
@@ -24,7 +24,7 @@ interface GmailTriggerNodeProps {
 }
 
 function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
-  const { isGmailConnected, connectGmail } = useGmail();
+  const { connections, connect } = useConnections();
 
   const handleConfigChange = useCallback(
     (key: keyof Omit<NodeData, "onConfigChange">, value: string) => {
@@ -86,7 +86,11 @@ function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
     [handleConfigChange]
   );
 
-  if (!isGmailConnected) {
+  const handleConnect = async () => {
+    await connect("gmail");
+  };
+
+  if (!connections.gmail.isConnected) {
     return (
       <div
         className={cn(
@@ -112,7 +116,7 @@ function GmailTriggerNode({ id, data, selected, type }: GmailTriggerNodeProps) {
             <p className='text-sm text-muted-foreground'>
               Connect your Gmail account to monitor emails
             </p>
-            <Button onClick={connectGmail} className='w-full'>
+            <Button onClick={handleConnect} className='w-full'>
               Connect Gmail
             </Button>
           </CardContent>

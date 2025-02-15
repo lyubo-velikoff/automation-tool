@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/inputs/input";
 import { Label } from "@/components/ui/inputs/label";
 import { Textarea } from "@/components/ui/inputs/textarea";
 import { Button } from "@/components/ui/inputs/button";
-import { useGmail } from "@/contexts/auth/GmailContext";
+import { useConnections } from "@/contexts/connections/ConnectionsContext";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -37,7 +37,6 @@ interface GmailActionNodeProps {
 
 const GmailIcon = memo(() => <Mail className='h-4 w-4' />);
 GmailIcon.displayName = "GmailIcon";
-
 
 function NodeContent({ id, data }: GmailActionNodeProps) {
   return (
@@ -91,9 +90,13 @@ function NodeContent({ id, data }: GmailActionNodeProps) {
 NodeContent.displayName = "NodeContent";
 
 export default function GmailActionNode({ id, data }: GmailActionNodeProps) {
-  const { isGmailConnected, connectGmail } = useGmail();
+  const { connections, connect } = useConnections();
 
-  if (!isGmailConnected) {
+  const handleConnect = async () => {
+    await connect("gmail");
+  };
+
+  if (!connections.gmail.isConnected) {
     return (
       <div
         className={cn(
@@ -134,7 +137,7 @@ export default function GmailActionNode({ id, data }: GmailActionNodeProps) {
               <p className='text-sm text-muted-foreground mb-4'>
                 Connect your Gmail account to send emails
               </p>
-              <Button onClick={connectGmail} className='w-full'>
+              <Button onClick={handleConnect} className='w-full'>
                 Connect Gmail
               </Button>
             </CardContent>

@@ -5,8 +5,7 @@ import { client } from "@/lib/apollo-client";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/feedback/toaster";
 import { SupabaseProvider } from "@/contexts/auth/SupabaseContext";
-import { OpenAIProvider } from "@/contexts/auth/OpenAIContext";
-import { GmailProvider } from "@/contexts/auth/GmailContext";
+import { ConnectionsProvider } from "@/contexts/connections/ConnectionsContext";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -22,12 +21,10 @@ export function Providers({ children }: ProvidersProps) {
     >
       <SupabaseProvider>
         <ApolloProvider client={client}>
-          <OpenAIProvider>
-            <GmailProvider>
-              {children}
-              <Toaster />
-            </GmailProvider>
-          </OpenAIProvider>
+          <ConnectionsProvider>
+            {children}
+            <Toaster />
+          </ConnectionsProvider>
         </ApolloProvider>
       </SupabaseProvider>
     </ThemeProvider>

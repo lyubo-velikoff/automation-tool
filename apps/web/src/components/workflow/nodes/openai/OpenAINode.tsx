@@ -26,7 +26,7 @@ import {
   PopoverTrigger
 } from "@/components/ui/overlays/popover";
 import { NodeData } from "@/components/workflow/config/nodeTypes";
-import { useOpenAI } from "@/contexts/auth/OpenAIContext";
+import { useConnections } from "@/contexts/connections/ConnectionsContext";
 import { Button } from "@/components/ui/inputs/button";
 import { useState } from "react";
 
@@ -63,9 +63,9 @@ function OpenAINode({
   type,
   isConnectable
 }: OpenAINodeProps) {
-  const { isConnected, verifyKey } = useOpenAI();
+  const { connections, connect } = useConnections();
   const [apiKey, setApiKey] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfigChange = (field: string, value: string | number) => {
     data.onConfigChange?.(id || "", {
@@ -75,11 +75,11 @@ function OpenAINode({
   };
 
   const handleConnect = async () => {
-    setIsVerifying(true);
+    setIsSubmitting(true);
     try {
-      await verifyKey(apiKey);
+      await connect("openai", { apiKey });
     } finally {
-      setIsVerifying(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -127,7 +127,7 @@ function OpenAINode({
             </CardDescription>
           </CardHeader>
           <CardContent className='flex flex-col gap-4'>
-            {!isConnected ? (
+            {!connections.openai.isConnected ? (
               <div className='space-y-4'>
                 <div className='text-sm text-muted-foreground'>
                   Please connect your OpenAI account to use this node.
@@ -143,9 +143,9 @@ function OpenAINode({
                 </div>
                 <Button
                   onClick={handleConnect}
-                  disabled={!apiKey || isVerifying}
+                  disabled={!apiKey || isSubmitting}
                 >
-                  {isVerifying ? "Verifying..." : "Connect OpenAI"}
+                  {isSubmitting ? "Connecting..." : "Connect OpenAI"}
                 </Button>
               </div>
             ) : (
