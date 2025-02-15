@@ -169,16 +169,23 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
     const serviceConfig = SERVICES[service];
 
     try {
-      const updates = {
-        [`${service}_tokens`]: null,
-        [`${service}_api_key`]: null,
+      // Determine which field to update based on service type
+      const updates: Record<string, any> = {
         updated_at: new Date().toISOString()
       };
 
-      await supabase
+      if (serviceConfig.type === 'oauth') {
+        updates[`${service}_tokens`] = null;
+      } else if (serviceConfig.type === 'apiKey') {
+        updates[`${service}_api_key`] = null;
+      }
+
+      const { error } = await supabase
         .from("user_settings")
         .update(updates)
         .eq("user_id", user.id);
+
+      if (error) throw error;
 
       setConnections(prev => ({
         ...prev,
@@ -190,6 +197,7 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         description: `Successfully disconnected from ${serviceConfig.name}`
       });
     } catch (error) {
+      console.error(`Failed to disconnect ${service}:`, error);
       toast({
         title: "Error",
         description: `Failed to disconnect from ${serviceConfig.name}`,
