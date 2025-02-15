@@ -111,15 +111,6 @@ const ActionCell = ({ workflow }: { workflow: Workflow }) => {
           <Pencil className='h-4 w-4' />
         )}
       </Button>
-      <Button
-        variant='ghost'
-        size='sm'
-        onClick={() => handleExecute(workflow.id)}
-        className='h-8 w-8 p-0'
-        title='Execute workflow'
-      >
-        <Play className='h-4 w-4' />
-      </Button>
       <DuplicateWorkflowDialog workflow={workflow} />
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
