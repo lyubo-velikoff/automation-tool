@@ -3,7 +3,9 @@
 import { useState } from "react"
 import { Mail, Sparkles } from "lucide-react"
 import { useGmailAuth } from "@/hooks/auth/useGmailAuth"
+import { useOpenAI } from "@/contexts/auth/OpenAIContext"
 import { Button } from "@/components/ui/inputs/button"
+import { Input } from "@/components/ui/inputs/input"
 import {
   Card,
   CardContent,
@@ -11,13 +13,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/layout/dialog"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/layout/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/data-display/separator"
 
 export default function ConnectionsPage() {
   const { isGmailConnected, connectGmail } = useGmailAuth()
+  const { isConnected: isOpenAIConnected, verifyKey, disconnect: disconnectOpenAI } = useOpenAI()
   const [openAISettingsOpen, setOpenAISettingsOpen] = useState(false)
+  const [apiKey, setApiKey] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleOpenAISubmit = async () => {
+    if (!apiKey.trim()) return
+    
+    setIsSubmitting(true)
+    try {
+      await verifyKey(apiKey)
+      setOpenAISettingsOpen(false)
+      setApiKey("")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -76,23 +102,65 @@ export default function ConnectionsPage() {
                     <div>
                       <h3 className="font-medium">OpenAI</h3>
                       <p className="text-sm text-muted-foreground">
-                        Configure API key
+                        {isOpenAIConnected ? "Connected" : "Not connected"}
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setOpenAISettingsOpen(true)}
-                  >
-                    Configure
-                  </Button>
+                  <div className="flex gap-2">
+                    {isOpenAIConnected && (
+                      <Button
+                        variant="outline"
+                        onClick={disconnectOpenAI}
+                      >
+                        Disconnect
+                      </Button>
+                    )}
+                    <Button
+                      variant={isOpenAIConnected ? "outline" : "default"}
+                      onClick={() => setOpenAISettingsOpen(true)}
+                    >
+                      {isOpenAIConnected ? "Update Key" : "Connect"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
-
         </div>
       </SidebarInset>
+
+      <Dialog open={openAISettingsOpen} onOpenChange={setOpenAISettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>OpenAI Configuration</DialogTitle>
+            <DialogDescription>
+              Enter your OpenAI API key to enable AI features. You can find your API key in your OpenAI dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Input
+              type="password"
+              placeholder="sk-..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpenAISettingsOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleOpenAISubmit}
+              disabled={!apiKey.trim() || isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }

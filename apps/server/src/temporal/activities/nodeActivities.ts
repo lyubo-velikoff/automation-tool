@@ -71,7 +71,7 @@ async function handleGmailAction(
   context: WorkflowContext = { nodeResults: {} }
 ): Promise<void> {
   if (!gmailToken) {
-    throw new Error('Gmail token not found. Please reconnect your Gmail account.');
+    throw new Error('Gmail access token not found. Please reconnect your Gmail account.');
   }
 
   if (!node.data?.to || !node.data?.subject || !node.data?.body) {

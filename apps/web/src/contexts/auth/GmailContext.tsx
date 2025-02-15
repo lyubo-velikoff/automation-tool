@@ -1,8 +1,7 @@
 "use client";
 
-import { createContext, useContext, ReactNode, useEffect } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { useGmailAuth } from "@/hooks/auth/useGmailAuth";
-import { supabase } from "@/lib/supabase";
 
 interface GmailContextType {
   isGmailConnected: boolean;
@@ -17,25 +16,7 @@ interface GmailProviderProps {
 }
 
 export function GmailProvider({ children }: GmailProviderProps) {
-  const { isGmailConnected, connectGmail, checkGmailConnection } =
-    useGmailAuth();
-
-  // Store token in headers whenever it changes
-  useEffect(() => {
-    if (isGmailConnected) {
-      // Get token from Supabase session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        const token = session?.provider_token;
-        if (token) {
-          // Store in localStorage
-          localStorage.setItem('gmailToken', token);
-        }
-      });
-    } else {
-      // Clear token when disconnected
-      localStorage.removeItem('gmailToken');
-    }
-  }, [isGmailConnected]);
+  const { isGmailConnected, connectGmail, checkGmailConnection } = useGmailAuth();
 
   return (
     <GmailContext.Provider

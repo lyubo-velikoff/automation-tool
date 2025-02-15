@@ -424,15 +424,27 @@ export class WorkflowResolver {
 
     switch (nodeType) {
       case "openaiCompletion":
-        // Temporarily return empty credentials to skip OpenAI validation
-        return { apiKey: "disabled" };
+        // First try user's API key, then fall back to default
+        if (settings.openai_api_key) {
+          return { apiKey: settings.openai_api_key };
+        }
+        // Fallback to environment variable
+        const defaultKey = process.env.OPENAI_API_KEY;
+        if (!defaultKey) {
+          throw new Error("OpenAI API key not found. Please connect your OpenAI account.");
+        }
+        return { apiKey: defaultKey };
+
       case "GMAIL_TRIGGER":
       case "GMAIL_ACTION":
-        // Get Gmail OAuth tokens from user settings
+        if (!settings.gmail_tokens) {
+          throw new Error("Gmail tokens not found. Please reconnect your Gmail account.");
+        }
         return { tokens: settings.gmail_tokens };
+
       case "SCRAPING":
-        // Scraping doesn't need credentials
         return {};
+
       default:
         throw new Error(`Unknown node type: ${nodeType}`);
     }
@@ -835,94 +847,71 @@ export class WorkflowResolver {
     @Arg("workflowId", () => String) workflowId: string,
     @Ctx() context: any
   ): Promise<ExecutionResult> {
-    // Get workflow
-    const { data: workflowData, error } = await supabase
-      .from("workflows")
-      .select("*")
-      .eq("id", workflowId)
-      .single();
-
-    if (error) throw error;
-    if (!workflowData) throw new Error("Workflow not found");
-
-    this.currentWorkflow = workflowData;
-
     try {
-      const gmailToken = context.req?.headers?.["gmail-token"];
-      const userId = context.user?.id;
-      
-      if (!userId) {
-        throw new Error("User ID is required");
+      const workflow = await this.workflow(workflowId, context);
+      if (!workflow) {
+        throw new Error("Workflow not found");
       }
 
-      // Create execution context
-      const nodeResults = {} as Record<string, any>;
-      const executionId = `exec-${Date.now()}`;
-      const results: NodeResult[] = [];
+      // Get user settings for tokens
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("gmail_tokens")
+        .eq("user_id", context.user.id)
+        .single();
 
-      // Sort nodes in execution order
-      const sortedNodes = this.getNodesInExecutionOrder(
-        workflowData.nodes,
-        workflowData.edges
+      const gmailToken = settings?.gmail_tokens?.access_token;
+      if (!gmailToken) {
+        console.warn("Gmail token not found in user settings");
+      }
+
+      const executionOrder = this.getNodesInExecutionOrder(
+        workflow.nodes,
+        workflow.edges
       );
 
-      // Execute nodes in order
-      for (const node of sortedNodes) {
-        const nodeName = node.data?.label || node.label || `${node.type} Node`;
+      const nodeResults: Record<string, any> = {};
+      const results: NodeResult[] = [];
+      const executionId = `exec-${Date.now()}`;
+      
+      for (const node of executionOrder) {
         try {
-          const nodeResult = await this.executeNode(node, {
-            token: gmailToken,
+          const result = await this.executeNode(node, {
             nodeResults,
-            userId,
+            userId: context.user.id,
+            gmailToken
           });
-
-          results.push(nodeResult);
-        } catch (error: any) {
-          console.error(`Error executing node ${nodeName}:`, error);
+          results.push(result);
+        } catch (error) {
+          console.error(`Error executing node ${node.id}:`, error);
+          const nodeName = node.data?.label || node.label || `${node.type} Node`;
           results.push(
             new NodeResult(
               node.id,
               "error",
-              [{ error: error.message || "Unknown error" }],
+              [{ error: error instanceof Error ? error.message : "Unknown error" }],
               nodeName
             )
           );
-          break; // Stop execution on error
+          break;
         }
       }
 
-      // Save execution results
-      const { error: saveError } = await supabase
-        .from("workflow_executions")
-        .insert({
-          workflow_id: workflowId,
-          user_id: userId,
-          execution_id: executionId,
-          status: results.some((r) => r.status === "error")
-            ? "error"
-            : "success",
-          results,
-        });
-
-      if (saveError) {
-        console.error("Error saving execution results:", saveError);
-      }
-
       return {
-        success: !results.some((r) => r.status === "error"),
-        message: results.some((r) => r.status === "error")
+        success: !results.some(r => r.status === "error"),
+        message: results.some(r => r.status === "error")
           ? "Workflow execution failed"
           : "Workflow executed successfully",
         executionId,
-        results,
+        results
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error executing workflow:", error);
       return {
         success: false,
-        message: error.message || "Unknown error",
+        message: error instanceof Error ? error.message : "Unknown error occurred",
         executionId: `exec-${Date.now()}`,
-        results: [],
+        results: []
       };
     }
   }
@@ -998,18 +987,22 @@ export class WorkflowResolver {
 
   private async executeNode(
     node: WorkflowNode,
-    context: any
+    context: {
+      nodeResults: Record<string, any>;
+      userId: string;
+      gmailToken?: string;
+    }
   ): Promise<NodeResult> {
+    const nodeName = node.data?.label || node.label || `${node.type} Node`;
     try {
       let result: any;
-      const nodeName = node.data?.label || node.label || `${node.type} Node`;
 
       switch (node.type) {
         case "GMAIL_TRIGGER":
-          result = await this.executeGmailTrigger(node, context.token);
+          result = await this.executeGmailTrigger(node, context.gmailToken);
           break;
         case "GMAIL_ACTION":
-          result = await this.executeGmailAction(node, context.token, context);
+          result = await this.executeGmailAction(node, context.gmailToken, context);
           break;
         case "SCRAPING":
         case "MULTI_URL_SCRAPING":
@@ -1017,7 +1010,6 @@ export class WorkflowResolver {
           break;
         case "OPENAI":
           const completion = await this.executeOpenAINode(node, context);
-          // Store OpenAI results as an object with text property
           result = { text: completion };
           break;
         default:
@@ -1026,12 +1018,10 @@ export class WorkflowResolver {
 
       // Store results with both ID and label for easier lookup
       if (result) {
-        // Ensure all results are objects with a label
         const resultObj = {
           ...result,
           label: nodeName,
         };
-        
         context.nodeResults[node.id] = resultObj;
         if (nodeName) {
           context.nodeResults[nodeName] = resultObj;
@@ -1041,14 +1031,8 @@ export class WorkflowResolver {
       return new NodeResult(node.id, "success", [result], nodeName);
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
-      const nodeName = node.data?.label || node.label || `${node.type} Node`;
-      const errorResult = { error: error instanceof Error ? error.message : "Unknown error occurred" };
-      return new NodeResult(
-        node.id,
-        "error",
-        [errorResult],
-        nodeName
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      return new NodeResult(node.id, "error", [{ error: errorMessage }], nodeName);
     }
   }
 

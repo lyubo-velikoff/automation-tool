@@ -3,9 +3,19 @@ import {
   useContext,
   useState,
   useCallback,
-  ReactNode
+  ReactNode,
+  useEffect
 } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useSupabase } from "@/contexts/auth/SupabaseContext";
+import { PostgrestSingleResponse } from "@supabase/supabase-js";
+
+interface UserSettings {
+  user_id: string;
+  openai_api_key: string | null;
+  gmail_tokens: any;
+  updated_at: string;
+}
 
 interface OpenAIContextType {
   isConnected: boolean;
@@ -21,9 +31,36 @@ export function OpenAIProvider({ children }: { children: ReactNode }) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
+  const { supabase, user } = useSupabase();
+
+  // Load saved API key on mount
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("user_settings")
+        .select("openai_api_key")
+        .eq("user_id", user.id)
+        .single()
+        .then(({ data, error }: PostgrestSingleResponse<Pick<UserSettings, "openai_api_key">>) => {
+          if (!error && data?.openai_api_key) {
+            setApiKey(data.openai_api_key);
+            setIsConnected(true);
+          }
+        });
+    }
+  }, [user, supabase]);
 
   const verifyKey = useCallback(
     async (key: string) => {
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to connect OpenAI",
+          variant: "destructive"
+        });
+        return false;
+      }
+
       try {
         const response = await fetch("/api/openai/verify", {
           method: "POST",
@@ -35,6 +72,21 @@ export function OpenAIProvider({ children }: { children: ReactNode }) {
 
         if (!response.ok) {
           throw new Error("Invalid API key");
+        }
+
+        // Update user settings with the new API key
+        const { error: updateError } = await supabase
+          .from("user_settings")
+          .upsert({
+            user_id: user.id,
+            openai_api_key: key,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: "user_id"
+          });
+
+        if (updateError) {
+          throw new Error("Failed to save API key");
         }
 
         setApiKey(key);
@@ -56,17 +108,28 @@ export function OpenAIProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [toast]
+    [toast, user, supabase]
   );
 
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback(async () => {
+    if (user) {
+      // Remove API key from user settings
+      await supabase
+        .from("user_settings")
+        .update({
+          openai_api_key: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", user.id);
+    }
+
     setApiKey(null);
     setIsConnected(false);
     toast({
       title: "OpenAI Disconnected",
       description: "Successfully disconnected from OpenAI"
     });
-  }, [toast]);
+  }, [toast, user, supabase]);
 
   return (
     <OpenAIContext.Provider

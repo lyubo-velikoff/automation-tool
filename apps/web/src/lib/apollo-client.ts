@@ -29,19 +29,24 @@ const authLink = setContext(async (_, { headers }) => {
     // Always get fresh session to ensure we have the latest state
     const { data: { session } } = await supabase.auth.getSession();
     
-    const token = session?.access_token;
-    
-    // Get Gmail token from localStorage instead of session
-    let gmailToken = null;
-    if (typeof window !== 'undefined') {
-      gmailToken = localStorage.getItem('gmailToken');
+    if (!session?.user) {
+      return { headers };
     }
+
+    // Get Gmail tokens from user settings
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('gmail_tokens')
+      .eq('user_id', session.user.id)
+      .single();
+
+    const gmailToken = settings?.gmail_tokens?.access_token || '';
 
     return {
       headers: {
         ...headers,
-        authorization: token ? `Bearer ${token}` : '',
-        'gmail-token': gmailToken || '', // Use consistent header name
+        authorization: session.access_token ? `Bearer ${session.access_token}` : '',
+        'gmail-token': gmailToken,
       }
     };
   } catch (error) {
@@ -60,7 +65,7 @@ export const client = new ApolloClient({
       nextFetchPolicy: 'cache-first',
     },
     query: {
-      fetchPolicy: 'network-only', // Always fetch fresh data after auth changes
+      fetchPolicy: 'network-only',
     },
   },
   connectToDevTools: process.env.NODE_ENV === 'development',
@@ -71,7 +76,6 @@ export const client = new ApolloClient({
 // Listen for auth state changes
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session) {
-    // Reset Apollo cache when auth state changes
     client.resetStore().catch(console.error);
   }
 }); 

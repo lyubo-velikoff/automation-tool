@@ -3,23 +3,33 @@
 import { ApolloProvider } from "@apollo/client";
 import { client } from "@/lib/apollo-client";
 import { ThemeProvider } from "next-themes";
-import { PropsWithChildren } from "react";
-import { GmailProvider } from "@/contexts/auth/GmailContext";
+import { Toaster } from "@/components/ui/feedback/toaster";
+import { SupabaseProvider } from "@/contexts/auth/SupabaseContext";
 import { OpenAIProvider } from "@/contexts/auth/OpenAIContext";
+import { GmailProvider } from "@/contexts/auth/GmailContext";
 
-export function Providers({ children }: PropsWithChildren) {
+interface ProvidersProps {
+  children: React.ReactNode;
+}
+
+export function Providers({ children }: ProvidersProps) {
   return (
     <ThemeProvider
-      attribute='class'
-      defaultTheme='system'
+      attribute="class"
+      defaultTheme="system"
       enableSystem
       disableTransitionOnChange
     >
-      <OpenAIProvider>
+      <SupabaseProvider>
         <ApolloProvider client={client}>
-          <GmailProvider>{children}</GmailProvider>
+          <OpenAIProvider>
+            <GmailProvider>
+              {children}
+              <Toaster />
+            </GmailProvider>
+          </OpenAIProvider>
         </ApolloProvider>
-      </OpenAIProvider>
+      </SupabaseProvider>
     </ThemeProvider>
   );
 }

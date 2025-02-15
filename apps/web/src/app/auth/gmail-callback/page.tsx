@@ -16,6 +16,25 @@ export default function GmailCallback() {
         if (error) throw error;
 
         if (session && window.opener) {
+          // Save Gmail tokens to user settings
+          const { error: updateError } = await supabase
+            .from('user_settings')
+            .upsert({
+              user_id: session.user.id,
+              gmail_tokens: {
+                access_token: session.provider_token,
+                refresh_token: session.provider_refresh_token,
+                expires_at: session.expires_at
+              }
+            }, {
+              onConflict: 'user_id'
+            });
+
+          if (updateError) {
+            console.error('Error saving Gmail tokens:', updateError);
+            throw updateError;
+          }
+
           setStatus("Connection successful");
           // Send message to parent window
           window.opener.postMessage(
