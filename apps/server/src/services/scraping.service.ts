@@ -131,7 +131,6 @@ export class ScrapingService {
     attributes: string[],
     batchConfig?: BatchConfig
   ): Promise<ScrapingResult[]> {
-
     // Default batch configuration
     const batchSize = batchConfig?.batchSize || 1;
     const rateLimit = batchConfig?.rateLimit || 1;
@@ -158,7 +157,7 @@ export class ScrapingService {
             // Remove noscript tags as they can contain duplicate content
             $('noscript').remove();
 
-            const extractedData: Record<string, string>[] = [];
+            const extractedData: string[] = [];
             
             // Process the selector using the same Cheerio instance
             let elements;
@@ -180,23 +179,27 @@ export class ScrapingService {
             // Process all matching elements
             elements.each((_, element) => {
               const $el = $(element);
-              const elementData: Record<string, string> = {};
+              let value = '';
 
-              selector.attributes.forEach(attr => {
+              // Process attributes in order of priority
+              for (const attr of attributes) {
                 if (attr === 'text') {
-                  elementData[selector.name] = $el.text().trim();
+                  value = $el.text().trim();
+                  break;
                 } else if (attr === 'html') {
-                  elementData[selector.name] = $el.html()?.trim() || '';
+                  value = $el.html()?.trim() || '';
+                  break;
                 } else {
-                  const value = $el.attr(attr);
-                  if (value) {
-                    elementData[selector.name] = value.trim();
+                  const attrValue = $el.attr(attr);
+                  if (attrValue) {
+                    value = attrValue.trim();
+                    break;
                   }
                 }
-              });
+              }
 
-              if (Object.keys(elementData).length > 0) {
-                extractedData.push(elementData);
+              if (value) {
+                extractedData.push(value);
               }
             });
 
@@ -225,14 +228,12 @@ export class ScrapingService {
     selectorType: 'css' | 'xpath',
     attributes: string[] = ['text'],
     selectorName: string = 'text'
-  ): Promise<ScrapedItem[]> {
-
+  ): Promise<string[]> {
     try {
       // Use JavaScript rendering for Discourse forums
       const isDiscourseForum = url.includes('forum.cursor.com');
       const html = await this.getCachedPage(url, isDiscourseForum);
-
-      const results: ScrapedItem[] = [];
+      const results: string[] = [];
 
       if (selectorType === 'xpath') {
         // XPath processing
@@ -245,23 +246,20 @@ export class ScrapingService {
         }
 
         for (const node of nodes) {
-          const item: ScrapedItem = {};
-          
           for (const attr of attributes) {
+            let value = '';
             if (attr === 'text') {
-              const text = xpath.select('string(.)', node).toString().trim();
-              if (text) item[selectorName] = text;
+              value = xpath.select('string(.)', node).toString().trim();
             } else if (attr === 'html') {
               // Not supported for XPath
               console.warn('HTML attribute not supported for XPath selectors');
             } else {
-              const value = xpath.select(`string(@${attr})`, node).toString();
-              if (value) item[selectorName] = value;
+              value = xpath.select(`string(@${attr})`, node).toString().trim();
             }
-          }
-
-          if (Object.keys(item).length > 0) {
-            results.push(item);
+            if (value) {
+              results.push(value);
+              break; // Only use first successful attribute
+            }
           }
         }
       } else {
@@ -272,24 +270,28 @@ export class ScrapingService {
         const elements = $(selector);
 
         elements.each((_, el) => {
-          const item: ScrapedItem = {};
           const $el = $(el);
+          let value = '';
           
-          attributes.forEach(attr => {
+          // Process attributes in order of priority
+          for (const attr of attributes) {
             if (attr === 'text') {
-              const text = $el.text().trim();
-              if (text) item[selectorName] = text;
+              value = $el.text().trim();
+              break;
             } else if (attr === 'html') {
-              const html = $el.html() || '';
-              if (html) item[selectorName] = html;
+              value = $el.html()?.trim() || '';
+              break;
             } else {
-              const value = $el.attr(attr);
-              if (value) item[selectorName] = value;
+              const attrValue = $el.attr(attr);
+              if (attrValue) {
+                value = attrValue.trim();
+                break;
+              }
             }
-          });
+          }
 
-          if (Object.keys(item).length > 0) {
-            results.push(item);
+          if (value) {
+            results.push(value);
           }
         });
       }

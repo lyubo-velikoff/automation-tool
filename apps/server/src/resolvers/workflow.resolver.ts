@@ -662,25 +662,15 @@ export class WorkflowResolver {
               batchConfig
             );
 
-            // Extract and parse results
-            const parsedResults = results
+            // Extract and combine results from all successful scrapes
+            const combinedResults = results
               .filter((r) => r.success)
               .map((r) => r.results)
-              .flat()
-              .map((result) => {
-                if (typeof result === "string") {
-                  try {
-                    return JSON.parse(result);
-                  } catch {
-                    return result;
-                  }
-                }
-                return result;
-              });
+              .flat();
 
             return {
               name: selector.name || "Default",
-              results: parsedResults,
+              results: combinedResults,
             };
           })
         );
@@ -690,7 +680,7 @@ export class WorkflowResolver {
           bySelector: allResults.reduce((acc, { name, results }) => {
             acc[name] = results;
             return acc;
-          }, {} as Record<string, any[]>),
+          }, {} as Record<string, string[]>),
         };
 
         return formattedResults;
@@ -731,6 +721,7 @@ export class WorkflowResolver {
             selector.attributes,
             selector.name || "Default"
           );
+
           return {
             name: selector.name || "Default",
             results,
@@ -743,7 +734,7 @@ export class WorkflowResolver {
         bySelector: allResults.reduce((acc, { name, results }) => {
           acc[name] = results;
           return acc;
-        }, {} as Record<string, any[]>),
+        }, {} as Record<string, string[]>),
       };
 
       return formattedResults;

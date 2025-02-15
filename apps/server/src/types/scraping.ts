@@ -31,9 +31,12 @@ export type ScrapedItem = { [key: string]: string };
 
 export interface ScrapingResult {
   success: boolean;
-  data?: { [key: string]: string };
-  results: string[][];
-  error?: string | null;
+  results: string[];
+  error?: string;
+}
+
+export interface FormattedScrapingResult {
+  bySelector: Record<string, string[]>;
 }
 
 export interface SelectorResult {
@@ -63,23 +66,11 @@ export interface OpenAICompletionConfig {
 }
 
 // Validation classes for API endpoints
-export class SelectorConfig {
-  @IsString()
-  selector!: string;
-
-  @IsEnum(['css', 'xpath'])
-  selectorType!: 'css' | 'xpath';
-
-  @IsArray()
-  @IsString({ each: true })
-  attributes!: string[];
-
-  @IsString()
-  name!: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
+export interface SelectorConfig {
+  selector: string;
+  selectorType: 'css' | 'xpath';
+  attributes: string[];
+  name: string;
 }
 
 export class ScrapeRequest {
