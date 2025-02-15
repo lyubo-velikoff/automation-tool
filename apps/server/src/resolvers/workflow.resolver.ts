@@ -835,15 +835,6 @@ export class WorkflowResolver {
     @Arg("workflowId", () => String) workflowId: string,
     @Ctx() context: any
   ): Promise<ExecutionResult> {
-    console.log("Debug - Workflow Execution Start:", {
-      workflowId,
-      hasContext: !!context,
-      hasReqHeaders: !!context.req?.headers,
-      allHeaders: context.req?.headers,
-      gmailToken: context.req?.headers?.["gmail-token"],
-      userId: context.user?.id
-    });
-
     // Get workflow
     const { data: workflowData, error } = await supabase
       .from("workflows")
@@ -857,20 +848,12 @@ export class WorkflowResolver {
     this.currentWorkflow = workflowData;
 
     try {
-      // Get the Gmail token from context.req.headers
       const gmailToken = context.req?.headers?.["gmail-token"];
       const userId = context.user?.id;
       
       if (!userId) {
         throw new Error("User ID is required");
       }
-
-      // Also check user settings for Gmail token
-      const { data: settings } = await supabase
-        .from("user_settings")
-        .select("gmail_tokens")
-        .eq("user_id", userId)
-        .single();
 
       // Create execution context
       const nodeResults = {} as Record<string, any>;
@@ -882,6 +865,7 @@ export class WorkflowResolver {
         workflowData.nodes,
         workflowData.edges
       );
+
       // Execute nodes in order
       for (const node of sortedNodes) {
         const nodeName = node.data?.label || node.label || `${node.type} Node`;
@@ -892,7 +876,6 @@ export class WorkflowResolver {
             userId,
           });
 
-          // Add to results array
           results.push(nodeResult);
         } catch (error: any) {
           console.error(`Error executing node ${nodeName}:`, error);
@@ -1086,15 +1069,11 @@ export class WorkflowResolver {
         throw new Error("Prompt is empty after variable interpolation");
       }
 
-      const result = await openaiService.complete(prompt, {
+      return await openaiService.complete(prompt, {
         model: node.data.model,
         temperature: node.data.temperature,
         maxTokens: node.data.maxTokens,
       });
-
-      // Return just the completion result as a string
-      // This makes it easier to use in variable interpolation
-      return result;
     } catch (error) {
       console.error("OpenAI node execution error:", error);
       throw error;

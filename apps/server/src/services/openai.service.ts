@@ -82,28 +82,18 @@ export class OpenAIService {
         throw new Error('Max tokens must be between 1 and 4000');
       }
 
-      // Log the interpolated prompt and parameters for debugging
-      console.log('OpenAI Request:', {
-        prompt,
+      const completion = await this.openai.chat.completions.create({
         model,
+        messages: [{ role: 'user', content: prompt }],
         temperature,
-        maxTokens,
-        timestamp: new Date().toISOString()
+        max_tokens: maxTokens,
       });
 
-      return '[DEBUG] OpenAI completion disabled. Would send prompt:\n' + prompt;
-      // const completion = await this.openai.chat.completions.create({
-      //   model,
-      //   messages: [{ role: 'user', content: prompt }],
-      //   temperature,
-      //   max_tokens: maxTokens,
-      // });
+      if (!completion.choices[0]?.message?.content) {
+        throw new Error('No completion generated');
+      }
 
-      // if (!completion.choices[0]?.message?.content) {
-      //   throw new Error('No completion generated');
-      // }
-
-      // return completion.choices[0].message.content;
+      return completion.choices[0].message.content;
     } catch (error: any) {
       // Handle specific OpenAI error types
       if (error.error?.type === 'invalid_request_error') {
