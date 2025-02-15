@@ -62,6 +62,7 @@ export const GET_WORKFLOW_EXECUTIONS = gql`
       status
       results {
         nodeId
+        nodeName
         status
         results
       }
