@@ -309,16 +309,16 @@ automation-tool/
 
 ## Key Technologies & Versions
 - Next.js: 15.1.6
-- React: 19.0.0
-- TypeScript: 5.x
+- React: ^18
+- TypeScript: ^5
 - Node.js: 20.x
-- Express: 4.21.2
-- Apollo Server: 3.13.0
-- TypeGraphQL: 2.0.0-rc.2
-- React Flow: 11.11.4
+- Express: 4.18.2
+- Apollo Server: 4.10.0
+- TypeGraphQL: 2.0.0-beta.3
+- React Flow: 11.10.1
 - shadcn/ui: latest
 - pnpm: 8.15.4
-- Temporal.io: 1.11.6
+- Temporal.io: 1.8.6 (client/worker/workflow), 1.11.6 (activity)
 
 ## Environment Variables
 Required variables:

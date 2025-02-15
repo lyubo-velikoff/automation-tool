@@ -33,7 +33,7 @@ automation-tool/
 - Supabase account
 - OpenAI API key
 - Gmail API credentials (for email automation)
-- Temporal server (local or cloud)
+- Temporal server (local or cloud) v1.8.6+
 
 ## Getting Started
 
@@ -93,11 +93,25 @@ pnpm test:watch
 pnpm test:coverage
 ```
 
-Key test suites:
-- Gmail Integration (`apps/server/tests/gmail.test.ts`)
-- OpenAI Integration (`apps/server/tests/openai.test.ts`)
-- Web Scraping (`apps/server/tests/scraping.test.ts`)
-- Contract Tests (`apps/server/tests/contracts/`)
+### Server Tests
+
+The server includes comprehensive test suites for various functionalities:
+
+```bash
+# Run all server tests
+pnpm test:all
+
+# Individual test suites
+pnpm test:workflow-operations    # Test workflow CRUD operations
+pnpm test:workflow-execution     # Test workflow execution
+pnpm test:workflow-tags          # Test workflow tag operations
+pnpm test:workflow-scraping      # Test scraping workflow functionality
+pnpm test:scraper:graphql        # Test GraphQL scraping endpoint
+pnpm test:scraper:multi         # Test multi-URL scraping
+pnpm test:scraping              # Test basic scraping functionality
+pnpm test:health                # Test server health endpoint
+pnpm test:workflow:forum        # Test forum scraper workflow
+```
 
 ### E2E Tests
 
@@ -109,6 +123,12 @@ pnpm test:e2e
 
 # Run E2E tests with UI
 pnpm test:e2e:ui
+
+# Debug E2E tests
+pnpm test:e2e:debug
+
+# View E2E test report
+pnpm test:e2e:report
 ```
 
 Key test scenarios:
