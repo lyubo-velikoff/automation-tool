@@ -1227,6 +1227,7 @@ export class WorkflowResolver {
   @Authorized()
   async duplicateWorkflow(
     @Arg("id", () => ID) id: string,
+    @Arg("name", () => String, { nullable: true }) name: string | undefined,
     @Ctx() context: Context
   ): Promise<Workflow> {
     try {
@@ -1248,10 +1249,10 @@ export class WorkflowResolver {
       const timestamp = Date.now();
 
       // Create new workflow object
-      const { id: _, ...workflowWithoutId } = workflow;
+      const { id: _, created_at: __, updated_at: ___, ...workflowWithoutId } = workflow;
       const newWorkflow = {
         ...workflowWithoutId,
-        name: `${workflow.name} (Copy)`,
+        name: name || `${workflow.name} (Copy)`,
         nodes: workflow.nodes.map((node: WorkflowNode) => ({
           ...node,
           id: `${node.id}-copy-${timestamp}`,
@@ -1279,6 +1280,8 @@ export class WorkflowResolver {
         })),
         user_id: context.user.id,
         is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       // Insert the new workflow

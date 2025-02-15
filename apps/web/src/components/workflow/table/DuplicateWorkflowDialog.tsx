@@ -48,7 +48,10 @@ export function DuplicateWorkflowDialog({
     try {
       setIsLoading(true);
       const { data } = await duplicateWorkflow({
-        variables: { id: workflow.id }
+        variables: { 
+          id: workflow.id,
+          name: newName
+        }
       });
 
       if (!data?.duplicateWorkflow) {

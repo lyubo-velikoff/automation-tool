@@ -56,8 +56,8 @@ export const DELETE_WORKFLOW = gql`
 `;
 
 export const DUPLICATE_WORKFLOW = gql`
-  mutation DuplicateWorkflow($id: ID!) {
-    duplicateWorkflow(id: $id) {
+  mutation DuplicateWorkflow($id: ID!, $name: String) {
+    duplicateWorkflow(id: $id, name: $name) {
       ...WorkflowFields
     }
   }
