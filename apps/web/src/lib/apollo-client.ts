@@ -30,15 +30,32 @@ const authLink = setContext(async (_, { headers }) => {
     const { data: { session } } = await supabase.auth.getSession();
     
     const token = session?.access_token;
-    const gmailToken = session?.provider_token;
+    
+    // Get Gmail token from localStorage instead of session
+    let gmailToken = null;
+    if (typeof window !== 'undefined') {
+      gmailToken = localStorage.getItem('gmailToken');
+      console.log('Debug - Apollo Client:', {
+        operation: _?.operationName,
+        hasAccessToken: !!token,
+        hasGmailToken: !!gmailToken,
+        existingHeaders: Object.keys(headers || {})
+      });
+    }
 
-    return {
-      headers: {
-        ...headers,
-        authorization: token ? `Bearer ${token}` : '',
-        'x-gmail-token': gmailToken || '',
-      }
+    const finalHeaders = {
+      ...headers,
+      authorization: token ? `Bearer ${token}` : '',
+      'gmail-token': gmailToken || '', // Use consistent header name
     };
+
+    console.log('Debug - Final Headers:', {
+      hasAuthorization: !!finalHeaders.authorization,
+      hasGmailToken: !!finalHeaders['gmail-token'],
+      headerKeys: Object.keys(finalHeaders)
+    });
+
+    return { headers: finalHeaders };
   } catch (error) {
     console.error('Error getting auth token:', error);
     return { headers };
