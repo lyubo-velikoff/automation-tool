@@ -12,7 +12,7 @@ import {
   SAVE_AS_TEMPLATE,
   DELETE_WORKFLOW_TEMPLATE
 } from "@/graphql/mutations";
-import { GET_WORKFLOWS } from "@/graphql/queries";
+import { GET_WORKFLOWS, GET_WORKFLOW_EXECUTIONS } from "@/graphql/queries";
 import { useToast } from "@/hooks/use-toast";
 import { Node, Edge } from "reactflow";
 import type { 
@@ -28,9 +28,7 @@ import { NodeData } from "@/components/workflow/config/nodeTypes";
 
 export function useWorkflowHandlers() {
   const { toast } = useToast();
-  const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW, {
-    refetchQueries: ['GetWorkflowExecutions']
-  });
+  const [executeWorkflow] = useMutation(EXECUTE_WORKFLOW);
   const [updateWorkflow] = useMutation(UPDATE_WORKFLOW);
   const [deleteWorkflow] = useMutation(DELETE_WORKFLOW, {
     refetchQueries: ['GetWorkflows']
@@ -188,7 +186,12 @@ export function useWorkflowHandlers() {
       const { data } = await executeWorkflow({
         variables: {
           workflowId
-        }
+        },
+        refetchQueries: [{
+          query: GET_WORKFLOW_EXECUTIONS,
+          variables: { workflowId }
+        }],
+        awaitRefetchQueries: true
       });
 
       if (!data.executeWorkflow.success) {
