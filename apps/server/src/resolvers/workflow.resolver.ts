@@ -1032,7 +1032,15 @@ export class WorkflowResolver {
     } catch (error) {
       console.error(`Error executing node ${node.id}:`, error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      return new NodeResult(node.id, "error", [{ error: errorMessage }], nodeName);
+      
+      // Store error result with both ID and label for variable interpolation
+      const errorResult = { error: errorMessage, text: errorMessage };
+      context.nodeResults[node.id] = errorResult;
+      if (nodeName) {
+        context.nodeResults[nodeName] = errorResult;
+      }
+      
+      return new NodeResult(node.id, "error", [errorResult], nodeName);
     }
   }
 
